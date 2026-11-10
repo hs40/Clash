@@ -7,6 +7,8 @@
 白名单之外的键、公共与平台重复定义的键、同一文件内的重复键都会让构建失败。
 """
 
+import ipaddress
+import re
 import sys
 from pathlib import Path
 
@@ -88,6 +90,28 @@ EMPTY_REGION_FALLBACK = "自动选择"
 
 # Mihomo 内置策略，允许出现在成员列表中。
 BUILTIN_POLICIES = ("DIRECT", "REJECT", "REJECT-DROP", "PASS")
+
+# ENG-03 DNS 基线：所有键都必须存在，缺失或类型不符使构建失败。
+DNS_REQUIRED_KEYS = (
+    "enable",
+    "listen",
+    "ipv6",
+    "enhanced-mode",
+    "fake-ip-range",
+    "fake-ip-filter",
+    "default-nameserver",
+    "nameserver",
+    "proxy-server-nameserver",
+    "fallback",
+    "fallback-filter",
+)
+
+DNS_SERVER_KEYS = (
+    "default-nameserver",
+    "nameserver",
+    "proxy-server-nameserver",
+    "fallback",
+)
 
 
 class ConfigError(Exception):
@@ -366,6 +390,117 @@ def compile_rules(rules, group_names):
     return compiled
 
 
+def _dns_error(detail):
+    raise ConfigError("dns：" + detail)
+
+
+def _validate_dns_list(dns, key, ip_only=False):
+    value = dns.get(key)
+    if not isinstance(value, list) or not value:
+        _dns_error("%s 必须是非空列表" % key)
+    seen = set()
+    for item in value:
+        if not isinstance(item, str) or not item or item != item.strip():
+            _dns_error("%s 的条目必须是非空字符串" % key)
+        if item in seen:
+            _dns_error("%s 存在重复条目：%r" % (key, item))
+        if "::" in item or item.startswith("["):
+            _dns_error("%s 不得包含 IPv6 地址：%r" % (key, item))
+        if ip_only:
+            try:
+                address = ipaddress.ip_address(item)
+            except ValueError:
+                _dns_error("%s 必须是 IPv4 地址：%r" % (key, item))
+            if address.version != 4:
+                _dns_error("%s 必须是 IPv4 地址：%r" % (key, item))
+        seen.add(item)
+    return value
+
+
+def _parse_dns_listen(value):
+    if not isinstance(value, str) or value.count(":") != 1:
+        _dns_error("listen 必须是 IPv4:端口 形式")
+    host, port_text = value.split(":")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        _dns_error("listen 的主机必须是 IPv4 地址：%r" % host)
+    if address.version != 4:
+        _dns_error("listen 的主机必须是 IPv4 地址：%r" % host)
+    if not re.fullmatch(r"[0-9]+", port_text):
+        _dns_error("listen 的端口必须是整数")
+    port = int(port_text)
+    if not 1 <= port <= 65535:
+        _dns_error("listen 的端口必须在 1-65535 之间")
+    return host, port
+
+
+def _is_dns_self_reference(server, host, port):
+    references = {host + ":" + str(port)}
+    if host == "0.0.0.0":
+        references |= {"127.0.0.1:" + str(port), "localhost:" + str(port)}
+    return any(reference in server for reference in references)
+
+
+def validate_dns(dns):
+    """校验 ENG-03 的 DNS 基线，返回原字典。"""
+    if not isinstance(dns, dict):
+        _dns_error("必须是映射")
+    missing = [key for key in DNS_REQUIRED_KEYS if key not in dns]
+    if missing:
+        _dns_error("缺少键：%s" % ", ".join(missing))
+    if dns["enable"] is not True:
+        _dns_error("enable 必须为 true")
+    if dns["ipv6"] is not False:
+        _dns_error("ipv6 必须为 false（IPv4-only 基线）")
+    if dns["enhanced-mode"] != "fake-ip":
+        _dns_error("enhanced-mode 必须为 fake-ip")
+    host, port = _parse_dns_listen(dns["listen"])
+
+    fake_range = dns["fake-ip-range"]
+    if not isinstance(fake_range, str):
+        _dns_error("fake-ip-range 必须是字符串")
+    try:
+        network = ipaddress.ip_network(fake_range, strict=False)
+    except ValueError:
+        _dns_error("fake-ip-range 不是合法网段：%r" % fake_range)
+    if network.version != 4:
+        _dns_error("fake-ip-range 必须是 IPv4 网段")
+    if not 8 <= network.prefixlen <= 30:
+        _dns_error("fake-ip-range 的前缀长度必须在 8-30 之间")
+
+    filters = dns["fake-ip-filter"]
+    if not isinstance(filters, list) or not filters:
+        _dns_error("fake-ip-filter 必须是非空列表")
+    if any(not isinstance(item, str) or not item or item != item.strip() for item in filters):
+        _dns_error("fake-ip-filter 的条目必须是非空字符串")
+    if len(set(filters)) != len(filters):
+        _dns_error("fake-ip-filter 存在重复条目")
+
+    for key in DNS_SERVER_KEYS:
+        _validate_dns_list(dns, key, ip_only=(key == "default-nameserver"))
+
+    overlap = set(dns["nameserver"]) & set(dns["fallback"])
+    if overlap:
+        _dns_error("nameserver 与 fallback 不能重叠：%s" % ", ".join(sorted(overlap)))
+
+    for key in DNS_SERVER_KEYS:
+        for server in dns[key]:
+            if _is_dns_self_reference(server, host, port):
+                _dns_error("%s 指向 DNS 自身监听地址，存在转发循环：%r" % (key, server))
+
+    fallback_filter = dns["fallback-filter"]
+    if not isinstance(fallback_filter, dict):
+        _dns_error("fallback-filter 必须是映射")
+    if fallback_filter.get("geoip") is not True:
+        _dns_error("fallback-filter.geoip 必须为 true")
+    geoip_code = fallback_filter.get("geoip-code")
+    if not isinstance(geoip_code, str) or geoip_code.upper() != "CN":
+        _dns_error("fallback-filter.geoip-code 必须为 CN")
+
+    return dns
+
+
 def build_platform(platform, root=REPO_ROOT):
     """合并公共配置与指定平台配置，返回按键顺序排列的配置字典。"""
     if platform not in PLATFORM_KEYS:
@@ -388,6 +523,19 @@ def build_platform(platform, root=REPO_ROOT):
     missing = sorted(required - set(merged))
     if missing:
         raise ConfigError("缺少顶层键：%s" % ", ".join(missing))
+
+    if merged.get("ipv6") is not False:
+        raise ConfigError("ipv6：必须为 false（IPv4-only 基线）")
+    merged["dns"] = validate_dns(merged["dns"])
+    dns_port = int(merged["dns"]["listen"].rsplit(":", 1)[1])
+    for key in ("mixed-port", "port"):
+        if key in merged and merged[key] == dns_port:
+            raise ConfigError("dns.listen 端口与 %s 冲突：%d" % (key, dns_port))
+    if platform == "windows":
+        tun = merged.get("tun")
+        hijack = tun.get("dns-hijack") if isinstance(tun, dict) else None
+        if not isinstance(hijack, list) or "any:53" not in hijack:
+            raise ConfigError("tun.dns-hijack：Windows 必须包含 any:53")
 
     merged["proxy-groups"] = _resolve_proxy_groups(
         merged["proxy-groups"], merged["proxies"], owners["proxy-groups"]
