@@ -107,8 +107,8 @@ REQUIREMENTS §14 在真实设备上核验。
 ## 当前状态
 
 MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03 已完成并通过自动化测试；ENG-04 已完成
-双平台配置与 Windows 本机 v1.19.33 加载验证；OpenClash 设计基准已改为设备实际
-alpha-gbc76c13，但设备端加载未验证；NAS 端到端未验证，HAOS/Proxmox 尚未部署。
+双平台配置，Windows 本机 v1.19.33 与 OpenClash 设备 alpha-gbc76c13 均通过 `-t`
+加载验证；NAS 端到端、HAOS/Proxmox 路径未验证，ENG-04 标记为部分通过。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
