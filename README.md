@@ -16,7 +16,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - ENG-03 验收报告：[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)
 - ENG-04 验收报告：[docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)
 - 原始开发计划：[Clash 配置工程开发 Plan.md](Clash 配置工程开发 Plan.md)
-- 兼容基准：Mihomo v1.19.33（本机已核验；OpenClash 设备运行版本待核验）
+- 兼容基准：Mihomo v1.19.33（本机已核验；iStoreOS 实际为 alpha-gbc76c13，待负责人决策）
 
 ## 源文件与构建产物
 
@@ -106,9 +106,10 @@ REQUIREMENTS §14 在真实设备上核验。
 
 ## 当前状态
 
-MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03 已完成并通过自动化测试；ENG-04 已完成
-双平台配置与本机 Mihomo v1.19.33 加载验证，OpenClash 设备内核版本及 NAS/HAOS/Proxmox
-链路核验待补充。验收记录见
+MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03 已完成并通过自动化测试；ENG-04 已
+完成双平台配置与本机 Mihomo v1.19.33 加载验证，iStoreOS 实际内核为 alpha-gbc76c13、
+与设计基准不一致，设备端验证待负责人决策；NAS 端到端未验证，HAOS/Proxmox 尚未部署。
+验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
 [docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)、
