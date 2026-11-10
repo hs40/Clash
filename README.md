@@ -32,6 +32,9 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 **顶层浅合并**，每个顶层键只有一个所有者；白名单之外的键、公共与平台重复定义的键、
 同一文件内的重复键都会让构建失败，并报告文件名与键名。
 
+策略组成员由构建期按地区识别生成（`include: all` / `include: region:<入口名>`），
+不手写节点名单；规则见 REQUIREMENTS §4.2。
+
 ## 环境准备
 
 需要 Python 3.12（本项目在 3.12.3 上验证）。Windows 上请使用真实的 Python 解释器，
@@ -70,13 +73,16 @@ py -m venv .venv
 .venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-测试覆盖（`tests/test_build.py`）：
+测试覆盖（`tests/`）：
 
 - 源文件存在性、非空与 YAML 合法性；
 - 公共 / 平台配置的顶层键归属，以及平台配置不得写入公共键或运行时注入键；
 - 合并契约错误路径：未登记键、公共与平台重复键、同文件重复键、缺失键、未知平台；
 - 命令行：一份命令生成两份产物、两次构建字节一致、配置错误退出码 2；
-- 变更传播：公共配置修改反映到两个平台，平台配置修改只影响对应平台。
+- 变更传播：公共配置修改反映到两个平台，平台配置修改只影响对应平台；
+- 地区识别：七个入口名称、关键词匹配、ASCII 整词边界、多地区命中优先级；
+- 策略组生成：`include` 展开、空地区回退到「自动选择」、Google 回退顺序、
+  增删改节点不改变组名、无效引用与循环引用使构建失败。
 
 ## 占位内容说明
 
@@ -87,5 +93,6 @@ REQUIREMENTS §14 在真实设备上核验。
 
 ## 当前状态
 
-MVP-01 至 MVP-06 已完成并通过全部自动化测试，验收记录见
-[docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)。第二阶段（ENG-01 至 ENG-06）尚未开始。
+MVP-01 至 MVP-06、ENG-01 已完成并通过自动化测试，验收记录见
+[docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md) 与
+[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)。ENG-02 至 ENG-06 尚未开始。
