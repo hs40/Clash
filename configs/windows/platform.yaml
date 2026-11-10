@@ -1,0 +1,13 @@
+# Windows / Clash Verge Rev v2.5.10：本平台独占的顶层键。
+# 只允许出现 docs/REQUIREMENTS.md §11 中「Windows 独占」的键。
+# 草案值，部署前须按 §14 核验（Verge 可能用自己的 GUI 设置覆盖 mixed-port / tun）。
+mixed-port: 7890
+allow-lan: false
+tun:
+  enable: true
+  stack: gvisor
+  auto-route: true
+  auto-detect-interface: true
+  dns-hijack:
+    - "any:53"
+  strict-route: false

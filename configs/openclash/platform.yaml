@@ -1,0 +1,7 @@
+# OpenClash（iStoreOS 旁路由）：本平台独占的顶层键。
+# 使用 HTTP `port` 而非 `mixed-port`：NAS 显式代理依赖 192.168.2.10:7893（§13.2）。
+# 不写 redir-port / tproxy-port / iptables / external-controller / secret，
+# 这些由 OpenClash 运行时自行注入（§11 约束 4）。
+port: 7893
+allow-lan: true
+bind-address: "*"
