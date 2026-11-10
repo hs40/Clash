@@ -3,8 +3,8 @@
 - 日期：2026-11-10
 - 分支：main（本地仓库，未推送远端）
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.6
-- 结论：**构建期与 Windows 本机 Mihomo 加载验证通过；iStoreOS 实际内核为 alpha-gbc76c13，与设计基准 v1.19.33 不一致；NAS 端到端未验证，HAOS/Proxmox 尚未部署，因此 ENG-04 不标记全部通过。**
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.7
+- 结论：**构建期与 Windows 本机 Mihomo v1.19.33 加载验证通过；负责人已确认 OpenClash 设计基准改为设备实际 alpha-gbc76c13（仅 OpenClash），但产物尚未在设备端执行 -t；NAS 端到端未验证，HAOS/Proxmox 尚未部署，因此 ENG-04 不标记全部通过。**
 
 ---
 
@@ -12,7 +12,7 @@
 
 | 任务 | 状态 | 提交 |
 | --- | --- | --- |
-| ENG-04 双平台完整配置 | 部分完成（本机验证通过；设备内核版本不一致，链路未全部核验） | 本报告所在提交 |
+| ENG-04 双平台完整配置 | 部分完成（Windows 本机基准通过；OpenClash 基准已改为 alpha，设备端加载未验证） | 本报告所在提交 |
 
 全部自动化测试：**91 项通过，0 失败**（ENG-03 为 91 项，本阶段未新增测试用例，只更新平台端口断言）。
 
@@ -21,12 +21,12 @@
 ## 2. ENG-04 任务报告
 
 1. **任务编号：** ENG-04
-2. **完成情况：** 完成 Windows/OpenClash 平台配置对齐、双平台产物本机 Mihomo v1.19.33 加载验证、Clash Verge 覆盖行为核验与需求基线更新；已取得 iStoreOS 实际内核版本，但该内核与设计基准不一致，设备端加载和真实网络链路仍未完成验证。
+2. **完成情况：** 完成 Windows/OpenClash 平台配置对齐、双平台产物本机 Mihomo v1.19.33 加载验证、Clash Verge 覆盖行为核验与需求基线更新；已取得 iStoreOS 实际内核版本，并按负责人确认将其设为 OpenClash 设计基准；设备端加载和真实网络链路仍未完成验证。
 3. **修改文件：**
    - 修改 configs/windows/platform.yaml：mixed-port 由 7890 改为负责人确认的 **7897**，并注明 Verge 会覆盖 ipv6/tun、由负责人手动设置；
    - 修改 tests/test_build.py：Windows 端口断言与夹具变更改为 7897/7898；
    - 修改 tests/test_dns.py：DNS 监听端口冲突用例改用 7897；
-   - 修改 docs/REQUIREMENTS.md：v1.6，更新 §12/§13.1/§13.2/§14/§15；
+   - 修改 docs/REQUIREMENTS.md：v1.7，更新 §12/§13.1/§13.2/§14/§15；
    - 修改 README.md：增加 ENG-04 报告链接与当前状态；
    - 新增本报告 docs/ENG-04-ACCEPTANCE.md。
 4. **实现内容：**
@@ -39,7 +39,7 @@
 6. **测试结果：** Ran 91 tests，OK（本次 5.1 秒）；--platform all 退出码 0；两次构建产物 SHA-256 一致。
 7. **需求偏差：** 见第 5 节。
 8. **遗留问题：** 见第 6 节。
-9. **下一步建议：** 先由负责人决定如何处理 iStoreOS 的 alpha 内核与 v1.19.33 设计基线的差异，再补齐设备端 -t 与链路核验；未核验项不得写成已验证。
+9. **下一步建议：** 先补齐 OpenClash 设备端 -t（alpha-gbc76c13）与链路核验；未核验项不得写成已验证。
 
 ---
 
@@ -61,9 +61,9 @@
 
 ### 3.2 OpenClash 配置通过对应 Mihomo 版本验证
 
-同一本机 v1.19.33 二进制对 dist/openclash/config.yaml 执行 -t：退出码 **0**，
+本机 v1.19.33 对 dist/openclash/config.yaml 执行 -t：退出码 **0**，
 日志末行 configuration file ... test is successful；产物不含 Windows TUN 键。
-这只能证明产物能被 v1.19.33 加载。
+这只能说明产物能被 v1.19.33 解析，不能代表设备 alpha 基准。
 
 iStoreOS 设备实际内核（负责人 2026-11-10 只读输出）：
 
@@ -76,9 +76,9 @@ iStoreOS 设备实际内核（负责人 2026-11-10 只读输出）：
 | 包管理 | opkg 不存在，无法用包版本核对 |
 | meta-backup | 目录，不是可执行文件；Permission denied 属预期 |
 
-**结论：设备内核不是设计基准 v1.19.33，而是 alpha-gbc76c13。**
-本机 v1.19.33 的 -t 结果不能代表设备内核；设备端加载验证**未完成**。
-按约束，不擅自替换 iStoreOS 内核，也不把该项写成已通过，等待负责人决定。
+**负责人 2026-11-10 确认：OpenClash 设计基准改为设备实际 alpha-gbc76c13（仅 OpenClash）。**
+Windows 仍为 v1.19.33。设备端 -t 尚未执行，因此“对应 Mihomo 版本验证”**未完成**；
+按约束，不擅自替换 iStoreOS 内核，也不把该项写成已通过。
 
 补充只读探测结果：
 
@@ -159,7 +159,7 @@ Windows 产物因 mixed-port 改为 7897 而哈希变化；OpenClash 产物未�
 | Windows mixed-port 由 7890 改为 7897 | 已修改平台配置与测试断言 | 负责人 2026-11-10 决策；与本机 Verge 实际值一致 |
 | Verge 覆盖 IPv6/TUN | 仓库不修改真实 Verge 配置，由负责人手动设置 | 负责人 2026-11-10 决策；工作区外只读约束 |
 | OpenClash LAN 限制保持现状 | 不加 lan-allowed-ips | 负责人 2026-11-10 决策 |
-| iStoreOS 内核 alpha-gbc76c13 与 v1.19.33 不一致 | 记录事实，等待负责人决定：设备端验证 alpha / 替换内核 / 仅保证 v1.19.33 | 关键参数冲突；不擅自改设备 |
+| OpenClash 设计基准改为设备实际 alpha-gbc76c13 | 已更新需求基线；仅 OpenClash，Windows 保持 v1.19.33；设备端 -t 待执行 | 负责人 2026-11-10 决策 |
 | HAOS、Proxmox 尚未部署 | 标记未部署，待部署后验证 | 负责人 2026-11-10 说明 |
 | 未修改 NAS/HAOS/Proxmox | 仅验证配置契约与只读网络端口 | 不修改用户真实设备 |
 
@@ -167,7 +167,7 @@ Windows 产物因 mixed-port 改为 7897 而哈希变化；OpenClash 产物未�
 
 ## 6. 遗留问题
 
-1. iStoreOS 实际内核为 alpha-gbc76c13，不是设计基准 v1.19.33；设备端 -t 未执行，不能证明产物在该内核可用。
+1. OpenClash 设计基准已改为 alpha-gbc76c13；设备端 -t 仍未执行，不能证明产物在该内核可用。
 2. OpenClash 7893 的代理认证凭据未提供，NAS 显式代理端到端请求未验证。
 3. HAOS、Proxmox 尚未部署，无法验证 HAOS 网关/DNS 链路与 Proxmox 默认网关是否保持不变。
 4. 本机 Clash Verge 当前实际运行的是既有 FIB 配置（55 节点、14 组、1130 规则），不是本仓库产物；本报告只验证产物可被 v1.19.33 内核加载，不验证其已在本机生效。

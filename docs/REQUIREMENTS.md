@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.6
+**版本：** v1.7
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -33,10 +33,11 @@ GitHub 以外的灾难恢复备份系统。
 | 代理方式 | TUN | 旁路由透明代理 |
 | DNS | Fake-IP | Fake-IP |
 | 网络协议 | IPv4-only | IPv4-only |
-| 兼容基准 | Mihomo v1.19.33 | Mihomo v1.19.33 |
+| 兼容基准 | Mihomo v1.19.33（本机实际） | Mihomo Meta alpha-gbc76c13（设备实际，仅本平台） |
 
-**注意：** Mihomo v1.19.33 是工程设计与测试基准。Windows 本机已核验为该版本；
-iStoreOS 实际为 alpha-gbc76c13，与基准不一致，设备端兼容性尚未验证，处理方式待负责人决定。
+**注意：** 兼容基准按平台分别记录：Windows 为 Mihomo v1.19.33；OpenClash 由负责人
+2026-11-10 确认改为设备实际 Mihomo Meta alpha-gbc76c13（仅 OpenClash）。OpenClash
+产物尚未在设备端执行 `-t`，不能写成已通过。
 
 ---
 
@@ -329,9 +330,9 @@ Python 最小构建程序、YAML 基础校验、两份配置生成结果、基�
 
 以上是 MVP 当阶段的边界。ENG-01 已实现节点地区识别与策略组生成（§4.2），
 ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-03 已实现 DNS/Fake-IP
-构建期校验（§7.1）。ENG-04 已实现双平台完整配置与本机 Mihomo v1.19.33 加载验证，
-并取得 iStoreOS 实际内核版本；该内核为 alpha-gbc76c13，与设计基准不一致，设备端验证
-待负责人决策。其余仍按 ENG 计划逐项推进。
+构建期校验（§7.1）。ENG-04 已实现双平台完整配置；Windows 本机按 v1.19.33 验证通过。
+负责人 2026-11-10 确认 OpenClash 设计基准改为设备实际 alpha-gbc76c13（仅 OpenClash）；
+该平台产物尚未在设备端执行 `-t`，不能写成已通过。其余仍按 ENG 计划逐项推进。
 
 ---
 
@@ -365,8 +366,9 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-0
 | LAN 访问限制 | 仅 `allow-lan` + `bind-address` | 负责人 2026-11-10 决定保持现状；`lan-allowed-ips` 内核支持但未启用 |
 
 设备核验（2026-11-10）：iStoreOS 上 `/etc/openclash/core/clash_meta` 为
-`Mihomo Meta alpha-gbc76c13 linux amd64 with go1.26.9 Mon Oct 12 03:44:17 UTC 2026`，
-不是 v1.19.33；本工程未在设备上执行 `-t`，也未修改设备配置。
+`Mihomo Meta alpha-gbc76c13 linux amd64 with go1.26.9 Mon Oct 12 03:44:17 UTC 2026`。
+负责人 2026-11-10 确认：OpenClash 设计基准改为该设备实际版本（仅 OpenClash，Windows
+仍为 v1.19.33）。本工程未在设备上执行 `-t`，也未修改设备配置；设备端加载仍未验证。
 
 ### 13.3 DNS
 
@@ -397,9 +399,9 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 
 ## 14. 待核验清单【待核验】
 
-1. 设备上实际的 Mihomo 版本是否为 v1.19.33，以及与 OpenClash 的兼容性。
-   Windows 本机已核验为 v1.19.33；iStoreOS 为 alpha-gbc76c13，与设计基准不一致，
-   设备端加载未验证，处理方式待负责人决定。
+1. 设备上实际的 Mihomo 版本与兼容性。
+   Windows 本机为 v1.19.33；OpenClash 设计基准已改为设备实际 alpha-gbc76c13（仅 OpenClash），
+   设备端加载仍未验证。
 2. ~~Clash Verge Rev v2.5.10 是否会覆盖 `platform.yaml` 中的 `mixed-port` / `tun` 设置。~~
    【已核验 2026-11-10：会覆盖；负责人决定 mixed-port 取 7897，IPv6/TUN 手动设置】
 3. OpenClash 是否自行注入 `redir-port` / `tproxy-port` 与 DNS 监听（如 7874）。
@@ -424,3 +426,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.4 | 确认 DNS 保持公共单所有者、Fake-IP Filter 4 条与 `validate_dns` 校验契约（§7.1） | 项目负责人 |
 | 2026-11-10 | v1.5 | 确认 Windows `mixed-port` 取 7897；确认 Verge 覆盖 IPv6/TUN 由负责人手动设置；确认 OpenClash LAN 限制保持 `allow-lan` + `bind-address` | 项目负责人 |
 | 2026-11-10 | v1.6 | 记录 iStoreOS 实际内核 alpha-gbc76c13（非 v1.19.33）；记录 HAOS/Proxmox 尚未部署；设备端验证与内核差异处理待负责人决定 | 项目负责人（事实记录） |
+| 2026-11-10 | v1.7 | 确认 OpenClash 设计基准改为设备实际 alpha-gbc76c13（仅 OpenClash）；Windows 保持 v1.19.33 | 项目负责人 |
