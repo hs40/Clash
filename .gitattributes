@@ -1,0 +1,2 @@
+# 统一换行符为 LF：Windows 与 Linux/CI 构建结果才能字节一致
+* text=auto eol=lf

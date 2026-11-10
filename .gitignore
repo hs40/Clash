@@ -1,0 +1,15 @@
+# 构建产物：由源文件可重复生成，不入库
+dist/
+
+# Python 虚拟环境与缓存
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 本地临时文件与工具目录
+*.whl
+*.tmp
+.memsearch/
+.DS_Store
+Thumbs.db
