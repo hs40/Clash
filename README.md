@@ -15,6 +15,8 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - ENG-02 验收报告：[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)
 - ENG-03 验收报告：[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)
 - ENG-04 验收报告：[docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)
+- ENG-05 验收报告：[docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md)
+- 安全策略：[docs/SECURITY.md](docs/SECURITY.md)
 - 原始开发计划：[Clash 配置工程开发 Plan.md](Clash 配置工程开发 Plan.md)
 - 兼容基准：Windows Mihomo v1.19.33；OpenClash Mihomo Meta alpha-gbc76c13（仅 OpenClash）
 
@@ -24,8 +26,10 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 | --- | --- | --- | --- |
 | 公共配置源 | `configs/common/` | 是 | 节点、策略组、DNS、规则、全局标量 |
 | 平台配置源 | `configs/windows/`、`configs/openclash/` | 是 | 仅平台专属键 |
-| 构建脚本 | `scripts/build.py` | 是 | 读取、合并、校验、输出 |
-| 测试 | `tests/` | 是 | 构建结果与输出校验 |
+| 构建与安全检查脚本 | `scripts/` | 是 | 构建、依赖锁定、敏感扫描、Mihomo 校验、CI 报告/策略 |
+| CI 与 CODEOWNERS | `.github/` | 是 | PR/push 自动测试与审查归属 |
+| 安全清单 | `security/mihomo.yaml` | 是 | 固定 Mihomo 版本、URL 与 SHA-256 |
+| 测试 | `tests/` | 是 | 构建结果、安全与 CI 策略校验 |
 | 构建产物 | `dist/` | 否（见 `.gitignore`） | 每次构建重新生成 |
 | 文档 | `docs/` | 是 | 需求基线、验收报告 |
 
@@ -50,10 +54,11 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 
 ```powershell
 py -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install --require-hashes -r requirements.txt
 ```
 
-依赖锁定在 `requirements.txt`（当前只有 `PyYAML==6.0.3`）；哈希锁定与 CI 属 ENG-05。
+依赖锁定在 `requirements.txt`（`PyYAML==6.0.3`，精确版本 + SHA-256）；CI 使用
+`pip install --require-hashes`，并在安装后执行 `pip check`。
 
 ## 构建
 
@@ -95,7 +100,28 @@ py -m venv .venv
 - 规则编译：四层顺序、层内 priority 排序、类型 / 目标 / `MATCH` 位置校验、
   五类业务路由基线，以及 special 压过 business 的首条匹配冲突测试；
 - DNS：双平台共用同一份 DNS、Fake-IP 与 IPv4-only、Filter 4 条、国内外服务器分离、
-  节点域名独立解析、无自指循环、Windows `dns-hijack`，以及多类静态校验失败路径。
+  节点域名独立解析、无自指循环、Windows `dns-hijack`，以及多类静态校验失败路径；
+- 依赖锁定：未固定版本、缺哈希、格式错误、重复依赖被拒绝；
+- 敏感信息：私钥、Token、Access Key、通用密钥赋值与订阅链接凭据被识别，占位值不误报；
+- Mihomo：清单字段/版本/哈希校验、`-v` 版本匹配；
+- CI：中文报告计数与失败详情、工作流权限/SHA/触发条件、CODEOWNERS 核心路径。
+
+## CI 与安全检查
+
+本地可执行：
+
+```powershell
+.venv\Scripts\python.exe scripts\check_dependencies.py
+.venv\Scripts\python.exe scripts\security_scan.py
+.venv\Scripts\python.exe scripts\ci_policy.py
+.venv\Scripts\python.exe scripts\ci_report.py --output ci-report.md
+```
+
+CI 定义在 `.github/workflows/ci.yml`：PR 与 `main` push 自动运行，固定 Action SHA、
+只读权限、依赖哈希安装、双平台构建、敏感扫描、中文测试报告，并下载/校验 Mihomo
+v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mihomo.yaml`。
+
+远端分支保护与 CODEOWNERS 强制尚未启用/核验；`ci-report.md` 为生成物，不提交。
 
 ## 占位内容说明
 
@@ -106,12 +132,14 @@ REQUIREMENTS §14 在真实设备上核验。
 
 ## 当前状态
 
-MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03 已完成并通过自动化测试；ENG-04 已完成
-双平台配置，Windows 本机 v1.19.33 与 OpenClash 设备 alpha-gbc76c13 均通过 `-t`
-加载验证；NAS 端到端、HAOS/Proxmox 路径未验证，ENG-04 标记为部分通过。
+MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03、ENG-05 已完成本地实现并通过自动化测试；
+ENG-04 已完成双平台配置，Windows 本机 v1.19.33 与 OpenClash 设备 alpha-gbc76c13 均通过
+`-t` 加载验证，但 NAS 端到端、HAOS/Proxmox 路径未验证，标记为部分通过。ENG-05 的远端
+CI、分支保护与 CODEOWNERS 强制尚未核验，标记为本地完成、远端部分通过；ENG-06 尚未开始。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
 [docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)、
-[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md) 与
-[docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)。ENG-05、ENG-06 尚未开始。
+[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)、
+[docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md) 与
+[docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md)。

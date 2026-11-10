@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.8
+**版本：** v1.9
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -69,7 +69,7 @@ GitHub 以外的灾难恢复备份系统。
 
 1. 识别节点名称中的中文地区信息。【确定】
 2. 至少支持香港、日本、美国、韩国等地区。【确定】
-3. 节点识别结果定期更新，并保留本地缓存。【确定；ENG-01 先做构建期识别，缓存随 ENG-05 实现】
+3. 节点识别结果定期更新，并保留本地缓存。【确定；ENG-01 先做构建期识别，缓存随 ENG-06 Provider 实现】
 4. 提供全局代理策略组。【确定】
 5. 全局代理策略组包含自动选择和七个地区入口。【确定】
 6. 不要求所有节点都能逐个手动选择。【确定】
@@ -122,7 +122,7 @@ GitHub 以外的灾难恢复备份系统。
 4. Google 组为 `fallback`，顺序固定：美国节点 → 狮城节点 → 日本节点 → 香港节点。
 5. 七个地区入口必须全部存在；缺失入口、未知 `include`、引用不存在的节点或策略组、
    策略组循环引用，均使构建失败。
-6. ENG-01 只做构建期识别；§4 第 3 条的本地缓存随 ENG-05 Provider 实现，暂不引入。
+6. ENG-01 只做构建期识别；§4 第 3 条的本地缓存随 ENG-06 Provider 实现，暂不引入（2026-11-10 负责人确认从 ENG-05 推迟到 ENG-06）。
 
 ### 4.3 业务策略组与路由目标【确定，2026-11-10 负责人确认】
 
@@ -280,6 +280,22 @@ DNS 监听与防火墙适配不在构建期模拟，设备兼容性列入 §14 �
 10. 高风险问题阻止正式发布，只有项目负责人可以解除发布阻断。
 11. 自动化测试不能代替真实网络连通性和 DNS 泄漏测试。
 
+### 9.1 ENG-05 CI 与安全检查实现契约【确定，2026-11-10 负责人确认】
+
+CI 工作流 `.github/workflows/ci.yml`：
+
+1. 触发：`pull_request` 与 `push` 到 `main`；运行环境 `windows-latest`，Python 3.12.3。
+2. 权限：顶层 `permissions: contents: read`；不引用 Secrets，不使用 `pull_request_target`。
+3. 第三方 Action 固定完整 40 位 Commit SHA；`actions/checkout` 必须设置 `persist-credentials: false`。
+4. 步骤顺序：`pip install --require-hashes -r requirements.txt` → `pip check` → `check_dependencies.py` → `build.py --platform all` → `security_scan.py` → `ci_policy.py` → `ci_report.py --output ci-report.md` → Mihomo 下载/校验/`-t` 双平台。
+5. 中文报告写入 `ci-report.md` 与 `GITHUB_STEP_SUMMARY`；报告不提交，已加入 `.gitignore`。
+6. 依赖锁定：`requirements.txt` 每个依赖使用精确版本 + 至少一个 SHA-256；校验脚本拒绝未锁定、缺哈希、格式错误与重复项。
+7. Mihomo：`security/mihomo.yaml` 固定版本、官方 URL、压缩包 SHA-256、可执行文件名与 SHA-256；CI 校验后运行 `-t`。Windows 基准为 v1.19.33。
+8. GeoIP：CI 下载 `country.mmdb` 并固定内容 SHA-256；上游 `latest` 标签可变，哈希变化必须由负责人审查后更新。
+9. 敏感信息：`security_scan.py` 扫描仓库文本文件，只报告路径、行号与类型，不回显命中内容；占位标记（如 `PLACEHOLDER`、`NOT-REAL`）不作为真实凭据。
+10. CODEOWNERS：`@hs40` 审查 `.github/`、`scripts/`、`configs/common/`、`security/`、`docs/REQUIREMENTS.md`；高风险失败阻断发布，仅负责人可解除。
+11. 限制：CI 不能替代 §14 的真实网络连通性与 DNS 泄漏测试；远端分支保护与 CODEOWNERS 的实际强制效果需在 GitHub 仓库设置中核验。
+
 ---
 
 ## 10. 发布与回滚【确定】
@@ -333,7 +349,8 @@ Python 最小构建程序、YAML 基础校验、两份配置生成结果、基�
 ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-03 已实现 DNS/Fake-IP
 构建期校验（§7.1）。ENG-04 已实现双平台完整配置；Windows 本机按 v1.19.33 验证通过，
 OpenClash 设备端按 alpha-gbc76c13 执行 `-t` 通过；NAS/HAOS/Proxmox 路径尚未完成验证。
-其余仍按 ENG 计划逐项推进。
+ENG-05 已实现 CI 配置、依赖哈希锁定、敏感信息扫描、Mihomo 固定版本校验、中文测试报告
+与 CODEOWNERS 静态策略检查；远端 CI 与分支保护尚未在 GitHub 上验证。其余仍按 ENG 计划推进。
 
 ---
 
@@ -413,6 +430,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 6. 真实网络连通性、DNS 泄漏与绕过代理路径（自动化测试不能替代）。
 7. ~~Google 回退的「指定地区白名单」具体地区。~~【已确认 2026-11-10：狮城、日本、香港】
 8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
+9. GitHub 远端 CI 是否实际运行、分支保护与 CODEOWNERS 是否真正强制，尚未验证；本地只能做静态检查。
 
 ---
 
@@ -430,3 +448,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.6 | 记录 iStoreOS 实际内核 alpha-gbc76c13（非 v1.19.33）；记录 HAOS/Proxmox 尚未部署；设备端验证与内核差异处理待负责人决定 | 项目负责人（事实记录） |
 | 2026-11-10 | v1.7 | 确认 OpenClash 设计基准改为设备实际 alpha-gbc76c13（仅 OpenClash）；Windows 保持 v1.19.33 | 项目负责人 |
 | 2026-11-10 | v1.8 | 记录 OpenClash 设备端 `-t` 通过（产物 4006 字节、SHA-256 `6d959695…`）；ENG-04 内核加载验收通过，NAS/HAOS/Proxmox 路径仍未验证 | 项目负责人（事实记录） |
+| 2026-11-10 | v1.9 | 完成 ENG-05 CI/安全实现契约：依赖哈希、敏感扫描、Mihomo 固定校验、中文报告、CODEOWNERS；缓存从 ENG-05 推迟到 ENG-06；远端 CI 与分支保护未验证 | 项目负责人（事实记录） |
