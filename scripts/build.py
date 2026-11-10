@@ -12,6 +12,8 @@ from pathlib import Path
 
 import yaml
 
+from regions import REGION_GROUPS, classify_node
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # 公共配置的加载顺序即合并顺序，必须稳定。
@@ -55,6 +57,26 @@ KEY_ORDER = (
     "proxy-groups",
     "rules",
 )
+
+# 策略组源文件允许的键；include 是构建期指令，不会进入最终产物（ENG-01）。
+GROUP_SOURCE_KEYS = (
+    "name",
+    "type",
+    "url",
+    "interval",
+    "tolerance",
+    "proxies",
+    "include",
+)
+
+# 策略组输出键的固定顺序。
+GROUP_OUTPUT_KEYS = ("name", "type", "url", "interval", "tolerance")
+
+# 地区组没有节点时使用的兜底策略组（项目负责人 2026-11-10 确认）。
+EMPTY_REGION_FALLBACK = "自动选择"
+
+# Mihomo 内置策略，允许出现在成员列表中。
+BUILTIN_POLICIES = ("DIRECT", "REJECT", "REJECT-DROP", "PASS")
 
 
 class ConfigError(Exception):
@@ -118,6 +140,146 @@ def _merge_source(merged, owners, path, allowed_keys):
         owners[key] = path
 
 
+def _proxy_names(proxies, path):
+    """校验节点列表并返回名称序列，名称必须非空且唯一。"""
+    if not isinstance(proxies, list) or not proxies:
+        raise ConfigError("%s：proxies 必须是非空列表" % path)
+    names = []
+    for index, proxy in enumerate(proxies, start=1):
+        if not isinstance(proxy, dict):
+            raise ConfigError("%s：第 %d 个节点必须是映射" % (path, index))
+        name = proxy.get("name")
+        if not isinstance(name, str) or not name:
+            raise ConfigError("%s：第 %d 个节点缺少非空 name" % (path, index))
+        if name in names:
+            raise ConfigError("%s：节点名称重复：%r" % (path, name))
+        names.append(name)
+    return names
+
+
+def _validate_groups(groups, proxy_names, path):
+    """校验策略组外壳：名称唯一、键已登记、不与节点重名。"""
+    if not isinstance(groups, list) or not groups:
+        raise ConfigError("%s：proxy-groups 必须是非空列表" % path)
+    names = []
+    for index, group in enumerate(groups, start=1):
+        if not isinstance(group, dict):
+            raise ConfigError("%s：第 %d 个策略组必须是映射" % (path, index))
+        name = group.get("name")
+        if not isinstance(name, str) or not name:
+            raise ConfigError("%s：第 %d 个策略组缺少非空 name" % (path, index))
+        if name in names:
+            raise ConfigError("%s：策略组名称重复：%r" % (path, name))
+        if name in proxy_names:
+            raise ConfigError("%s：策略组与节点重名：%r" % (path, name))
+        if not isinstance(group.get("type"), str) or not group["type"]:
+            raise ConfigError("%s：策略组 %r 缺少 type" % (path, name))
+        unknown = sorted(set(group) - set(GROUP_SOURCE_KEYS))
+        if unknown:
+            raise ConfigError(
+                "%s：策略组 %r 含未登记的键：%s" % (path, name, ", ".join(unknown))
+            )
+        names.append(name)
+    return names
+
+
+def _expand_include(include, group_name, proxy_names, group_names, path):
+    """把 include 指令展开成成员列表。"""
+    if include == "all":
+        return list(proxy_names)
+    if isinstance(include, str) and include.startswith("region:"):
+        region = include[len("region:"):]
+        if region not in REGION_GROUPS:
+            raise ConfigError(
+                "%s：策略组 %r 引用了未知地区 %r（可用：%s）"
+                % (path, group_name, region, "、".join(REGION_GROUPS))
+            )
+        members = [name for name in proxy_names if classify_node(name) == region]
+        if members:
+            return members
+        if EMPTY_REGION_FALLBACK not in group_names:
+            raise ConfigError(
+                "%s：地区 %r 没有节点，且缺少兜底策略组 %r"
+                % (path, region, EMPTY_REGION_FALLBACK)
+            )
+        return [EMPTY_REGION_FALLBACK]
+    raise ConfigError(
+        "%s：策略组 %r 的 include 指令未知：%r（可用：all、region:<地区名>）"
+        % (path, group_name, include)
+    )
+
+
+def _check_cycles(groups, path):
+    """拒绝策略组之间的循环引用，避免运行时无法求值。"""
+    graph = {group["name"]: list(group["proxies"]) for group in groups}
+    state = {}
+    stack = []
+
+    def visit(name):
+        state[name] = "visiting"
+        stack.append(name)
+        for member in graph[name]:
+            if member not in graph:
+                continue
+            if state.get(member) == "visiting":
+                cycle = stack[stack.index(member):] + [member]
+                raise ConfigError(
+                    "%s：策略组循环引用：%s" % (path, " → ".join(cycle))
+                )
+            if state.get(member) is None:
+                visit(member)
+        stack.pop()
+        state[name] = "done"
+
+    for name in graph:
+        if state.get(name) is None:
+            visit(name)
+
+
+def _resolve_proxy_groups(groups, proxies, path):
+    """解析 include 并校验所有引用，返回可直接输出的策略组列表。"""
+    proxy_names = _proxy_names(proxies, path)
+    group_names = _validate_groups(groups, proxy_names, path)
+    missing_regions = [name for name in REGION_GROUPS if name not in group_names]
+    if missing_regions:
+        raise ConfigError(
+            "%s：缺少地区入口策略组：%s" % (path, "、".join(missing_regions))
+        )
+    resolved = []
+    for group in groups:
+        name = group["name"]
+        if "include" in group and "proxies" in group:
+            raise ConfigError(
+                "%s：策略组 %r 不能同时使用 include 与 proxies" % (path, name)
+            )
+        if "include" in group:
+            members = _expand_include(
+                group["include"], name, proxy_names, group_names, path
+            )
+        else:
+            members = group.get("proxies")
+            if not isinstance(members, list):
+                raise ConfigError("%s：策略组 %r 缺少 proxies 列表" % (path, name))
+        seen = set()
+        for member in members:
+            if not isinstance(member, str) or not member:
+                raise ConfigError("%s：策略组 %r 含空成员" % (path, name))
+            if (member not in proxy_names and member not in group_names
+                    and member not in BUILTIN_POLICIES):
+                raise ConfigError(
+                    "%s：策略组 %r 引用了不存在的节点或策略组：%r"
+                    % (path, name, member)
+                )
+            if member in seen:
+                raise ConfigError("%s：策略组 %r 含重复成员：%r" % (path, name, member))
+            seen.add(member)
+        output = {key: group[key] for key in GROUP_OUTPUT_KEYS if key in group}
+        output["proxies"] = list(members)
+        resolved.append(output)
+    _check_cycles(resolved, path)
+    return resolved
+
+
 def build_platform(platform, root=REPO_ROOT):
     """合并公共配置与指定平台配置，返回按键顺序排列的配置字典。"""
     if platform not in PLATFORM_KEYS:
@@ -140,6 +302,10 @@ def build_platform(platform, root=REPO_ROOT):
     missing = sorted(required - set(merged))
     if missing:
         raise ConfigError("缺少顶层键：%s" % ", ".join(missing))
+
+    merged["proxy-groups"] = _resolve_proxy_groups(
+        merged["proxy-groups"], merged["proxies"], owners["proxy-groups"]
+    )
 
     return {key: merged[key] for key in KEY_ORDER if key in merged}
 

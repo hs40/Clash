@@ -1,6 +1,8 @@
-# 策略组（MVP 手工维护；地区识别与自动生成属 ENG-01）。
-# 七个地区入口名称已由项目负责人确认，不得改写（docs/REQUIREMENTS.md §4.1）。
-# Google / AI / Apple / 国内金融 / BT 业务组随 ENG-02 规则一起建立。
+# 策略组：ENG-01 起成员由构建期生成，不再手写节点名单。
+# include: all            → 全部节点，按 proxies.yaml 顺序
+# include: region:<组名>  → 该地区的全部节点；该地区没有节点时填入「自动选择」
+# （项目负责人 2026-11-10 确认）。指令的展开、引用校验与循环检测见 scripts/build.py。
+# 七个地区入口名称由负责人确认，不得改写（docs/REQUIREMENTS.md §4.1）。
 proxy-groups:
   - name: PROXY
     type: select
@@ -15,44 +17,47 @@ proxy-groups:
       - 其他节点
       - DIRECT
 
+  # 自动选择：对全部节点做延迟测速。
   - name: 自动选择
     type: url-test
     url: https://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
-    proxies:
-      - 占位-香港-01
-      - 占位-台湾-01
-      - 占位-日本-01
-      - 占位-韩国-01
-      - 占位-狮城-01
-      - 占位-美国-01
-      - 占位-其他-01
+    include: all
 
   - name: 香港节点
     type: select
-    proxies: [占位-香港-01]
+    include: region:香港节点
 
   - name: 台湾节点
     type: select
-    proxies: [占位-台湾-01]
+    include: region:台湾节点
 
   - name: 日本节点
     type: select
-    proxies: [占位-日本-01]
+    include: region:日本节点
 
   - name: 韩国节点
     type: select
-    proxies: [占位-韩国-01]
+    include: region:韩国节点
 
   - name: 狮城节点
     type: select
-    proxies: [占位-狮城-01]
+    include: region:狮城节点
 
   - name: 美国节点
     type: select
-    proxies: [占位-美国-01]
+    include: region:美国节点
 
   - name: 其他节点
     type: select
-    proxies: [占位-其他-01]
+    include: region:其他节点
+
+  # Google：美国优先，按负责人确认的白名单顺序自动回退（2026-11-10）。
+  - name: Google
+    type: fallback
+    proxies:
+      - 美国节点
+      - 狮城节点
+      - 日本节点
+      - 香港节点
