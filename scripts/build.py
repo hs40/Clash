@@ -72,6 +72,17 @@ GROUP_SOURCE_KEYS = (
 # 策略组输出键的固定顺序。
 GROUP_OUTPUT_KEYS = ("name", "type", "url", "interval", "tolerance")
 
+# 规则层的固定顺序：层顺序优先于层内优先级（docs/REQUIREMENTS.md §5）。
+RULE_LAYERS = ("special", "business", "base", "fallback")
+
+# ENG-02 支持的规则类型。嵌套逻辑规则（AND/OR/NOT）不在本期范围。
+RULE_TYPES = (
+    "DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "GEOIP",
+    "IP-CIDR", "IP-CIDR6", "SRC-IP-CIDR",
+    "DST-PORT", "SRC-PORT", "PROCESS-NAME", "PROCESS-PATH",
+    "NETWORK", "RULE-SET", "MATCH",
+)
+
 # 地区组没有节点时使用的兜底策略组（项目负责人 2026-11-10 确认）。
 EMPTY_REGION_FALLBACK = "自动选择"
 
@@ -280,6 +291,81 @@ def _resolve_proxy_groups(groups, proxies, path):
     return resolved
 
 
+def _sorted_entries(entries, layer):
+    """校验单层条目并按 priority 升序返回 (priority, rule, where)。"""
+    if not isinstance(entries, list):
+        raise ConfigError("rules.%s：必须是列表" % layer)
+    seen = set()
+    items = []
+    for index, entry in enumerate(entries, start=1):
+        where = "rules.%s：第 %d 条规则" % (layer, index)
+        if not isinstance(entry, dict):
+            raise ConfigError("%s必须是映射" % where)
+        unknown = sorted(set(entry) - {"priority", "rule"})
+        if unknown:
+            raise ConfigError("%s含未登记的键：%s" % (where, ", ".join(unknown)))
+        priority = entry.get("priority")
+        if isinstance(priority, bool) or not isinstance(priority, int):
+            raise ConfigError("%s的 priority 必须是整数" % where)
+        rule = entry.get("rule")
+        if not isinstance(rule, str) or not rule:
+            raise ConfigError("%s的 rule 必须是非空字符串" % where)
+        if priority in seen:
+            raise ConfigError("%s的 priority 重复：%d" % (where, priority))
+        seen.add(priority)
+        items.append((priority, rule, where))
+    return sorted(items, key=lambda item: item[0])
+
+
+def _rule_target(rule, where, group_names):
+    """校验规则语法与目标策略，返回 (类型, 目标)。"""
+    parts = rule.split(",")
+    if len(parts) < 2 or any(not part or part != part.strip() for part in parts):
+        raise ConfigError("%s格式错误：%r" % (where, rule))
+    rule_type = parts[0]
+    if rule_type not in RULE_TYPES:
+        raise ConfigError("%s类型不受支持：%r" % (where, rule_type))
+    if rule_type == "MATCH":
+        if len(parts) != 2:
+            raise ConfigError("%s格式错误：%r" % (where, rule))
+        target = parts[1]
+    else:
+        if len(parts) < 3:
+            raise ConfigError("%s格式错误：%r" % (where, rule))
+        target = parts[2]
+    if target not in group_names and target not in BUILTIN_POLICIES:
+        raise ConfigError("%s引用了不存在的策略：%r" % (where, target))
+    return rule_type, target
+
+
+def compile_rules(rules, group_names):
+    """把四层规则编译成 Mihomo 的扁平规则列表。
+
+    层顺序固定；层内按 priority 升序；输出不保留 priority 元数据。
+    """
+    if not isinstance(rules, dict):
+        raise ConfigError("rules 必须是按层组织的映射")
+    unknown = sorted(set(rules) - set(RULE_LAYERS))
+    if unknown:
+        raise ConfigError("rules：未知的规则层：%s" % ", ".join(unknown))
+    missing = [layer for layer in RULE_LAYERS if layer not in rules]
+    if missing:
+        raise ConfigError("rules：缺少规则层：%s" % ", ".join(missing))
+    group_names = set(group_names)
+    compiled = []
+    for layer in RULE_LAYERS:
+        for _priority, rule, where in _sorted_entries(rules[layer], layer):
+            rule_type, _target = _rule_target(rule, where, group_names)
+            if rule_type == "MATCH" and layer != "fallback":
+                raise ConfigError("%s：MATCH 只能出现在 fallback 层" % where)
+            compiled.append(rule)
+    if not compiled or compiled[-1].split(",", 1)[0] != "MATCH":
+        raise ConfigError("rules：MATCH 必须是最后一条规则")
+    if sum(1 for rule in compiled if rule.split(",", 1)[0] == "MATCH") != 1:
+        raise ConfigError("rules：MATCH 必须且只能有一条")
+    return compiled
+
+
 def build_platform(platform, root=REPO_ROOT):
     """合并公共配置与指定平台配置，返回按键顺序排列的配置字典。"""
     if platform not in PLATFORM_KEYS:
@@ -305,6 +391,9 @@ def build_platform(platform, root=REPO_ROOT):
 
     merged["proxy-groups"] = _resolve_proxy_groups(
         merged["proxy-groups"], merged["proxies"], owners["proxy-groups"]
+    )
+    merged["rules"] = compile_rules(
+        merged["rules"], {group["name"] for group in merged["proxy-groups"]}
     )
 
     return {key: merged[key] for key in KEY_ORDER if key in merged}

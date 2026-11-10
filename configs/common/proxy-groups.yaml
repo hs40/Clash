@@ -61,3 +61,16 @@ proxy-groups:
       - 狮城节点
       - 日本节点
       - 香港节点
+
+  # AI 业务组（ENG-02）：仅 OpenAI / Claude / Cursor，手动选择，默认自动选择。
+  - name: OpenAI
+    type: select
+    proxies: [自动选择, 香港节点, 台湾节点, 日本节点, 韩国节点, 狮城节点, 美国节点, 其他节点]
+
+  - name: Claude
+    type: select
+    proxies: [自动选择, 香港节点, 台湾节点, 日本节点, 韩国节点, 狮城节点, 美国节点, 其他节点]
+
+  - name: Cursor
+    type: select
+    proxies: [自动选择, 香港节点, 台湾节点, 日本节点, 韩国节点, 狮城节点, 美国节点, 其他节点]

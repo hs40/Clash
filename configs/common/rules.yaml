@@ -1,18 +1,72 @@
-# 四层分流规则（MVP 最小集：每层示例 + 兜底 MATCH）。
-# 层内数字优先级、同层去重、冲突测试、rule-providers 属 ENG-02 / ENG-06，尚未引入。
-# MATCH 必须永远是最后一条（docs/REQUIREMENTS.md §5）。
+# 四层分流规则（ENG-02）：层顺序固定，层内按 priority 升序，priority 必须同层唯一。
+# 输出为 Mihomo 扁平规则列表；层与 priority 不进入产物。
+# MATCH 只能出现在 fallback 层，且必须是最后一条（docs/REQUIREMENTS.md §5）。
 rules:
   # 1. 特殊规则（最高优先级）
-  - DOMAIN-SUFFIX,local,DIRECT
+  special:
+    - priority: 100
+      rule: DOMAIN-SUFFIX,local,DIRECT
 
-  # 2. 业务规则
-  - DOMAIN-SUFFIX,google.com,PROXY
-  - DOMAIN-SUFFIX,openai.com,PROXY
-  - DOMAIN-SUFFIX,apple.com,DIRECT
+  # 2. 业务规则（ENG-02 最小代表集；完整名单留待 ENG-06 Provider）
+  business:
+    # Google → Google 组（美国优先，组内自动回退）
+    - priority: 100
+      rule: DOMAIN-SUFFIX,google.com,Google
+    - priority: 110
+      rule: DOMAIN-SUFFIX,googleapis.com,Google
+    - priority: 120
+      rule: DOMAIN-SUFFIX,gstatic.com,Google
+    - priority: 130
+      rule: DOMAIN-SUFFIX,googleusercontent.com,Google
+
+    # AI → 各自独立策略组
+    - priority: 200
+      rule: DOMAIN-SUFFIX,openai.com,OpenAI
+    - priority: 210
+      rule: DOMAIN-SUFFIX,chatgpt.com,OpenAI
+    - priority: 220
+      rule: DOMAIN-SUFFIX,oaistatic.com,OpenAI
+    - priority: 230
+      rule: DOMAIN-SUFFIX,oaiusercontent.com,OpenAI
+    - priority: 300
+      rule: DOMAIN-SUFFIX,anthropic.com,Claude
+    - priority: 310
+      rule: DOMAIN-SUFFIX,claude.ai,Claude
+    - priority: 400
+      rule: DOMAIN-SUFFIX,cursor.com,Cursor
+    - priority: 410
+      rule: DOMAIN-SUFFIX,cursor.sh,Cursor
+
+    # Apple → 直连
+    - priority: 500
+      rule: DOMAIN-SUFFIX,apple.com,DIRECT
+    - priority: 510
+      rule: DOMAIN-SUFFIX,icloud.com,DIRECT
+    - priority: 520
+      rule: DOMAIN-SUFFIX,mzstatic.com,DIRECT
+
+    # 国内金融 → 直连
+    - priority: 600
+      rule: DOMAIN-SUFFIX,icbc.com.cn,DIRECT
+    - priority: 610
+      rule: DOMAIN-SUFFIX,ccb.com.cn,DIRECT
+    - priority: 620
+      rule: DOMAIN-SUFFIX,abchina.com,DIRECT
+    - priority: 630
+      rule: DOMAIN-SUFFIX,boc.cn,DIRECT
+
+    # BT → 直连
+    - priority: 700
+      rule: DOMAIN-KEYWORD,tracker,DIRECT
 
   # 3. 基础规则
-  - GEOIP,LAN,DIRECT,no-resolve
-  - GEOIP,CN,DIRECT
+  base:
+    - priority: 100
+      rule: GEOIP,LAN,DIRECT,no-resolve
+    - priority: 110
+      rule: GEOIP,CN,DIRECT
 
   # 4. 兜底规则（最低优先级，必须最后）
-  - MATCH,PROXY
+  fallback:
+    - priority: 100
+      rule: MATCH,PROXY

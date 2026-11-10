@@ -47,8 +47,19 @@ class GeneratedGroupsTest(unittest.TestCase):
             [
                 "PROXY", "自动选择", "香港节点", "台湾节点", "日本节点",
                 "韩国节点", "狮城节点", "美国节点", "其他节点", "Google",
+                "OpenAI", "Claude", "Cursor",
             ],
         )
+
+    def test_ai_groups_are_select_with_auto_and_regions(self):
+        expected = [
+            "自动选择", "香港节点", "台湾节点", "日本节点",
+            "韩国节点", "狮城节点", "美国节点", "其他节点",
+        ]
+        for name in ("OpenAI", "Claude", "Cursor"):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["type"], "select")
+                self.assertEqual(self.groups[name]["proxies"], expected)
 
     def test_auto_select_contains_every_proxy(self):
         self.assertEqual(
@@ -150,6 +161,7 @@ class GroupFixtureTest(unittest.TestCase):
             [
                 "PROXY", "自动选择", "香港节点", "台湾节点", "日本节点",
                 "韩国节点", "狮城节点", "美国节点", "其他节点", "Google",
+                "OpenAI", "Claude", "Cursor",
             ],
         )
 
