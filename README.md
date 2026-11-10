@@ -14,8 +14,9 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - ENG-01 验收报告：[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)
 - ENG-02 验收报告：[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)
 - ENG-03 验收报告：[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)
+- ENG-04 验收报告：[docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)
 - 原始开发计划：[Clash 配置工程开发 Plan.md](Clash 配置工程开发 Plan.md)
-- 兼容基准：Mihomo v1.19.33（设计基准，非已核实的设备运行版本）
+- 兼容基准：Mihomo v1.19.33（本机已核验；OpenClash 设备运行版本待核验）
 
 ## 源文件与构建产物
 
@@ -105,8 +106,11 @@ REQUIREMENTS §14 在真实设备上核验。
 
 ## 当前状态
 
-MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03 已完成并通过自动化测试，验收记录见
+MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03 已完成并通过自动化测试；ENG-04 已完成
+双平台配置与本机 Mihomo v1.19.33 加载验证，OpenClash 设备内核版本及 NAS/HAOS/Proxmox
+链路核验待补充。验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
-[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md) 与
-[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)。ENG-04 至 ENG-06 尚未开始。
+[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)、
+[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md) 与
+[docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)。ENG-05、ENG-06 尚未开始。

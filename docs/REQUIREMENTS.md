@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.4
+**版本：** v1.5
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -329,7 +329,8 @@ Python 最小构建程序、YAML 基础校验、两份配置生成结果、基�
 
 以上是 MVP 当阶段的边界。ENG-01 已实现节点地区识别与策略组生成（§4.2），
 ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-03 已实现 DNS/Fake-IP
-构建期校验（§7.1）；其余仍按 ENG 计划逐项推进。
+构建期校验（§7.1），ENG-04 已实现双平台完整配置与本机 Mihomo 加载验证；其余仍按
+ENG 计划逐项推进。
 
 ---
 
@@ -339,7 +340,7 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-0
 
 | 键 | 草案值 | 说明 |
 | --- | --- | --- |
-| `mixed-port` | `7890` | Verge 可能用自己的 GUI 设置覆盖，【待核验】 |
+| `mixed-port` | `7897` | 负责人 2026-11-10 确认；与本机 Verge 实际生成值一致 |
 | `allow-lan` | `false` | |
 | `tun.enable` | `true` | |
 | `tun.stack` | `gvisor` | 用户态栈，Windows 兼容性优先，【待核验】 |
@@ -348,6 +349,11 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-0
 | `tun.dns-hijack` | `["any:53"]` | |
 | `tun.strict-route` | `false` | |
 
+本机核验（2026-11-10）：Clash Verge Rev 2.5.10 实际生成的 `config.yaml` 使用
+`mixed-port: 7897`、`ipv6: true`、`tun.enable: false`，会覆盖配置中的同名值。
+负责人决定仓库保留 `mixed-port: 7897`，IPv4-only 与 TUN 由负责人在 Verge GUI
+手动设置；本工程不写入用户真实 Verge 配置。
+
 ### 13.2 OpenClash（iStoreOS 旁路由）
 
 | 键 | 草案值 | 说明 |
@@ -355,7 +361,7 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-0
 | `port` | `7893` | HTTP 代理端口，NAS 显式代理依赖此值【确定】 |
 | `allow-lan` | `true` | |
 | `bind-address` | `"*"` | |
-| LAN 访问限制 | 仅 `allow-lan` + `bind-address` | `lan-allowed-ips` 与防火墙规则属 ENG-03/04，【待核验】 |
+| LAN 访问限制 | 仅 `allow-lan` + `bind-address` | 负责人 2026-11-10 决定保持现状；`lan-allowed-ips` 内核支持但未启用 |
 
 ### 13.3 DNS
 
@@ -387,10 +393,13 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 ## 14. 待核验清单【待核验】
 
 1. 设备上实际的 Mihomo 版本是否为 v1.19.33，以及与 OpenClash 的兼容性。
-2. Clash Verge Rev v2.5.10 是否会覆盖 `platform.yaml` 中的 `mixed-port` / `tun` 设置。
+   Windows 本机已核验为 v1.19.33；iStoreOS/OpenClash 内核版本待只读命令输出。
+2. ~~Clash Verge Rev v2.5.10 是否会覆盖 `platform.yaml` 中的 `mixed-port` / `tun` 设置。~~
+   【已核验 2026-11-10：会覆盖；负责人决定 mixed-port 取 7897，IPv6/TUN 手动设置】
 3. OpenClash 是否自行注入 `redir-port` / `tproxy-port` 与 DNS 监听（如 7874）。
 4. `dns.listen: 0.0.0.0:1053` 与 TUN `dns-hijack` 的实际配合方式。
-5. Mihomo v1.19.33 是否支持 `lan-allowed-ips`（决定 OpenClash LAN 限制的实现方式）。
+5. ~~Mihomo v1.19.33 是否支持 `lan-allowed-ips`（决定 OpenClash LAN 限制的实现方式）。~~
+   【已核验 2026-11-10：支持且 `-t` 通过；负责人决定保持 `allow-lan` + `bind-address`，不启用】
 6. 真实网络连通性、DNS 泄漏与绕过代理路径（自动化测试不能替代）。
 7. ~~Google 回退的「指定地区白名单」具体地区。~~【已确认 2026-11-10：狮城、日本、香港】
 8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
@@ -407,3 +416,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.2 | 确认地区关键词表、匹配优先级、Google 回退顺序（狮城→日本→香港）与 `include` 生成契约 | 项目负责人 |
 | 2026-11-10 | v1.3 | 确认四层规则源文件结构、编译校验契约、冲突测试要求；确认 AI 三组（OpenAI/Claude/Cursor）与五类业务路由目标 | 项目负责人 |
 | 2026-11-10 | v1.4 | 确认 DNS 保持公共单所有者、Fake-IP Filter 4 条与 `validate_dns` 校验契约（§7.1） | 项目负责人 |
+| 2026-11-10 | v1.5 | 确认 Windows `mixed-port` 取 7897；确认 Verge 覆盖 IPv6/TUN 由负责人手动设置；确认 OpenClash LAN 限制保持 `allow-lan` + `bind-address` | 项目负责人 |
