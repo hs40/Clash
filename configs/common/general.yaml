@@ -1,0 +1,5 @@
+# 全局通用配置：两个平台共用的顶层标量。
+# IPv4-only 基线：不开启 IPv6（docs/REQUIREMENTS.md §3、§7）。
+mode: rule
+log-level: info
+ipv6: false

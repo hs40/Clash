@@ -1,0 +1,58 @@
+# 策略组（MVP 手工维护；地区识别与自动生成属 ENG-01）。
+# 七个地区入口名称已由项目负责人确认，不得改写（docs/REQUIREMENTS.md §4.1）。
+# Google / AI / Apple / 国内金融 / BT 业务组随 ENG-02 规则一起建立。
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - 自动选择
+      - 香港节点
+      - 台湾节点
+      - 日本节点
+      - 韩国节点
+      - 狮城节点
+      - 美国节点
+      - 其他节点
+      - DIRECT
+
+  - name: 自动选择
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies:
+      - 占位-香港-01
+      - 占位-台湾-01
+      - 占位-日本-01
+      - 占位-韩国-01
+      - 占位-狮城-01
+      - 占位-美国-01
+      - 占位-其他-01
+
+  - name: 香港节点
+    type: select
+    proxies: [占位-香港-01]
+
+  - name: 台湾节点
+    type: select
+    proxies: [占位-台湾-01]
+
+  - name: 日本节点
+    type: select
+    proxies: [占位-日本-01]
+
+  - name: 韩国节点
+    type: select
+    proxies: [占位-韩国-01]
+
+  - name: 狮城节点
+    type: select
+    proxies: [占位-狮城-01]
+
+  - name: 美国节点
+    type: select
+    proxies: [占位-美国-01]
+
+  - name: 其他节点
+    type: select
+    proxies: [占位-其他-01]

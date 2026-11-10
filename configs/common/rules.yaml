@@ -1,0 +1,18 @@
+# 四层分流规则（MVP 最小集：每层示例 + 兜底 MATCH）。
+# 层内数字优先级、同层去重、冲突测试、rule-providers 属 ENG-02 / ENG-06，尚未引入。
+# MATCH 必须永远是最后一条（docs/REQUIREMENTS.md §5）。
+rules:
+  # 1. 特殊规则（最高优先级）
+  - DOMAIN-SUFFIX,local,DIRECT
+
+  # 2. 业务规则
+  - DOMAIN-SUFFIX,google.com,PROXY
+  - DOMAIN-SUFFIX,openai.com,PROXY
+  - DOMAIN-SUFFIX,apple.com,DIRECT
+
+  # 3. 基础规则
+  - GEOIP,LAN,DIRECT,no-resolve
+  - GEOIP,CN,DIRECT
+
+  # 4. 兜底规则（最低优先级，必须最后）
+  - MATCH,PROXY
