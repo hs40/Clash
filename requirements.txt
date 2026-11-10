@@ -1,2 +1,4 @@
-# 运行时依赖（构建与测试共用）。版本精确锁定；哈希锁定在 ENG-05 引入。
-PyYAML==6.0.3
+# Runtime dependency for build and tests. Exact version + SHA-256 hashes.
+PyYAML==6.0.3 \
+    --hash=sha256:5fcd34e47f6e0b794d17de1b4ff496c00986e1c83f7ab2fb8fcfe9616ff7477b \
+    --hash=sha256:ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc

@@ -14,3 +14,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 .tmp_*
+
+# CI 生成的中文测试报告（每次运行重新生成）
+ci-report.md

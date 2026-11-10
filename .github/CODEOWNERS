@@ -1,0 +1,7 @@
+# ENG-05：核心脚本、工作流、公共配置、安全清单与需求基线需负责人审查。
+* @hs40
+/.github/ @hs40
+/scripts/ @hs40
+/configs/common/ @hs40
+/security/ @hs40
+/docs/REQUIREMENTS.md @hs40

@@ -194,6 +194,11 @@ class CompileRulesValidationTest(unittest.TestCase):
         rules["business"][0]["rule"] = "DOMAIN-SUFFIX,example.com,Missing"
         self.assert_error(rules, "Missing")
 
+    def test_rule_set_without_provider_support_is_rejected(self):
+        rules = make_rules()
+        rules["business"][0]["rule"] = "RULE-SET,trusted-set,PROXY"
+        self.assert_error(rules, "Provider")
+
     def test_match_outside_fallback_is_rejected(self):
         rules = make_rules()
         rules["business"][0]["rule"] = "MATCH,PROXY"

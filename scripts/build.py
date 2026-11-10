@@ -349,6 +349,10 @@ def _rule_target(rule, where, group_names):
     rule_type = parts[0]
     if rule_type not in RULE_TYPES:
         raise ConfigError("%s类型不受支持：%r" % (where, rule_type))
+    if rule_type == "RULE-SET":
+        raise ConfigError(
+            "%s：RULE-SET 需要 rule-providers，Provider 尚未实现（ENG-06）" % where
+        )
     if rule_type == "MATCH":
         if len(parts) != 2:
             raise ConfigError("%s格式错误：%r" % (where, rule))
