@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.2
+**版本：** v1.3
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -122,9 +122,24 @@ GitHub 以外的灾难恢复备份系统。
    策略组循环引用，均使构建失败。
 6. ENG-01 只做构建期识别；§4 第 3 条的本地缓存随 ENG-05 Provider 实现，暂不引入。
 
+### 4.3 业务策略组与路由目标【确定，2026-11-10 负责人确认】
+
+| 业务 | 规则目标 | 说明 |
+| --- | --- | --- |
+| Google | `Google` 组 | `fallback`，顺序：美国节点 → 狮城节点 → 日本节点 → 香港节点 |
+| AI | `OpenAI`、`Claude`、`Cursor` 三个独立组 | `select`，成员固定为「自动选择 + 七个地区入口」，默认选中「自动选择」 |
+| Apple | `DIRECT` | |
+| 国内金融 | `DIRECT` | |
+| BT | `DIRECT` | |
+
+- AI 范围仅限 OpenAI、Claude、Cursor；不纳入 Gemini、Perplexity 等（负责人确认）。
+- 三个 AI 组必须存在，且成员顺序固定：自动选择、香港节点、台湾节点、日本节点、
+  韩国节点、狮城节点、美国节点、其他节点。
+- 规则引用的策略组必须存在；引用不存在的组使构建失败（§5.2）。
+
 ---
 
-## 5. 分流规则【确定】
+## 5. 分流规则【确定，ENG-02 实现契约】
 
 统一采用四层结构：
 
@@ -133,8 +148,51 @@ GitHub 以外的灾难恢复备份系统。
 3. 基础规则。
 4. 兜底规则：最低优先级，`MATCH` 必须最后。
 
-层内按数字优先级排序，数字越小越靠前；同层重复优先级禁止；保留规则模块内部顺序。
-必须测试特殊规则、业务规则和基础规则之间的冲突，确认最终命中策略。
+### 5.1 源文件结构
+
+`configs/common/rules.yaml` 的顶层键为 `rules`，其值为四层映射，键名固定为
+`special`、`business`、`base`、`fallback`。每层是条目列表，每条为：
+
+```yaml
+- priority: 100          # 同层唯一的整数，越小越靠前
+  rule: DOMAIN-SUFFIX,example.com,PROXY
+```
+
+未知规则层、未知条目键、缺失层、层值不是列表、非整数或布尔型 priority、
+同层重复 priority、空的 rule，均使构建失败。
+
+### 5.2 编译与校验
+
+1. 层顺序固定为 special → business → base → fallback，**优先于** priority；
+   priority 只在同层内排序。
+2. 输出为 Mihomo 扁平规则字符串列表；层名与 priority 不进入产物。
+3. `MATCH` 只能出现在 `fallback` 层，必须**有且仅有一条**，且必须是最后一条。
+4. 支持的规则类型：`DOMAIN`、`DOMAIN-SUFFIX`、`DOMAIN-KEYWORD`、`GEOIP`、
+   `IP-CIDR`、`IP-CIDR6`、`SRC-IP-CIDR`、`DST-PORT`、`SRC-PORT`、
+   `PROCESS-NAME`、`PROCESS-PATH`、`NETWORK`、`RULE-SET`、`MATCH`。
+   嵌套逻辑规则（AND/OR/NOT）不在本期范围。
+5. 规则按逗号分段；段首尾不得有空白，不得有空段。非 `MATCH` 类型至少三段。
+6. 目标只能是已存在的策略组，或内置策略 `DIRECT`、`REJECT`、`REJECT-DROP`、`PASS`；
+   其他目标使构建失败，并报告层、条目序号与规则文本。
+7. 运行期采用 Mihomo 的**首条匹配**语义：命中第一条后不再继续匹配，因此层顺序即最终
+   优先级。冲突测试必须模拟首条匹配，而不是只比较列表顺序。
+
+### 5.3 当前最小规则集
+
+ENG-02 只落最小代表集，完整名单留待 ENG-06 Provider：
+
+- Google：`google.com`、`googleapis.com`、`gstatic.com`、`googleusercontent.com` → `Google`。
+- AI：OpenAI（`openai.com`、`chatgpt.com`、`oaistatic.com`、`oaiusercontent.com`）、
+  Claude（`anthropic.com`、`claude.ai`）、Cursor（`cursor.com`、`cursor.sh`）→ 各自组。
+- Apple：`apple.com`、`icloud.com`、`mzstatic.com` → `DIRECT`。
+- 国内金融：`icbc.com.cn`、`ccb.com.cn`、`abchina.com`、`boc.cn` → `DIRECT`。
+- BT：`DOMAIN-KEYWORD,tracker` → `DIRECT`。
+- 基础层：`GEOIP,LAN,DIRECT,no-resolve`、`GEOIP,CN,DIRECT`；兜底 `MATCH,PROXY`。
+
+### 5.4 冲突测试要求
+
+必须覆盖：special 的 `DOMAIN` 命中后压过 business 的 `DOMAIN-SUFFIX`；
+未命中前序层时按 base、fallback 顺序命中；所有规则目标均存在；`MATCH` 唯一且最后。
 
 ---
 
@@ -245,7 +303,7 @@ Python 最小构建程序、YAML 基础校验、两份配置生成结果、基�
 自动设备部署、OpenClash 防火墙自动部署。
 
 以上是 MVP 当阶段的边界。ENG-01 已实现节点地区识别与策略组生成（§4.2），
-其余仍按 ENG 计划逐项推进。
+ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3）；其余仍按 ENG 计划逐项推进。
 
 ---
 
@@ -305,7 +363,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 4. `dns.listen: 0.0.0.0:1053` 与 TUN `dns-hijack` 的实际配合方式。
 5. Mihomo v1.19.33 是否支持 `lan-allowed-ips`（决定 OpenClash LAN 限制的实现方式）。
 6. 真实网络连通性、DNS 泄漏与绕过代理路径（自动化测试不能替代）。
-7. Google 回退的「指定地区白名单」具体地区。
+7. ~~Google 回退的「指定地区白名单」具体地区。~~【已确认 2026-11-10：狮城、日本、香港】
 
 ---
 
@@ -317,3 +375,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.0 | 确认七个地区入口名称；确认 MVP 草案参数与合并契约 | 项目负责人 |
 | 2026-11-10 | v1.1 | 追认新增公共文件 `configs/common/general.yaml`；确认 `其他节点` 为未匹配地区的兜底节点池 | 项目负责人 |
 | 2026-11-10 | v1.2 | 确认地区关键词表、匹配优先级、Google 回退顺序（狮城→日本→香港）与 `include` 生成契约 | 项目负责人 |
+| 2026-11-10 | v1.3 | 确认四层规则源文件结构、编译校验契约、冲突测试要求；确认 AI 三组（OpenAI/Claude/Cursor）与五类业务路由目标 | 项目负责人 |

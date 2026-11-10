@@ -11,6 +11,8 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 
 - 需求基线：[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
 - MVP 验收报告：[docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)
+- ENG-01 验收报告：[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)
+- ENG-02 验收报告：[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)
 - 原始开发计划：[Clash 配置工程开发 Plan.md](Clash 配置工程开发 Plan.md)
 - 兼容基准：Mihomo v1.19.33（设计基准，非已核实的设备运行版本）
 
@@ -34,6 +36,10 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 
 策略组成员由构建期按地区识别生成（`include: all` / `include: region:<入口名>`），
 不手写节点名单；规则见 REQUIREMENTS §4.2。
+
+规则源文件 `configs/common/rules.yaml` 按 special / business / base / fallback 四层组织，
+层内用整数 `priority` 排序；构建期校验层级、重复优先级、规则类型、目标策略组与
+`MATCH` 位置，再编译为扁平规则列表。契约见 REQUIREMENTS §5。
 
 ## 环境准备
 
@@ -82,7 +88,10 @@ py -m venv .venv
 - 变更传播：公共配置修改反映到两个平台，平台配置修改只影响对应平台；
 - 地区识别：七个入口名称、关键词匹配、ASCII 整词边界、多地区命中优先级；
 - 策略组生成：`include` 展开、空地区回退到「自动选择」、Google 回退顺序、
-  增删改节点不改变组名、无效引用与循环引用使构建失败。
+  增删改节点不改变组名、无效引用与循环引用使构建失败；
+- AI 策略组：OpenAI / Claude / Cursor 的成员顺序与默认选中项；
+- 规则编译：四层顺序、层内 priority 排序、类型 / 目标 / `MATCH` 位置校验、
+  五类业务路由基线，以及 special 压过 business 的首条匹配冲突测试。
 
 ## 占位内容说明
 
@@ -93,6 +102,7 @@ REQUIREMENTS §14 在真实设备上核验。
 
 ## 当前状态
 
-MVP-01 至 MVP-06、ENG-01 已完成并通过自动化测试，验收记录见
-[docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md) 与
-[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)。ENG-02 至 ENG-06 尚未开始。
+MVP-01 至 MVP-06、ENG-01、ENG-02 已完成并通过自动化测试，验收记录见
+[docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
+[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md) 与
+[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)。ENG-03 至 ENG-06 尚未开始。
