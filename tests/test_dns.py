@@ -220,7 +220,7 @@ class BuildIntegrationTest(unittest.TestCase):
             root = Path(tmp)
             copy_repo_configs(root)
             replace_in_file(root / "configs" / "common" / "dns.yaml",
-                            "0.0.0.0:1053", "0.0.0.0:7890")
+                            "0.0.0.0:1053", "0.0.0.0:7897")
             with self.assertRaises(build.ConfigError) as ctx:
                 build.build_platform("windows", root)
             self.assertIn("冲突", str(ctx.exception))

@@ -129,7 +129,7 @@ class BuilderMergeTest(unittest.TestCase):
     def test_build_platform_merges_common_and_platform(self):
         cfg = build.build_platform("windows", ROOT)
         self.assertEqual(list(cfg), EXPECTED_WINDOWS_KEYS)
-        self.assertEqual(cfg["mixed-port"], 7890)
+        self.assertEqual(cfg["mixed-port"], 7897)
         self.assertFalse(cfg["allow-lan"])
         self.assertEqual(cfg["tun"]["stack"], "gvisor")
         self.assertEqual(cfg["dns"]["enhanced-mode"], "fake-ip")
@@ -230,10 +230,10 @@ class MergeContractTest(unittest.TestCase):
         base_openclash = build.build_platform("openclash", self.root)
         path = self.platform_file()
         path.write_text(
-            path.read_text(encoding="utf-8").replace("mixed-port: 7890", "mixed-port: 7891"),
+            path.read_text(encoding="utf-8").replace("mixed-port: 7897", "mixed-port: 7898"),
             encoding="utf-8",
         )
-        self.assertEqual(build.build_platform("windows", self.root)["mixed-port"], 7891)
+        self.assertEqual(build.build_platform("windows", self.root)["mixed-port"], 7898)
         self.assertNotEqual(build.build_platform("windows", self.root), base_windows)
         self.assertEqual(build.build_platform("openclash", self.root), base_openclash)
 
