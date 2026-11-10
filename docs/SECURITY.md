@@ -2,7 +2,7 @@
 
 - 依据：[REQUIREMENTS.md](REQUIREMENTS.md) §9 与 §9.1。
 - 状态：本地 CI 配置、依赖锁定、敏感信息扫描、Mihomo 固定校验与 CODEOWNERS 文件已完成；
-  GitHub 远端的分支保护与 CODEOWNERS 强制尚未核验。
+  远端 main push CI 已实际运行并通过；PR CI、分支保护与 CODEOWNERS 强制尚未核验。
 - 适用范围：本仓库的构建脚本、公共配置、安全清单、GitHub Actions 与发布流程。
 
 ## 1. 阻断规则
@@ -18,7 +18,8 @@
 
 - 工作流只响应 pull_request 与 push 到 main，不使用 pull_request_target。
 - 顶层权限固定为 contents: read，不引用 Secrets；不可信 PR 不获得额外权限。
-- 第三方 Action 固定完整 40 位 Commit SHA，不使用浮动 tag。
+- 第三方 Action 固定完整 40 位 Commit SHA，不使用浮动 tag；当前 checkout v7.0.1 与
+  setup-python v7.1.0 均运行于 node24（2026-11-10 升级，消除 Node 20 弃用告警）。
 - actions/checkout 设置 persist-credentials: false，避免把令牌留在工作区。
 - 工作流文本由 scripts/ci_policy.py 静态检查；检查失败时 CI 失败。
 
@@ -59,7 +60,7 @@
 
 ## 7. 尚未完成与限制
 
-1. 尚未在 GitHub 上触发真实 PR CI；本地只验证了工作流文本与脚本。
+1. 远端 main push CI 已通过；PR 触发尚未实际验证（当前没有打开的 PR）。
 2. 尚未启用或核验远端分支保护、必需状态检查与 CODEOWNERS 强制。
 3. CI 不替代真实网络连通性、DNS 泄漏、TUN 接管与 OpenClash 透明代理验证（见
    [REQUIREMENTS.md](REQUIREMENTS.md) §14）。

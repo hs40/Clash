@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.9
+**版本：** v1.10
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -350,7 +350,8 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-0
 构建期校验（§7.1）。ENG-04 已实现双平台完整配置；Windows 本机按 v1.19.33 验证通过，
 OpenClash 设备端按 alpha-gbc76c13 执行 `-t` 通过；NAS/HAOS/Proxmox 路径尚未完成验证。
 ENG-05 已实现 CI 配置、依赖哈希锁定、敏感信息扫描、Mihomo 固定版本校验、中文测试报告
-与 CODEOWNERS 静态策略检查；远端 CI 与分支保护尚未在 GitHub 上验证。其余仍按 ENG 计划推进。
+与 CODEOWNERS 静态策略检查；远端 main push CI 已于 2026-11-10 运行并通过，Actions 已升级到
+checkout v7.0.1 / setup-python v7.1.0（node24）。PR CI、分支保护与 CODEOWNERS 强制仍待验证。其余仍按 ENG 计划推进。
 
 ---
 
@@ -430,7 +431,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 6. 真实网络连通性、DNS 泄漏与绕过代理路径（自动化测试不能替代）。
 7. ~~Google 回退的「指定地区白名单」具体地区。~~【已确认 2026-11-10：狮城、日本、香港】
 8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
-9. GitHub 远端 CI 是否实际运行、分支保护与 CODEOWNERS 是否真正强制，尚未验证；本地只能做静态检查。
+9. GitHub 远端 main push CI 已于 2026-11-10 通过；PR 触发、分支保护与 CODEOWNERS 强制尚未验证/启用。
 
 ---
 
@@ -449,3 +450,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.7 | 确认 OpenClash 设计基准改为设备实际 alpha-gbc76c13（仅 OpenClash）；Windows 保持 v1.19.33 | 项目负责人 |
 | 2026-11-10 | v1.8 | 记录 OpenClash 设备端 `-t` 通过（产物 4006 字节、SHA-256 `6d959695…`）；ENG-04 内核加载验收通过，NAS/HAOS/Proxmox 路径仍未验证 | 项目负责人（事实记录） |
 | 2026-11-10 | v1.9 | 完成 ENG-05 CI/安全实现契约：依赖哈希、敏感扫描、Mihomo 固定校验、中文报告、CODEOWNERS；缓存从 ENG-05 推迟到 ENG-06；远端 CI 与分支保护未验证 | 项目负责人（事实记录） |
+| 2026-11-10 | v1.10 | 记录远端 main push CI 通过；Actions 升级到 checkout v7.0.1 / setup-python v7.1.0（Node 24）；PR CI、分支保护与 CODEOWNERS 强制待验证 | 项目负责人（事实记录） |

@@ -121,7 +121,7 @@ CI 定义在 `.github/workflows/ci.yml`：PR 与 `main` push 自动运行，固�
 只读权限、依赖哈希安装、双平台构建、敏感扫描、中文测试报告，并下载/校验 Mihomo
 v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mihomo.yaml`。
 
-远端分支保护与 CODEOWNERS 强制尚未启用/核验；`ci-report.md` 为生成物，不提交。
+远端 main push CI 已通过；PR CI、分支保护与 CODEOWNERS 强制尚未启用/核验；`ci-report.md` 为生成物，不提交。
 
 ## 占位内容说明
 
@@ -135,7 +135,8 @@ REQUIREMENTS §14 在真实设备上核验。
 MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03、ENG-05 已完成本地实现并通过自动化测试；
 ENG-04 已完成双平台配置，Windows 本机 v1.19.33 与 OpenClash 设备 alpha-gbc76c13 均通过
 `-t` 加载验证，但 NAS 端到端、HAOS/Proxmox 路径未验证，标记为部分通过。ENG-05 的远端
-CI、分支保护与 CODEOWNERS 强制尚未核验，标记为本地完成、远端部分通过；ENG-06 尚未开始。
+main push CI 已通过，PR CI、分支保护与 CODEOWNERS 强制尚未核验，标记为本地完成、远端 main
+push 通过；ENG-06 尚未开始。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
