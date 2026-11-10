@@ -1,4 +1,4 @@
-# 公共 DNS 配置（两平台共用；平台差异与 Fake-IP 兼容性属 ENG-03）。
+# 公共 DNS 配置（两平台共用；构建期由 validate_dns 校验）。
 # 取值为 MVP 草案，部署前必须按 docs/REQUIREMENTS.md §14 核验。
 dns:
   enable: true

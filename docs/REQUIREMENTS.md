@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.3
+**版本：** v1.4
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -222,6 +222,31 @@ ENG-02 只落最小代表集，完整名单留待 ENG-06 Provider：
 10. 不将 Windows TUN 配置直接复制到 OpenClash。【确定】
 11. Fake-IP-Mix 可作为 OpenClash 设计起点，但必须按实际 OpenClash 版本做兼容性验证。【待核验】
 
+### 7.1 构建期 DNS 校验【确定，ENG-03 实现契约】
+
+`validate_dns(dns)` 是纯函数接缝；`build_platform` 在策略组展开前调用，任一校验失败
+即构建失败（CLI 退出码 2）。校验项：
+
+1. 必填键齐全：`enable`、`listen`、`ipv6`、`enhanced-mode`、`fake-ip-range`、
+   `fake-ip-filter`、`default-nameserver`、`nameserver`、`proxy-server-nameserver`、
+   `fallback`、`fallback-filter`。
+2. `enable` 必须为 true，`ipv6` 必须为 false，`enhanced-mode` 必须为 `fake-ip`。
+3. `listen` 必须为 `IPv4:端口`，端口在 1-65535 之间；主机不得是域名或 IPv6。
+4. `fake-ip-range` 必须是 IPv4 网段，前缀长度在 /8-/30 之间。
+5. `fake-ip-filter` 必须是非空列表，条目为非空字符串且不重复；产物固定为 §13.3 的 4 条。
+6. 四个服务器列表（`default-nameserver`、`nameserver`、`proxy-server-nameserver`、
+   `fallback`）必须非空、条目为非空字符串且不重复；`default-nameserver` 只允许 IPv4，
+   其余列表不得包含 IPv6 字面量。
+7. `nameserver` 与 `fallback` 不得存在交集。
+8. 四类服务器均不得指向 `dns.listen` 自身（`0.0.0.0` 视为包含 `127.0.0.1` 与
+   `localhost`），防止转发循环。
+9. `fallback-filter` 必须是映射，`geoip` 为 true，`geoip-code` 为 `CN`。
+10. 顶层 `ipv6` 必须为 false；`dns.listen` 端口不得与 `mixed-port` 或 `port` 相同。
+11. Windows 的 `tun.dns-hijack` 必须包含 `any:53`。
+
+错误信息以 `dns：` 前缀或对应键名开头。两平台共用同一份 `dns`；OpenClash 运行时的
+DNS 监听与防火墙适配不在构建期模拟，设备兼容性列入 §14 待核验。
+
 ---
 
 ## 8. Provider 管理【确定】
@@ -303,7 +328,8 @@ Python 最小构建程序、YAML 基础校验、两份配置生成结果、基�
 自动设备部署、OpenClash 防火墙自动部署。
 
 以上是 MVP 当阶段的边界。ENG-01 已实现节点地区识别与策略组生成（§4.2），
-ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3）；其余仍按 ENG 计划逐项推进。
+ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-03 已实现 DNS/Fake-IP
+构建期校验（§7.1）；其余仍按 ENG 计划逐项推进。
 
 ---
 
@@ -333,6 +359,8 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3）；其�
 
 ### 13.3 DNS
 
+以下取值是 ENG-03 的构建期基线，`validate_dns` 会强制校验；设备上的实际兼容性仍需按 §14 核验。
+
 | 键 | 草案值 | 说明 |
 | --- | --- | --- |
 | `dns.enable` | `true` | |
@@ -340,6 +368,7 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3）；其�
 | `dns.ipv6` | `false` | |
 | `dns.enhanced-mode` | `fake-ip` | |
 | `dns.fake-ip-range` | `198.18.0.1/16` | |
+| `dns.fake-ip-filter` | `*.lan`、`*.local`、`+.msftconnecttest.com`、`+.msftncsi.com` | 只保留必要项，不猜测额外域名 |
 | `dns.default-nameserver` | `223.5.5.5`、`119.29.29.29` | |
 | `dns.nameserver` | `https://dns.alidns.com/dns-query`、`https://doh.pub/dns-query` | 国内 |
 | `dns.proxy-server-nameserver` | `https://doh.pub/dns-query`、`https://dns.alidns.com/dns-query` | 节点域名独立解析路径 |
@@ -364,6 +393,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 5. Mihomo v1.19.33 是否支持 `lan-allowed-ips`（决定 OpenClash LAN 限制的实现方式）。
 6. 真实网络连通性、DNS 泄漏与绕过代理路径（自动化测试不能替代）。
 7. ~~Google 回退的「指定地区白名单」具体地区。~~【已确认 2026-11-10：狮城、日本、香港】
+8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
 
 ---
 
@@ -376,3 +406,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.1 | 追认新增公共文件 `configs/common/general.yaml`；确认 `其他节点` 为未匹配地区的兜底节点池 | 项目负责人 |
 | 2026-11-10 | v1.2 | 确认地区关键词表、匹配优先级、Google 回退顺序（狮城→日本→香港）与 `include` 生成契约 | 项目负责人 |
 | 2026-11-10 | v1.3 | 确认四层规则源文件结构、编译校验契约、冲突测试要求；确认 AI 三组（OpenAI/Claude/Cursor）与五类业务路由目标 | 项目负责人 |
+| 2026-11-10 | v1.4 | 确认 DNS 保持公共单所有者、Fake-IP Filter 4 条与 `validate_dns` 校验契约（§7.1） | 项目负责人 |

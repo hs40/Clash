@@ -13,6 +13,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - MVP 验收报告：[docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)
 - ENG-01 验收报告：[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)
 - ENG-02 验收报告：[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)
+- ENG-03 验收报告：[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)
 - 原始开发计划：[Clash 配置工程开发 Plan.md](Clash 配置工程开发 Plan.md)
 - 兼容基准：Mihomo v1.19.33（设计基准，非已核实的设备运行版本）
 
@@ -91,7 +92,9 @@ py -m venv .venv
   增删改节点不改变组名、无效引用与循环引用使构建失败；
 - AI 策略组：OpenAI / Claude / Cursor 的成员顺序与默认选中项；
 - 规则编译：四层顺序、层内 priority 排序、类型 / 目标 / `MATCH` 位置校验、
-  五类业务路由基线，以及 special 压过 business 的首条匹配冲突测试。
+  五类业务路由基线，以及 special 压过 business 的首条匹配冲突测试；
+- DNS：双平台共用同一份 DNS、Fake-IP 与 IPv4-only、Filter 4 条、国内外服务器分离、
+  节点域名独立解析、无自指循环、Windows `dns-hijack`，以及多类静态校验失败路径。
 
 ## 占位内容说明
 
@@ -102,7 +105,8 @@ REQUIREMENTS §14 在真实设备上核验。
 
 ## 当前状态
 
-MVP-01 至 MVP-06、ENG-01、ENG-02 已完成并通过自动化测试，验收记录见
+MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03 已完成并通过自动化测试，验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
-[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md) 与
-[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)。ENG-03 至 ENG-06 尚未开始。
+[docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
+[docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md) 与
+[docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)。ENG-04 至 ENG-06 尚未开始。
