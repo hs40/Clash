@@ -20,10 +20,10 @@ jobs:
   test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: "3.12.3"
 """
@@ -58,7 +58,7 @@ class WorkflowPolicyTest(unittest.TestCase):
 
     def test_unpinned_action_is_rejected(self):
         text = VALID_WORKFLOW.replace(
-            "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+            "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
             "actions/checkout@v4",
         )
         self.assertTrue(any("完整 SHA" in e for e in self.check(text)))
