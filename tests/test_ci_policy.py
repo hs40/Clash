@@ -183,6 +183,12 @@ class CodeownersPolicyTest(unittest.TestCase):
 
 
 class ActualPolicyFilesTest(unittest.TestCase):
+    def test_provider_workflow_enables_python_utf8(self):
+        provider = (ROOT / ".github" / "workflows" / "provider-check.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('PYTHONUTF8: "1"', provider)
+
     def test_actual_workflow_and_codeowners_pass_policy(self):
         workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
             encoding="utf-8"
