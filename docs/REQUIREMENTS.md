@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.14
+**版本：** v1.15
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -341,7 +341,7 @@ main 分支保护规则：
 1. **版本来源**：仓库根 `VERSION` 是唯一版本来源，必须与发布版本完全一致（SemVer `X.Y.Z`）；不一致时 `release.py` 失败。
 2. **发布产物**：`scripts/release.py --version X.Y.Z` 为每个平台生成 `config.yaml` 和 `<platform>-X.Y.Z.zip`；zip 包含 `config.yaml`、`THIRD_PARTY_NOTICES.md`、`LICENSE-metacubex.txt`、`CONFIG-DIFF.md`。发布目录还包含 `RELEASE-NOTES.md`、`CONFIG-DIFF.md` 与 `SHA256SUMS`。
 3. **差异报告**：`CONFIG-DIFF.md` 记录两个平台的 SHA-256、顶层键、策略组/规则/Provider/节点数；若发布目录中存在更早的 SemVer 版本，则比较策略组、规则、Provider 与顶层键的增删。
-4. **校验**：`release.py --verify <dir>` 校验 `SHA256SUMS` 覆盖完整、无多余文件、每个 SHA-256、必需文件、配置可解析、`MATCH` 最后、Provider 存在、zip 成员与内嵌配置/差异报告一致。
+4. **校验与资产清单（2026-11-11 修正）**：`release.py --verify <dir>` 校验 `SHA256SUMS` 只包含 Release 实际上传的两个平台 zip（不漏项、不多项）、每个 SHA-256、发布目录必需文件与无多余文件、配置可解析、`MATCH` 最后、Provider 存在、zip 成员与内嵌配置/差异报告一致。发布目录内的配置、说明和许可证不作为清单条目；它们由 zip 内同名副本核对，因此下载全部 Release 资产后 `sha256sum -c SHA256SUMS` 可通过。
 5. **触发方式（负责人 2026-11-11 批准）**：`release.yml` 仅在推送 `v*` tag 时自动运行测试、构建、校验并 `gh release create`。这是对 Plan §10.1「main 合并后自动发布」的明确偏离：避免每次文档合并误发版，保持 VERSION 与 tag 显式对齐；负责人已批准该取舍。
 6. **人工步骤**：负责人合并 PR 后，确认 `VERSION` 与发布内容，推送对应 tag；不自动修改设备。
 7. **回滚**：`docs/ROLLBACK.md` 规定平台独立、先备份、SHA 校验、至少保留五个版本、当前生产版本不删除；回滚由负责人手动执行。
@@ -398,7 +398,7 @@ ENG-06 已实现 Provider 锁定/内嵌、每周检查、更新脚本、发布�
 补回归测试。同日推送 `v0.1.0` annotated tag，Release run 42997351203 成功创建 GitHub
 Release 并上传两个 zip 与 `SHA256SUMS`；资产下载校验与 Mihomo `-t` 通过。Provider Check
 的 issue 创建路径也已用临时分支 run 42996296022 实际验证（issue #6，随后关闭）。设备端
-尚未用内嵌 Provider 的新产物重测；`SHA256SUMS` 资产覆盖限制见 §14 第 11 项。
+尚未用内嵌 Provider 的新产物重测。`v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录、与 Release 仅上传两个 zip 不一致；该限制已在 `v0.1.1` 修正为只覆盖两个 zip 资产，详见 §10.1 第 4 条与 §14 第 11 项。
 
 ---
 
@@ -480,7 +480,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
 9. GitHub 远端 main push CI 已于 2026-11-10 通过；2026-11-11 已启用 main 分支保护策略 A（PR + 必需检查 `test` + 0 审批），并通过临时 PR #1 实际验证 PR CI；CODEOWNERS 强制未启用（§9.2）。
 10. ENG-06 内嵌 Provider 后，配置增大约 2.28 MB；仅用 Windows 本机 Mihomo v1.19.33 对两份产物执行 `-t` 通过。iStoreOS 设备 alpha-gbc76c13 未用新产物重测，NAS 端到端仍未验证。
-11. ENG-06 的 PR #3 已合并（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；Provider Check 已于 2026-11-11 远端触发并通过（修复 run 42972389013；首次 run 42969347805 因 Windows 编码失败，修复见 §9.1 第 13 条）。`v0.1.0` Release run 42997351203 成功，两个 zip 与 `SHA256SUMS` 已上传并下载校验，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建由临时分支 run 42996296022 实际验证（issue #6，随后 #6–#8 关闭）。已知限制：`SHA256SUMS` 覆盖完整发布目录 8 行，Release 只上传 2 个 zip 与校验文件，全量校验会缺少 6 个非资产条目；修正需负责人批准新版本，不能改写 `v0.1.0`。设备重测见第 10 项。
+11. ENG-06 的 PR #3 已合并（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；Provider Check 已于 2026-11-11 远端触发并通过（修复 run 42972389013；首次 run 42969347805 因 Windows 编码失败，修复见 §9.1 第 13 条）。`v0.1.0` Release run 42997351203 成功，两个 zip 与 `SHA256SUMS` 已上传并下载校验，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建由临时分支 run 42996296022 实际验证（issue #6，随后 #6–#8 关闭）。`v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录 8 行，Release 只上传 2 个 zip 与校验文件，全量校验会缺少 6 个非资产条目；该限制已在 `v0.1.1` 修正：清单只列两个 Release zip，发布目录的其余文件由结构校验与 zip 内副本核对。`v0.1.0` 保持原样，不回写。设备重测见第 10 项。
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
 
@@ -506,3 +506,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-11 | v1.12 | 完成 ENG-06：Provider 锁定/内嵌、每周检查、更新脚本、发布包与差异报告、回滚文档、tag 触发 Release；负责人批准 tag 触发与 GPL-3.0 内嵌再分发 | 项目负责人 |
 | 2026-11-11 | v1.13 | 记录 PR #3 合并（`c3436d3`）、main CI 通过、Provider Check 远端触发、Windows UTF-8 编码修复（PR #5，`d4a7a4a`）与 issue 创建未验证；Release 仍未运行 | 项目负责人（事实记录） |
 | 2026-11-11 | v1.14 | 记录 `v0.1.0` Release（run 42997351203）、资产下载校验与 Mihomo `-t`；记录 issue 创建验证（#6–#8 关闭）及 `SHA256SUMS` 资产覆盖限制 | 项目负责人（事实记录） |
+| 2026-11-11 | v1.15 | 按负责人要求修正发布清单：`SHA256SUMS` 只覆盖 Release 上传的两个平台 zip；`release.py --verify` 仍校验目录结构与 zip 内副本；生成 `v0.1.1` | 项目负责人 |

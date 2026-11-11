@@ -5,13 +5,15 @@
 - 后续 CI 修复：PR #5（squash merge `d4a7a4a`）；Provider Check UTF-8 修复，见 §3.12
 - 发布记录：annotated tag `v0.1.0` 指向 `3c8773f`，Release run 42997351203
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0，Mihomo v1.19.33（Windows）
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.14
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.15
+- 发布修正：`v0.1.1`（负责人 2026-11-11 要求修正 `SHA256SUMS` 资产覆盖并生成新版本）
 - 回滚手册：[ROLLBACK.md](ROLLBACK.md)
 - 安全策略：[SECURITY.md](SECURITY.md)
 - 结论：**本地 Provider 锁定/内嵌、每周检查脚本、发布包、配置差异报告与回滚文档已完成；
   Provider Check、`v0.1.0` Release 与 issue 创建均已远端验证；Windows/OpenClash 发布
-  配置在本机 Mihomo 上 `-t` 通过。iStoreOS 设备尚未用新产物重测，Release 的
-  `SHA256SUMS` 资产覆盖限制已记录，因此 ENG-06 标记为
+  配置在本机 Mihomo 上 `-t` 通过。`v0.1.0` 的 `SHA256SUMS` 资产覆盖限制已在
+  `v0.1.1` 修正为只覆盖两个 Release zip，本地构建与校验通过；`v0.1.1` 远端发布
+  证据待回填。iStoreOS 设备尚未用新产物重测，因此 ENG-06 标记为
   “本地完成、远端 Provider Check/Release 通过；设备重测待完成”。**
 
 ---
@@ -22,7 +24,7 @@
 | --- | --- | --- |
 | ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI、Provider Check、v0.1.0 Release 与 issue 创建远端通过；iStoreOS 设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` + 本记录 |
 
-本地自动化测试：**185 项通过，0 失败，0 错误**（231.787 秒）。
+本地自动化测试：**188 项通过，0 失败，0 错误**（195.607 秒）。
 
 关键证据：
 
@@ -33,7 +35,8 @@
 - 上游 Provider 检查：两个集合均“已是最新”；
 - 远端 Provider Check run 42972389013 与 main CI run 42972337584 均成功；
 - `v0.1.0` Release run 42997351203 成功，Release 资产下载后哈希与提取配置均校验通过；
-- 临时分支触发 Provider Check run 42996296022，issue #6 由 `app/github-actions` 创建成功。
+- 临时分支触发 Provider Check run 42996296022，issue #6 由 `app/github-actions` 创建成功；
+- `v0.1.1` 本地发布包只含两个 zip 的 `SHA256SUMS`，`release.py --verify` 通过。
 
 ---
 
@@ -301,6 +304,36 @@ closeIssue 均返回 `Resource not accessible by personal access token`。新建
 run 42996752062 与 42997036944 成功，#6、#7、#8 均已关闭；测试分支本地与远端删除，
 main 未改动，当前无开放 issue。**清理通过。**
 
+长期 Token 的 Issues 权限在清理时为只读；负责人 2026-11-11 已将其改为 Read and write。
+本地关闭 issue 路径尚未在该授权后重新执行，本轮不把它计为已验证。
+
+### 3.14 v0.1.1 发布清单修正（2026-11-11）
+
+**问题。** `v0.1.0` 的 `SHA256SUMS` 有 8 行，覆盖完整发布目录；GitHub Release 只上传
+两个平台 zip 与 `SHA256SUMS`。在下载目录执行全量 `sha256sum -c SHA256SUMS` 会因为
+缺少配置、说明和许可证等 6 个非资产条目失败，只有 zip 行能校验。
+
+**修正。** `scripts/release.py` 新增 `_asset_names(version)`，构建时只把
+`windows-<version>.zip` 与 `openclash-<version>.zip` 写入 `SHA256SUMS`；
+`verify_release` 要求清单与该资产集合完全一致，同时仍校验发布目录的完整文件集合
+（两份配置、两个 zip、说明、许可证、差异报告、`SHA256SUMS`）以及 zip 内配置与差异
+报告副本。发布说明与 [ROLLBACK.md](ROLLBACK.md) 改为“只校验两个 zip，下载目录可直接
+`sha256sum -c`”。`VERSION` 升为 `0.1.1`；`v0.1.0` 不改写。
+
+**本地证据。**
+- 先写失败测试：旧清单下 `test_checksums_cover_only_release_assets`、
+  `test_downloaded_assets_verify_with_checksum_file` 失败；修正后 15 项发布测试
+  109.976 秒通过，3 项关键测试在 0.1.1 下 16.553 秒通过。
+- 全量测试：188 项通过，0 失败，0 错误（195.607 秒）。
+- `release.py --version 0.1.1 --out dist\release` 与
+  `release.py --verify dist\release\0.1.1` 退出码均为 0。
+- `dist/release/0.1.1/SHA256SUMS` 170 字节，仅两行：
+  `openclash-0.1.1.zip` `5f044fcab41ca82d7629fed5bca7162f41b80e16dd5b69a46a552a7380d8a137`；
+  `windows-0.1.1.zip` `3dbe97051548949595c68610e80110bcc87238a986ad04a23bab4393c39d01b4`。
+- 两个 zip 分别为 511,744 / 511,794 字节；发布目录的配置仍为
+  2,282,529 / 2,282,408 字节。
+- `v0.1.1` 远端 tag、Release run、资产下载校验与 Mihomo `-t` 证据待回填。
+
 ---
 
 ## 4. 需求偏差与负责人决策
@@ -319,16 +352,17 @@ main 未改动，当前无开放 issue。**清理通过。**
 
 ## 5. 遗留问题与未验证项
 
-1. **issue 创建已验证，长期 Token 仍不能管理 issue。** 临时分支 run 42996296022
-   创建了 issue #6，#6–#8 随后关闭，当前无开放 issue。长期 Token 的 Issues 权限仍为
-   只读，本地 API 无法 addComment/closeIssue；清理使用了 `github.token`。若需要
-   Agent 关闭 issue，需负责人把该 Token 的 Issues 升为 Read and write。
-2. **Release 已发布，`SHA256SUMS` 资产覆盖有已知限制。** `v0.1.0` Release
-   （run 42997351203）已创建，两个 zip 与校验文件可下载并校验，Release 内配置在本机
-   Mihomo v1.19.33 上 `-t` 通过。但 `SHA256SUMS` 覆盖完整发布目录 8 行，Release
-   只上传 2 个 zip 与 `SHA256SUMS`；全量 `sha256sum -c` 会因缺少 6 个非资产条目失败，
-   zip 行校验有效。修正需要修改发布流程并生成新版本，属于需负责人审查的正式发布变更；
-   `v0.1.0` 不改写。
+1. **issue 创建已验证，长期 Token 管理 issue 待复测。** 临时分支 run 42996296022
+   创建了 issue #6，#6–#8 随后关闭，当前无开放 issue。清理时长期 Token 的 Issues 权限
+   为只读，本地 API 无法 addComment/closeIssue；清理使用了 `github.token`。负责人
+   2026-11-11 已把长期 Token 的 Issues 升为 Read and write，但本轮未再执行本地关闭
+   issue，不能据此声称该路径已验证。
+2. **`SHA256SUMS` 资产覆盖已在 `v0.1.1` 修正。** `v0.1.0` Release
+   （run 42997351203）的清单覆盖完整发布目录 8 行，而 Release 只上传 2 个 zip 与
+   `SHA256SUMS`；全量 `sha256sum -c` 会因缺少 6 个非资产条目失败。`v0.1.1`
+   改为清单只列两个 zip，发布目录其余文件仍做结构校验并由 zip 内副本核对；
+   本地 188 项测试与构建/校验通过。远端 `v0.1.1` Release 证据待回填。
+   `v0.1.0` 保持原样，不回写。
 3. **iStoreOS 未重测。** 内嵌 Provider 后 OpenClash 配置为 2,282,408 字节；
    设备 alpha-gbc76c13 尚未加载该新产物。旧产物 4,006 字节的 `-t` 结果不能代表新产物。
 4. **NAS/HAOS/Proxmox 仍环境阻塞。** 与 ENG-04 相同，未做端到端透明代理/DNS 验证。

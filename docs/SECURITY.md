@@ -87,16 +87,19 @@
 ## 8. 发布安全
 
 - 发布版本必须与 `VERSION` 完全一致；`release.py` 拒绝不匹配。
-- `release.py --verify` 校验 `SHA256SUMS` 覆盖完整、无多余文件、每个哈希、必需文件、
-  配置可解析、`MATCH` 最后、Provider 存在，以及 zip 内配置/差异报告与发布目录一致。
+- `release.py --verify` 要求 `SHA256SUMS` 只包含 Release 实际上传的两个平台 zip，
+  并校验每个哈希、发布目录必需文件与无多余文件、配置可解析、`MATCH` 最后、Provider
+  存在，以及 zip 内配置/差异报告与发布目录一致。下载全部 Release 资产后可直接用
+  `sha256sum -c SHA256SUMS`。
 - 发布包不含订阅、账号、密码、Token 或本机路径；`security_scan.py` 在 CI 中阻断敏感信息。
 - `release.yml` 仅在 tag 触发；负责人 2026-11-11 批准这一相对 Plan §10.1 的取舍：
   不让每次 main 合并自动发版，保持版本与 tag 显式对齐。
 - 回滚由负责人手动执行，按 [ROLLBACK.md](ROLLBACK.md) 先备份、校验 SHA-256、平台独立回滚。
 - 2026-11-11 已用 `v0.1.0` tag 实际验证 `gh release create`、Release 页面、两个 zip 与
-  `SHA256SUMS` 上传；资产下载哈希与配置 `-t` 通过。已知限制：`SHA256SUMS` 覆盖完整
-  发布目录，Release 只上传两个 zip 与校验文件，全量校验会缺少非资产条目；详见
-  [ENG-06-ACCEPTANCE.md](ENG-06-ACCEPTANCE.md) §5。
+  `SHA256SUMS` 上传；资产下载哈希与配置 `-t` 通过。`v0.1.0` 的清单覆盖完整发布
+  目录，与 Release 仅上传两个 zip 不一致；`v0.1.1` 已改为清单只覆盖两个 zip，
+  发布目录其余文件由结构校验与 zip 内副本核对，详见
+  [ENG-06-ACCEPTANCE.md](ENG-06-ACCEPTANCE.md) §3.14、§5。
 
 ## 9. 尚未完成与限制
 
@@ -114,5 +117,5 @@
 7. 内嵌 Provider 后的新配置只在本机 Windows Mihomo v1.19.33 上 `-t` 通过；iStoreOS
    设备 alpha-gbc76c13 尚未用新产物重测。
 8. ci-report.md 是本地/CI 生成物，不提交；报告内容不包含凭据。
-9. 长期 Token 的 Issues 权限仍为只读，Agent 不能通过本地 API 关闭 issue；Provider Check
-   的清理使用工作流 `github.token`。如需要 Agent 管理 issue，需负责人单独授权并轮换。
+9. 长期 Token 的 Issues 权限在 2026-11-11 清理时仍为只读；负责人随后已将其改为
+   Read and write。本轮未在授权后重新执行本地关闭 issue，不能声称该路径已验证。

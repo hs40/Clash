@@ -44,6 +44,10 @@ def _sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _asset_names(version):
+    return sorted("%s-%s.zip" % (platform, version) for platform in PLATFORMS)
+
+
 def _write_zip(path, members):
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for name in sorted(members):
@@ -83,7 +87,8 @@ def render_release_notes(version, configs):
             "1. 下载对应平台的 zip 包并解压得到 `config.yaml`。",
             "2. Windows：在 Clash Verge 中导入/替换配置；TUN、IPv4-only 等运行时项由负责人按部署环境设置。",
             "3. OpenClash：在 OpenClash 中替换配置；LAN 访问与防火墙规则由运行时负责。",
-            "4. 部署前先核对 `SHA256SUMS` 并查看 `CONFIG-DIFF.md`，部署后按 `docs/ROLLBACK.md` 做连通性验证。",
+            "4. `SHA256SUMS` 只覆盖两个平台 zip；下载 Release 资产后可直接在下载目录执行 `sha256sum -c SHA256SUMS`。",
+            "5. 部署前查看 `CONFIG-DIFF.md`，部署后按 `docs/ROLLBACK.md` 做连通性验证。",
             "",
             "## 安全与第三方数据",
             "",
@@ -258,12 +263,14 @@ def build_release(version, root=ROOT, out=None):
         for path in target.rglob("*")
         if path.is_file() and path.name != "SHA256SUMS"
     )
-    sums = []
-    for relative in relative_files:
-        path = target / relative
-        sums.append("%s  %s" % (_sha256(path), relative))
+    # SHA256SUMS 只覆盖实际上传到 GitHub Release 的资产（两个平台 zip）。
+    # 发布目录中的其他文件由 verify_release 做结构校验，并作为 zip 内嵌副本核对。
+    summaries = []
+    for name in _asset_names(version):
+        path = target / name
+        summaries.append("%s  %s" % (_sha256(path), name))
     sums_path = target / "SHA256SUMS"
-    sums_path.write_text("\n".join(sums) + "\n", encoding="utf-8", newline="\n")
+    sums_path.write_text("\n".join(summaries) + "\n", encoding="utf-8", newline="\n")
 
     return {
         "version": version,
@@ -305,20 +312,44 @@ def verify_release(directory):
         raise ReleaseError("发布目录不存在：%s" % directory)
     sums_path = directory / "SHA256SUMS"
     entries = _parse_sums(sums_path)
+    assets = set(_asset_names(directory.name))
+    if set(entries) != assets:
+        missing_assets = sorted(assets - set(entries))
+        extra_assets = sorted(set(entries) - assets)
+        details = []
+        if missing_assets:
+            details.append("缺少 " + ", ".join(missing_assets))
+        if extra_assets:
+            details.append("包含非发布资产 " + ", ".join(extra_assets))
+        raise ReleaseError("SHA256SUMS 资产覆盖不正确：%s" % "；".join(details))
+    for name in sorted(assets):
+        path = directory / name
+        if not path.is_file():
+            raise ReleaseError("SHA256SUMS 指向不存在的文件：%s" % name)
+        if _sha256(path) != entries[name]:
+            raise ReleaseError("SHA-256 不匹配：%s" % name)
+
     actual = {
         path.relative_to(directory).as_posix()
         for path in directory.rglob("*")
-        if path.is_file() and path.name != "SHA256SUMS"
+        if path.is_file()
     }
-    missing = sorted(actual - set(entries))
-    extra = sorted(set(entries) - actual)
+    expected = {
+        "SHA256SUMS",
+        "RELEASE-NOTES.md",
+        "THIRD_PARTY_NOTICES.md",
+        "LICENSE-metacubex.txt",
+        "CONFIG-DIFF.md",
+    }
+    for platform in PLATFORMS:
+        expected.add("%s/config.yaml" % platform)
+        expected.add("%s-%s.zip" % (platform, directory.name))
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
     if missing:
-        raise ReleaseError("SHA256SUMS 未覆盖文件：%s" % ", ".join(missing))
+        raise ReleaseError("发布包缺少文件：%s" % ", ".join(missing))
     if extra:
-        raise ReleaseError("SHA256SUMS 指向不存在的文件：%s" % ", ".join(extra))
-    for relative, digest in entries.items():
-        if _sha256(directory / relative) != digest:
-            raise ReleaseError("SHA-256 不匹配：%s" % relative)
+        raise ReleaseError("发布包包含未预期文件：%s" % ", ".join(extra))
 
     for name in (
         "RELEASE-NOTES.md",

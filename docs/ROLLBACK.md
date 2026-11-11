@@ -23,6 +23,10 @@
 
 zip 内只有 `config.yaml`、第三方声明和许可证，不含订阅、凭据或本机路径。
 
+`SHA256SUMS` 只覆盖 Release 实际上传的两个平台 zip；发布目录内的 `config.yaml`、
+说明文件与许可证是构建内部文件，由 zip 内同名副本核对。下载全部 Release 资产后，
+`sha256sum -c SHA256SUMS` 应通过。
+
 ## 3. 回滚前准备
 
 1. 确认要回滚的平台和目标版本（上一版或最近一个已验证版本）。
@@ -44,12 +48,13 @@ Get-Content .\SHA256SUMS
 OpenClash（BusyBox）：
 
 ```sh
-sha256sum windows-0.1.0.zip
+sha256sum windows-0.1.1.zip
 # 若系统没有 sha256sum：
-openssl dgst -sha256 windows-0.1.0.zip
+openssl dgst -sha256 windows-0.1.1.zip
 ```
 
-哈希必须与 `SHA256SUMS` 中对应行完全一致。不要在哈希不一致时继续。
+哈希必须与 `SHA256SUMS` 中对应平台的 zip 行完全一致。不要在哈希不一致时继续；
+`SHA256SUMS` 不列出发布目录中的非资产文件，这是刻意设计，不是缺失。
 
 ## 5. Windows 回滚
 

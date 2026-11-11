@@ -151,12 +151,14 @@ v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mih
 .venv\Scripts\python.exe scripts\update_providers.py --apply --commit <40位commit>
 
 # 构建并校验发布包
-.venv\Scripts\python.exe scripts\release.py --version 0.1.0
-.venv\Scripts\python.exe scripts\release.py --verify dist\release\0.1.0
+.venv\Scripts\python.exe scripts\release.py --version 0.1.1
+.venv\Scripts\python.exe scripts\release.py --verify dist\release\0.1.1
 ```
 
 发布目录包含两个平台配置、两个 zip、`SHA256SUMS`、`RELEASE-NOTES.md` 与
-`CONFIG-DIFF.md`。回滚步骤见 [docs/ROLLBACK.md](docs/ROLLBACK.md)，全部手动执行。
+`CONFIG-DIFF.md`。`SHA256SUMS` 只列出 Release 实际上传的两个平台 zip，下载全部
+Release 资产后可直接运行 `sha256sum -c SHA256SUMS`；发布目录内的配置与说明副本由
+zip 内同名文件核对。回滚步骤见 [docs/ROLLBACK.md](docs/ROLLBACK.md)，全部手动执行。
 
 ## 占位内容说明
 
@@ -176,12 +178,14 @@ main push CI、PR CI 与 main 分支保护策略 A 已验证；CODEOWNERS 强制
 [GitHub Release](https://github.com/hs40/Clash/releases/tag/v0.1.0)（run 42997351203），
 两个 zip 与 `SHA256SUMS` 已下载校验，Release 内配置在本机 Mihomo v1.19.33 上 `-t` 通过；
 Provider Check 的 issue 创建路径也用临时分支实际验证（issue #6 创建，随后 #6–#8 全部关闭）。
+`v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录，与 Release 仅上传两个 zip 不一致；`v0.1.1`
+已改为只覆盖两个平台 zip，发布目录其余文件由结构校验与 zip 内副本核对，下载全部资产后
+可直接 `sha256sum -c`。`v0.1.1` 本地构建与校验已通过，远端 tag/Release 待完成。
 内嵌 Provider 后的新产物尚未在 iStoreOS 设备上重测，因此 ENG-06 标记为
-「本地完成、远端 Provider Check/Release 通过；设备待验证」。`SHA256SUMS` 覆盖完整发布目录，
-但 Release 仅上传两个 zip 与校验文件；单独下载后应按 zip 行校验，详见验收报告 §5。
+「本地完成、远端 Provider Check/Release 通过；设备待验证」。
 PR #3 已合并到 main（`c3436d3`），PR #5 修复 Windows 编码问题（`d4a7a4a`）；
 PR CI、main CI（run 42964259372）与 Provider Check 均通过，发布记录见
-[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.8、§3.13。
+[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.8、§3.13、§3.14。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
