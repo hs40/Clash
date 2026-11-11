@@ -2,7 +2,8 @@
 
 - 依据：[REQUIREMENTS.md](REQUIREMENTS.md) §9 与 §9.1。
 - 状态：本地 CI 配置、依赖锁定、敏感信息扫描、Mihomo 固定校验与 CODEOWNERS 文件已完成；
-  远端 main push CI 已实际运行并通过；PR CI、分支保护与 CODEOWNERS 强制尚未核验。
+  远端 main push CI、PR CI 与 main 分支保护策略 A 已实际运行/启用并通过验证。
+  CODEOWNERS 的实际合并门禁未启用，是单人仓库下的已知限制。
 - 适用范围：本仓库的构建脚本、公共配置、安全清单、GitHub Actions 与发布流程。
 
 ## 1. 阻断规则
@@ -55,13 +56,18 @@
   *、/.github/、/scripts/、/configs/common/、/security/、/docs/REQUIREMENTS.md。
 - scripts/ci_policy.py 静态检查这些路径和所有者是否齐全；它不能替代 GitHub 的
   CODEOWNERS 实际强制。
-- 负责人需在 GitHub 仓库设置中启用分支保护，至少要求：PR 合并、CI 通过、
-  CODEOWNERS 审查、禁止强推；并把 CI 的 test 作业设为必需检查。
+- 当前 main 分支保护采用策略 A：PR 合并、必需检查 `test`、分支最新、0 审批、
+  管理员受限、禁止强推/删除。**未启用 Require review from Code Owners**；
+  GitHub 不允许 PR 作者审批自己的 PR，单人仓库启用后会锁死合并。
+- 因此 CODEOWNERS 目前是归属声明与静态检查，不是合并门禁。若必须强制，需要增加第二
+  审查人，或由负责人明确批准 bypass 方案；该决定需单独审查。
 
 ## 7. 尚未完成与限制
 
-1. 远端 main push CI 已通过；PR 触发尚未实际验证（当前没有打开的 PR）。
-2. 尚未启用或核验远端分支保护、必需状态检查与 CODEOWNERS 强制。
-3. CI 不替代真实网络连通性、DNS 泄漏、TUN 接管与 OpenClash 透明代理验证（见
+1. 远端 main push CI 与 PR CI 均已通过；PR #1 的 `test` 检查 success，PR 已关闭未合并。
+2. main 分支保护策略 A 已启用：PR + 必需检查 `test` + 0 审批 + 禁止强推/删除，管理员受限。
+3. CODEOWNERS 强制未启用；当前只做静态检查，原因见第 6 节。
+4. 分支保护是配置级验证；本轮未故意制造失败检查来观察 `mergeable_state=blocked`。
+5. CI 不替代真实网络连通性、DNS 泄漏、TUN 接管与 OpenClash 透明代理验证（见
    [REQUIREMENTS.md](REQUIREMENTS.md) §14）。
-4. ci-report.md 是本地/CI 生成物，不提交；报告内容不包含凭据。
+6. ci-report.md 是本地/CI 生成物，不提交；报告内容不包含凭据。
