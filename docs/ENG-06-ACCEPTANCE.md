@@ -1,20 +1,21 @@
 # ENG-06 验收报告：Provider、发布与回滚
 
 - 日期：2026-11-11
-- 分支：`docs/eng-06-release-record`（基于 main `3c8773f`）；代码分支 `feat/eng-06-provider-release` 已由 PR #3 合并为 `c3436d3`；代码提交 `d05611e`
+- 分支：`docs/eng-06-v0.1.1-release-record`（基于 main `4cb9148`）；代码分支 `fix/release-checksum-assets` 已由 PR #10 合并为 `4cb9148`；发布修正代码提交 `6d0555b`
 - 后续 CI 修复：PR #5（squash merge `d4a7a4a`）；Provider Check UTF-8 修复，见 §3.12
-- 发布记录：annotated tag `v0.1.0` 指向 `3c8773f`，Release run 42997351203
+- 发布记录：annotated tag `v0.1.0` 指向 `3c8773f`（Release run 42997351203）；`v0.1.1` 指向 `4cb9148`（Release run 43003842864）
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0，Mihomo v1.19.33（Windows）
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.15
-- 发布修正：`v0.1.1`（负责人 2026-11-11 要求修正 `SHA256SUMS` 资产覆盖并生成新版本）
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.16
+- 发布修正：`v0.1.1`（负责人 2026-11-11 要求修正 `SHA256SUMS` 资产覆盖并生成新版本）；远端发布、资产校验与配置 `-t` 已完成
 - 回滚手册：[ROLLBACK.md](ROLLBACK.md)
 - 安全策略：[SECURITY.md](SECURITY.md)
 - 结论：**本地 Provider 锁定/内嵌、每周检查脚本、发布包、配置差异报告与回滚文档已完成；
-  Provider Check、`v0.1.0` Release 与 issue 创建均已远端验证；Windows/OpenClash 发布
-  配置在本机 Mihomo 上 `-t` 通过。`v0.1.0` 的 `SHA256SUMS` 资产覆盖限制已在
-  `v0.1.1` 修正为只覆盖两个 Release zip，本地构建与校验通过；`v0.1.1` 远端发布
-  证据待回填。iStoreOS 设备尚未用新产物重测，因此 ENG-06 标记为
-  “本地完成、远端 Provider Check/Release 通过；设备重测待完成”。**
+  Provider Check、`v0.1.0` 与 `v0.1.1` Release、issue 创建均已远端验证；Windows/OpenClash
+  发布配置在本机 Mihomo 上 `-t` 通过。`v0.1.0` 的 `SHA256SUMS` 资产覆盖限制已在
+  `v0.1.1` 修正为只覆盖两个 Release zip；远端资产下载、独立哈希校验、zip 结构与
+  解出配置 `-t` 均通过，干净本地构建可复现远端 zip 哈希。Release 的 `CONFIG-DIFF.md`
+  在干净检出中仍显示“未找到上一版本”，作为已知遗留记录。iStoreOS 设备尚未用新产物
+  重测，因此 ENG-06 标记为“本地完成、远端 Provider Check/Release 通过；设备重测待完成”。**
 
 ---
 
@@ -22,7 +23,7 @@
 
 | 任务 | 状态 | 提交 |
 | --- | --- | --- |
-| ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI、Provider Check、v0.1.0 Release 与 issue 创建远端通过；iStoreOS 设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` + 本记录 |
+| ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI、Provider Check、v0.1.0/v0.1.1 Release 与 issue 创建远端通过；iStoreOS 设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` + `6d0555b` + `4cb9148` + 本记录 |
 
 本地自动化测试：**188 项通过，0 失败，0 错误**（195.607 秒）。
 
@@ -36,7 +37,9 @@
 - 远端 Provider Check run 42972389013 与 main CI run 42972337584 均成功；
 - `v0.1.0` Release run 42997351203 成功，Release 资产下载后哈希与提取配置均校验通过；
 - 临时分支触发 Provider Check run 42996296022，issue #6 由 `app/github-actions` 创建成功；
-- `v0.1.1` 本地发布包只含两个 zip 的 `SHA256SUMS`，`release.py --verify` 通过。
+- `v0.1.1` 本地发布包只含两个 zip 的 `SHA256SUMS`，`release.py --verify` 通过；
+- `v0.1.1` Release run 43003842864 成功；远端两个 zip 哈希、`SHA256SUMS` 两行覆盖与
+  解出配置 `-t` 均验证通过；干净本地目录构建复现了远端 zip 哈希。
 
 ---
 
@@ -49,7 +52,7 @@
    `SHA256SUMS`、`CONFIG-DIFF.md` 与 `release.py --verify`；新增 tag 触发 Release
    工作流与 `docs/ROLLBACK.md`。远端工作流与设备端重测未完成，见第 5 节。
 3. **修改文件：**
-   - 新增 `VERSION`（0.1.0）、`THIRD_PARTY_NOTICES.md`；
+   - 新增 `VERSION`（0.1.0，发布修正后为 0.1.1）、`THIRD_PARTY_NOTICES.md`；
    - 新增 `providers/lock.yaml`、`providers/snapshots/geosite-private.list`、
      `providers/snapshots/geosite-cn.list`、`providers/LICENSE-metacubex.txt`；
    - 新增 `scripts/providers.py`（锁文件、快照校验、payload 解析、inline 渲染）；
@@ -96,22 +99,22 @@
 5. **测试命令：**
    - `.venv\Scripts\python.exe -m unittest discover -s tests -v`
    - `.venv\Scripts\python.exe scripts\build.py --platform all`
-   - `.venv\Scripts\python.exe scripts\release.py --version 0.1.0`
-   - `.venv\Scripts\python.exe scripts\release.py --verify dist\release\0.1.0`
+   - `.venv\Scripts\python.exe scripts\release.py --version 0.1.1`
+   - `.venv\Scripts\python.exe scripts\release.py --verify dist\release\0.1.1`
    - `.venv\Scripts\python.exe scripts\security_scan.py`
    - `.venv\Scripts\python.exe scripts\ci_policy.py`
    - `.venv\Scripts\python.exe scripts\check_dependencies.py`
    - `.venv\Scripts\python.exe scripts\update_providers.py --check --json .tmp_provider_check.json`
    - `"C:\Program Files\Clash Verge\verge-mihomo.exe" -t -f dist\windows\config.yaml -d .tmp_mihomo_test`
    - `"C:\Program Files\Clash Verge\verge-mihomo.exe" -t -f dist\openclash\config.yaml -d .tmp_mihomo_test`
-6. **测试结果：** 185 项测试通过；构建退出码 0；发布构建/校验退出码 0；敏感信息扫描、
+6. **测试结果：** 188 项测试通过；构建退出码 0；发布构建/校验退出码 0；敏感信息扫描、
    CI 策略、依赖锁定均退出码 0；Provider 检查两个集合均“已是最新”；Mihomo `-t`
-   两份配置均退出码 0（Windows 359 ms，OpenClash 280 ms）。详见第 3 节。
+   两份配置均退出码 0（v0.1.1 解出配置 Windows 873 ms，OpenClash 827 ms）。详见第 3 节。
 7. **需求偏差：** 见第 4 节。
 8. **遗留问题：** 见第 5 节。
-9. **下一步建议：** 合并本分支后，由负责人在 GitHub 手动触发一次
-   `Provider Check`；确认首个 `v0.1.0` tag 的 Release 流程；在 iStoreOS 上只读执行
-   `-t` 验证新产物。完成后再决定是否进入后续阶段。
+9. **下一步建议：** 合并本记录；由负责人安排 iStoreOS 对 `v0.1.1` 新产物只读执行
+   `-t`；后续版本再决定是否实现从上一 GitHub Release 读取 `CONFIG-DIFF` 基线。
+   完成设备重测前不把 ENG-06 写成“全部通过”。
 
 ---
 
@@ -226,29 +229,36 @@ zip 均只含 `CONFIG-DIFF.md`、`LICENSE-metacubex.txt`、`THIRD_PARTY_NOTICES.
 非资产条目（两个 `config.yaml`、`CONFIG-DIFF.md`、`RELEASE-NOTES.md`、
 `THIRD_PARTY_NOTICES.md`、`LICENSE-metacubex.txt`）失败。zip 行可直接校验，
 回滚手册也要求按 zip 行核对。修复需要修改发布流程并生成新版本，不能改写 `v0.1.0`；
-已作为 §5 遗留提交负责人决定。
+已在 `v0.1.1` 修正，见 §3.14。
+
+2026-11-11 又推送 annotated tag `v0.1.1`（指向 main `4cb9148`），
+Release run 43003842864（job 130466302486）成功，耗时 2 分 13 秒，
+创建 https://github.com/hs40/Clash/releases/tag/v0.1.1 。远端发布资产、独立哈希、
+zip 结构与解出配置 `-t` 的证据见 §3.14。**两次 Release 工作流均通过。**
 
 ### 3.9 本机 Mihomo 加载
 
 ```text
 Mihomo Meta v1.19.33 windows amd64 with go1.26.10
-configuration file ...\dist\windows\config.yaml test is successful
-configuration file ...\dist\openclash\config.yaml test is successful
+configuration file ...\.tmp_release_remote_011\windows\config.yaml test is successful
+configuration file ...\.tmp_release_remote_011\openclash\config.yaml test is successful
 ```
 
-Windows `WIN_EXIT=0`，OpenClash `OC_EXIT=0`。这只证明配置可加载，不证明 TUN、
-透明代理、DNS 泄漏或真实连通性。**通过（仅加载）。**
+Windows `WIN_EXIT=0`（873 ms），OpenClash `OC_EXIT=0`（827 ms）。两份配置分别为
+2,282,529 / 2,282,408 字节。这只证明配置可加载，不证明 TUN、透明代理、DNS 泄漏或
+真实连通性。**通过（仅加载）。**
 
 ### 3.10 自动化测试
 
 ```text
-Ran 185 tests in 231.787s
+Ran 188 tests in 195.607s
 OK
 ```
 
 新增覆盖：Provider 锁/快照/payload/inline、`--check` 与 `--apply` 失败路径、
-发布包/zip/SHA256SUMS/差异报告/重构建一致性、Provider 与 Release 工作流策略，
-以及 Provider Check 的 UTF-8 控制台回归测试。**通过。**
+发布包/zip/SHA256SUMS/差异报告/重构建一致性、清单只覆盖 Release 资产、下载目录
+独立校验、篡改压缩包失败路径、Provider 与 Release 工作流策略，以及 Provider Check
+的 UTF-8 控制台回归测试。**通过。**
 
 ### 3.11 PR CI
 
@@ -260,9 +270,14 @@ run 42963854278 / job 130336409369。三次运行均包含依赖哈希安装、�
 
 合并后 main CI 为 run 42964259372，head `c3436d3`，结论 success。
 
+`v0.1.1` 修正的 PR #10（https://github.com/hs40/Clash/pull/10）head `6d0555b`，
+必需检查 `test` 为 run 43003297837 / job 130464452035，success，3 分 00 秒；
+squash merge 为 `4cb9148`。合并后 main CI run 43003765690 / job 130466035098，
+success，2 分 19 秒。
+
 Provider Check 与 Release 工作流不会被 PR 触发（前者只看 schedule/dispatch，后者只看
 `v*` tag）。Provider Check 见 §3.12，Release 见 §3.8，issue 创建见 §3.13。
-**PR CI、main CI、Provider Check 与 Release 均通过。**
+**PR CI、main CI、Provider Check 与两次 Release 均通过。**
 
 ### 3.12 远端 Provider Check（2026-11-11）
 
@@ -327,12 +342,35 @@ main 未改动，当前无开放 issue。**清理通过。**
 - 全量测试：188 项通过，0 失败，0 错误（195.607 秒）。
 - `release.py --version 0.1.1 --out dist\release` 与
   `release.py --verify dist\release\0.1.1` 退出码均为 0。
-- `dist/release/0.1.1/SHA256SUMS` 170 字节，仅两行：
-  `openclash-0.1.1.zip` `5f044fcab41ca82d7629fed5bca7162f41b80e16dd5b69a46a552a7380d8a137`；
-  `windows-0.1.1.zip` `3dbe97051548949595c68610e80110bcc87238a986ad04a23bab4393c39d01b4`。
-- 两个 zip 分别为 511,744 / 511,794 字节；发布目录的配置仍为
-  2,282,529 / 2,282,408 字节。
-- `v0.1.1` 远端 tag、Release run、资产下载校验与 Mihomo `-t` 证据待回填。
+- 带 `dist/release/0.1.0` 基线构建时，`dist/release/0.1.1/SHA256SUMS` 的 zip 行为
+  `openclash-0.1.1.zip` `5f044fca...d8a137`（511,744 B）与
+  `windows-0.1.1.zip` `3dbe9705...9d01b4`（511,794 B）；这是 `CONFIG-DIFF.md`
+  包含与 0.1.0 比较内容的结果。
+- 在不含任何旧版本的干净目录 `.tmp_release_clean` 重新构建，得到与远端完全相同的
+  `openclash-0.1.1.zip` `3016674d...f6efa5`（511,688 B）与
+  `windows-0.1.1.zip` `e55796c9...5405aee`（511,738 B），证明发布 zip 可复现；
+  差异仅来自 `CONFIG-DIFF.md` 是否有上一版本基线。
+
+**远端证据（`v0.1.1`，2026-11-11）。**
+- annotated tag `v0.1.1` 指向 `4cb9148`；Release run 43003842864 / job 130466302486
+  成功，耗时 2 分 13 秒，创建
+  https://github.com/hs40/Clash/releases/tag/v0.1.1 。
+- Release 资产恰好 3 个：`openclash-0.1.1.zip` 511,688 B / SHA-256
+  `3016674d09f82493df4572d588ff37a5a4f803b3e748713eecc0ab4661f6efa5`；
+  `windows-0.1.1.zip` 511,738 B / SHA-256
+  `e55796c9fa7f9f5396743153d9569029b8062cf614d56baba812198254405aee`；
+  `SHA256SUMS` 170 B。清单恰好两行，分别匹配上述两个 zip；不再包含非资产条目。
+- 用 `gh release download v0.1.1` 下载全部资产到 `.tmp_release_remote_011`，独立计算
+  两个 SHA-256 与清单一致；两个 zip 的成员均恰好为 `CONFIG-DIFF.md`、
+  `LICENSE-metacubex.txt`、`THIRD_PARTY_NOTICES.md`、`config.yaml`。
+- 解出的配置分别为 2,282,529 / 2,282,408 字节，SHA-256 为
+  `11eceed5e5760981b691c046c0a70dc2880d348eb0e3fdf3ac1b2c2a4281c265`（Windows）与
+  `7bc3d2eed0cd5abc78833279896802ba5e8da075d8a07af80cd3784d403eb787`（OpenClash）。
+- 本机 Mihomo Meta v1.19.33 对解出配置执行 `-t` 均退出 0（873 ms / 827 ms）。
+- **已知限制。** Release 工作流在干净检出中构建，没有更早的 SemVer 目录，因此远端
+  `CONFIG-DIFF.md` 显示“未找到上一版本”，即使上一版 `v0.1.0` 已存在；当前发布流程
+  没有从 GitHub 上一 Release 取比较基线。该限制不影响 `SHA256SUMS`、zip 与配置正确性，
+  本版不扩展修复范围，记入第 5 节。
 
 ---
 
@@ -357,12 +395,12 @@ main 未改动，当前无开放 issue。**清理通过。**
    为只读，本地 API 无法 addComment/closeIssue；清理使用了 `github.token`。负责人
    2026-11-11 已把长期 Token 的 Issues 升为 Read and write，但本轮未再执行本地关闭
    issue，不能据此声称该路径已验证。
-2. **`SHA256SUMS` 资产覆盖已在 `v0.1.1` 修正。** `v0.1.0` Release
+2. **`SHA256SUMS` 资产覆盖已在 `v0.1.1` 修正并远端验证。** `v0.1.0` Release
    （run 42997351203）的清单覆盖完整发布目录 8 行，而 Release 只上传 2 个 zip 与
    `SHA256SUMS`；全量 `sha256sum -c` 会因缺少 6 个非资产条目失败。`v0.1.1`
-   改为清单只列两个 zip，发布目录其余文件仍做结构校验并由 zip 内副本核对；
-   本地 188 项测试与构建/校验通过。远端 `v0.1.1` Release 证据待回填。
-   `v0.1.0` 保持原样，不回写。
+   （run 43003842864）改为清单只列两个 zip，发布目录其余文件仍做结构校验并由 zip
+   内副本核对；远端 3 个资产下载后独立哈希、zip 结构、解出配置与 `-t` 均通过，
+   本地 188 项测试与干净目录构建复现也通过。`v0.1.0` 保持原样，不重写。
 3. **iStoreOS 未重测。** 内嵌 Provider 后 OpenClash 配置为 2,282,408 字节；
    设备 alpha-gbc76c13 尚未加载该新产物。旧产物 4,006 字节的 `-t` 结果不能代表新产物。
 4. **NAS/HAOS/Proxmox 仍环境阻塞。** 与 ENG-04 相同，未做端到端透明代理/DNS 验证。
@@ -377,6 +415,11 @@ main 未改动，当前无开放 issue。**清理通过。**
    备份、恢复和回滚后验证。
 9. **每周 issue 可能重复。** 当前每次变化都创建新 issue，没有按 Provider/commit 去重；
    这是可用性限制，不影响安全性。
+10. **远端 `CONFIG-DIFF.md` 缺少上一版本基线。** Release 工作流在干净检出中构建，
+    `dist/release` 没有更早的 SemVer 目录，因此 `v0.1.0` 与 `v0.1.1` 的发布包都写
+    “未找到上一版本”。本地构建只有在 `dist/release` 预先存在旧版本时才会比较。
+    当前未实现从 GitHub 上一 Release 下载基线；这是发布可观测性限制，不影响清单、
+    zip 或配置正确性。修复需要新的发布流程变更，建议后续版本单独评审。
 
 ---
 

@@ -176,15 +176,24 @@ main push CI、PR CI 与 main 分支保护策略 A 已验证；CODEOWNERS 强制
 标记为完成（策略 A）。ENG-06 的 Provider Check 与 tag 触发的 Release 工作流均已于
 2026-11-11 远端运行并通过：`v0.1.0` 已发布为
 [GitHub Release](https://github.com/hs40/Clash/releases/tag/v0.1.0)（run 42997351203），
-两个 zip 与 `SHA256SUMS` 已下载校验，Release 内配置在本机 Mihomo v1.19.33 上 `-t` 通过；
-Provider Check 的 issue 创建路径也用临时分支实际验证（issue #6 创建，随后 #6–#8 全部关闭）。
+`v0.1.1` 已发布为
+[GitHub Release](https://github.com/hs40/Clash/releases/tag/v0.1.1)（run 43003842864）。
 `v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录，与 Release 仅上传两个 zip 不一致；`v0.1.1`
 已改为只覆盖两个平台 zip，发布目录其余文件由结构校验与 zip 内副本核对，下载全部资产后
-可直接 `sha256sum -c`。`v0.1.1` 本地构建与校验已通过，远端 tag/Release 待完成。
+可直接 `sha256sum -c`。`v0.1.1` 远端资产为 `windows-0.1.1.zip`（511,738 B，SHA-256
+`e55796c9fa7f9f5396743153d9569029b8062cf614d56baba812198254405aee`）与
+`openclash-0.1.1.zip`（511,688 B，SHA-256
+`3016674d09f82493df4572d588ff37a5a4f803b3e748713eecc0ab4661f6efa5`）；下载后
+独立哈希校验通过，解出的配置在本机 Mihomo v1.19.33 上 `-t` 通过。干净目录本地构建
+可复现上述远端 zip 哈希。
+Provider Check 的 issue 创建路径也用临时分支实际验证（issue #6 创建，随后 #6–#8 全部关闭）。
+已知限制：Release 工作流在干净检出中构建，`CONFIG-DIFF.md` 会显示“未找到上一版本”，
+尚未实现从上一 GitHub Release 读取比较基线；详见
+[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.14 与 §5。
 内嵌 Provider 后的新产物尚未在 iStoreOS 设备上重测，因此 ENG-06 标记为
 「本地完成、远端 Provider Check/Release 通过；设备待验证」。
-PR #3 已合并到 main（`c3436d3`），PR #5 修复 Windows 编码问题（`d4a7a4a`）；
-PR CI、main CI（run 42964259372）与 Provider Check 均通过，发布记录见
+PR #3（`c3436d3`）、PR #5（`d4a7a4a`）与 PR #10（`4cb9148`）已合并；
+PR CI、main CI（run 43003765690）与 Provider Check 均通过，发布记录见
 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.8、§3.13、§3.14。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
