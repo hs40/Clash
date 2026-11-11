@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.16
+**版本：** v1.17
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -468,6 +468,50 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 `cipher: aes-128-gcm`、`password: PLACEHOLDER-NOT-REAL`、`udp: false`，
 并在文件头注明「占位节点，禁止部署」。占位内容不得被描述为真实节点。
 
+### 13.5 本机 Clash Verge 全局扩展【已实施，2026-11-11 负责人确认；部署辅助，非发布配置】
+
+目标：把同一套 MVP 设置套用到 Verge 的所有订阅，订阅更新或切换后不必重建本地 profile。
+该能力不进入 `dist/`、GitHub Release 或 OpenClash 配置，不改变 §11 的构建契约。
+
+| 文件 | 作用 |
+| --- | --- |
+| `profiles/Merge.yaml` | 只写 `profile.store-selected: true` 与 `geosite-cn`、`geosite-private` 两个 inline Provider |
+| `profiles/Script.js` | 删除订阅自带策略组/规则/DNS/多余 Provider，生成固定 13 组、26 条规则与 MVP DNS |
+| `profiles.yaml` | 只切换 `current`，不改订阅 URL 或订阅文件 |
+| `verge.yaml` | 只保留 `enable_tun_mode`、`enable_system_proxy`、`verge_mixed_port` 三项设置 |
+
+固定组顺序（负责人 2026-11-11 确认，顺序不可调整）：
+`PROXY`（select：自动选择、七个地区组、DIRECT）、`Google`（fallback：美国→狮城→日本→香港）、
+`OpenAI`、`Claude`、`Cursor`（select：自动选择 + 七个地区组）、`自动选择`（url-test：全部可用节点）、
+七个地区组（select）。地区识别复用 `scripts/regions.py`，空地区回退 `自动选择`。
+
+规则共 26 条（特殊 1、业务 20、基础 4、兜底 1），最后一条唯一为 `MATCH,PROXY`。
+Script 强制 `mixed-port: 7897`，删除订阅的 `port` / `socks-port`，设置 `mode: rule`、
+`ipv6: false`、`allow-lan: false`；保留 Verge 注入的 `tun`、`external-controller`、
+`secret` 与 `profile`，不写这三个键。
+
+订阅必须提供 inline `proxies`；遇到 `proxy-providers` 中止。预检先剔除
+`reality-opts.short-id` 非 8/16 位十六进制的节点，再逐节点执行 `mihomo -t`；
+全部不可用时中止。额外坏节点写入 Script 的 `MVP-EXCLUDED` 标记块，每次预检重写，
+不建立永久黑名单。
+
+应用前备份 `profiles/Merge.yaml`、`profiles/Script.js`、`profiles.yaml`、
+`verge.yaml`、`config.yaml`、`clash-verge.yaml` 到 `.tmp_verge_apply_backup_<时间戳>`，
+写入采用同目录临时文件 + 原子替换；重启后要求 `clash-verge.yaml` 的 mtime 前进并通过
+`verify_config`，否则自动恢复六个备份文件。重启按镜像名结束 `clash-verge.exe` 与
+`verge-mihomo.exe`，再执行计划任务 `Clash Verge (Admin)`；`schtasks /End` 不足以结束
+sidecar。
+
+本机验证（2026-11-11，FIB）：55 个节点，静态剔除 9 个，运行时剔除 0，可用 46；
+运行时 46 proxies / 13 groups / 26 rules / 2 providers；7897 与 1053 监听；TUN 适配器
+`Mihomo` Up、默认路由 198.18.0.2、fake-ip 198.18.0.7；百度 200、gstatic 204、
+Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局文件与备份哈希见
+`docs/VERGE-GLOBAL.md` §6。旧本地 `mvpClash0001` 保留作回退。
+
+限制：只验证 FIB 一个订阅；未验证其他订阅、DNS 泄漏、断网重连、重启后 TUN 自动恢复、
+回滚演练；`verge-sync.cmd` 需要管理员权限；DSH 低完整性 `.venv` 写 AppData 会被拒绝，
+需改用系统 Python；订阅重命名后需重跑 `verge-sync.cmd` 更新排除键。详见 `docs/VERGE-GLOBAL.md`。
+
 ---
 
 ## 14. 待核验清单【待核验】
@@ -489,6 +533,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 11. ENG-06 的 PR #3 已合并（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；Provider Check 已于 2026-11-11 远端触发并通过（修复 run 42972389013；首次 run 42969347805 因 Windows 编码失败，修复见 §9.1 第 13 条）。`v0.1.0` Release run 42997351203 成功，两个 zip 与 `SHA256SUMS` 已上传并下载校验，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建由临时分支 run 42996296022 实际验证（issue #6，随后 #6–#8 关闭）。`v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录 8 行，Release 只上传 2 个 zip 与校验文件，全量校验会缺少 6 个非资产条目；该限制已在 PR #10（`6d0555b`）修正，squash merge `4cb9148` 并发布 `v0.1.1`（Release run 43003842864）：清单只列两个 Release zip，发布目录的其余文件由结构校验与 zip 内副本核对。远端 `v0.1.1` 资产为 `openclash-0.1.1.zip` 511,688 B / `3016674d...` 与 `windows-0.1.1.zip` 511,738 B / `e55796c9...`；下载后独立校验、zip 结构、解出配置与 `-t` 均通过，干净本地目录构建复现相同 zip 哈希。`v0.1.0` 保持原样，不重写。远端 `CONFIG-DIFF.md` 仍无上一版本基线，见 §10.1 第 8 条；设备重测见第 10 项。
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
+14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、DNS 泄漏、断网重连、TUN 重启恢复与回滚演练未验证；旧 `mvpClash0001` 保留作回退。
 
 ---
 
@@ -514,3 +559,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-11 | v1.14 | 记录 `v0.1.0` Release（run 42997351203）、资产下载校验与 Mihomo `-t`；记录 issue 创建验证（#6–#8 关闭）及 `SHA256SUMS` 资产覆盖限制 | 项目负责人（事实记录） |
 | 2026-11-11 | v1.15 | 按负责人要求修正发布清单：`SHA256SUMS` 只覆盖 Release 上传的两个平台 zip；`release.py --verify` 仍校验目录结构与 zip 内副本；生成 `v0.1.1` | 项目负责人 |
 | 2026-11-11 | v1.16 | 记录 `v0.1.1` 远端 Release（run 43003842864）、资产下载校验、干净构建复现与配置 `-t`；记录 `CONFIG-DIFF.md` 在 CI 干净检出中无上一版本基线的已知限制 | 项目负责人（事实记录） |
+| 2026-11-11 | v1.17 | 新增 §13.5：本机 Clash Verge 全局扩展（固定组顺序、26 条规则、坏节点预检/剔除、备份与自动回滚）；记录 FIB 本机验证与限制；该能力不进入 Release | 项目负责人 |

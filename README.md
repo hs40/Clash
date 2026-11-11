@@ -18,6 +18,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - ENG-05 验收报告：[docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md)
 - ENG-06 验收报告：[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md)
 - 回滚手册：[docs/ROLLBACK.md](docs/ROLLBACK.md)
+- 本机 Verge 全局复用：[docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)
 - 安全策略：[docs/SECURITY.md](docs/SECURITY.md)
 - 原始开发计划：[Clash 配置工程开发 Plan.md](Clash 配置工程开发 Plan.md)
 - 兼容基准：Windows Mihomo v1.19.33；OpenClash Mihomo Meta alpha-gbc76c13（仅 OpenClash）
@@ -34,6 +35,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 | CI 与 CODEOWNERS | `.github/` | 是 | PR/push 测试、Provider 检查、tag Release、审查归属 |
 | 安全清单 | `security/mihomo.yaml` | 是 | 固定 Mihomo 版本、URL 与 SHA-256 |
 | 测试 | `tests/` | 是 | 构建结果、安全与 CI 策略校验 |
+| 本机 Verge 部署辅助 | `scripts/verge_global.py`、`scripts/verge_preflight.py`、`scripts/verge_apply.py`、`verge-sync.cmd` | 是 | 生成/预检/应用 Verge 全局 Merge 与 Script；不进入 `dist/` 或 Release |
 | 构建产物 | `dist/` | 否（见 `.gitignore`） | 每次构建重新生成 |
 | 文档 | `docs/` | 是 | 需求基线、验收报告 |
 
@@ -117,7 +119,10 @@ py -m venv .venv
 - CI：中文报告计数与失败详情、工作流权限/SHA/触发条件、CODEOWNERS 核心路径；
   Provider 检查工作流与 tag Release 工作流的权限、触发和命令校验；
 - 发布：SemVer 与 `VERSION` 一致性、双平台独立包、zip 成员、`SHA256SUMS`、
-  中文发布说明、`CONFIG-DIFF.md`、重新构建字节一致、篡改/缺文件/zip 不一致失败路径。
+  中文发布说明、`CONFIG-DIFF.md`、重新构建字节一致、篡改/缺文件/zip 不一致失败路径；
+- Verge 全局扩展：Merge 只含 `profile.store-selected` 与两个 inline Provider；Script 生成
+  13 组/26 规则/DNS/端口、过滤坏 `short-id`、空地区回退；预检逐节点 `-t`；备份与失败回滚；
+  Node 执行真实 Script（无 Node 时跳过）。
 
 ## CI 与安全检查
 
@@ -159,6 +164,20 @@ v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mih
 `CONFIG-DIFF.md`。`SHA256SUMS` 只列出 Release 实际上传的两个平台 zip，下载全部
 Release 资产后可直接运行 `sha256sum -c SHA256SUMS`；发布目录内的配置与说明副本由
 zip 内同名文件核对。回滚步骤见 [docs/ROLLBACK.md](docs/ROLLBACK.md)，全部手动执行。
+
+## 本机 Verge 全局复用（可选）
+
+仓库还提供一套**本机部署辅助**工具，把同一套 MVP 设置写入 Clash Verge 的全局
+Merge/Script，使所有使用 inline proxies 的订阅自动复用 13 个策略组、26 条规则与
+MVP DNS；该能力不进入 dist/ 或 Release。
+
+- 固定组顺序、预检/剔除、备份/回滚与限制见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
+- 应用入口：管理员运行 verge-sync.cmd；失败自动恢复六个备份文件并重启。
+- 只写 Verge AppData 的全局文件与 current，不改订阅文件、订阅 URL、系统 DNS、hosts、路由或防火墙。
+- 旧本地 profile mvpClash0001 保留为回退，未自动删除。
+
+2026-11-11 已在本机 FIB 上验证：46 节点 / 13 组 / 26 规则，7897 与 1053 监听，
+TUN 与 fake-ip 正常，百度/Google/YouTube 连通；只验证该订阅，其他订阅与 DNS 泄漏未验证。
 
 ## 占位内容说明
 
@@ -203,3 +222,8 @@ PR CI、main CI（run 43003765690）与 Provider Check 均通过，发布记录�
 [docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)、
 [docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md) 与
 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md)。
+
+本机 Clash Verge 全局复用已于 2026-11-11 在 FIB 订阅上实施并验证：46 节点 / 13 组 /
+26 规则，7897 与 1053 监听，TUN 与 fake-ip 正常，关键站点连通；旧本地 profile
+mvpClash0001 保留作回退。该能力是部署辅助，不进入 Release；只验证 FIB 一个订阅，
+其他订阅、DNS 泄漏与回滚演练未验证，详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
