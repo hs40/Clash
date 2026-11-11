@@ -1,13 +1,14 @@
 # ENG-05 验收报告：自动化测试与安全
 
-- 日期：2026-11-10
-- 分支：main（本地与 origin/main 同步；https://github.com/hs40/Clash）
+- 日期：2026-11-10（初版）；2026-11-11（分支保护与 PR 验证更新）
+- 分支：main（https://github.com/hs40/Clash）
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.10
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.11
 - 安全策略：[SECURITY.md](SECURITY.md)
 - 结论：**本地 CI 配置、依赖哈希锁定、敏感信息扫描、Mihomo 固定版本校验、中文测试报告与
-  CODEOWNERS 静态检查均已完成并通过；远端 main push CI 已实际运行并通过；PR CI、分支保护与
-  CODEOWNERS 强制尚未验证/启用，因此 ENG-05 标记为“本地完成、远端 main push 通过、PR/分支保护待验证”。**
+  CODEOWNERS 静态检查均已完成并通过；远端 main push CI、PR CI 与 main 分支保护策略 A 已实际
+  运行/启用并通过验证。CODEOWNERS 的实际合并门禁未启用，是单人仓库下的已知限制，因此 ENG-05
+  标记为“完成（策略 A），CODEOWNERS 强制为已知限制”。**
 
 ---
 
@@ -15,9 +16,15 @@
 
 | 任务 | 状态 | 提交 |
 | --- | --- | --- |
-| ENG-05 自动化测试与安全 | 本地完成；远端 main push 通过；PR/分支保护待验证 | 36e5361 |
+| ENG-05 自动化测试与安全 | 完成（策略 A）；CODEOWNERS 强制为已知限制 | 36e5361、aec4b9b、本次文档提交 |
 
 全部自动化测试：**138 项通过，0 失败，0 错误**。
+
+远端验证：
+
+- main push CI：run 42785717956（36e5361）success；文档提交 run 42786357297（aec4b9b）success。
+- PR CI：PR #1（head `2982220803297bf088b920457d562ad1a60bde94`）触发 `test` success，
+  run 42956763427 / job 130313590289；PR 以 closed/unmerged 关闭，临时分支已删除。
 
 ---
 
@@ -26,7 +33,8 @@
 1. **任务编号：** ENG-05
 2. **完成情况：** 已建立 Windows GitHub Actions CI、依赖版本与哈希锁定、敏感信息扫描、
    Mihomo 固定版本与二进制校验、中文 Markdown 测试报告、CI/CODEOWNERS 静态策略检查与
-   安全策略文档。远端 main push CI 已通过；PR CI、分支保护与 CODEOWNERS 强制未完成。
+   安全策略文档。远端 main push CI、PR CI 和 main 分支保护策略 A 均已验证；CODEOWNERS
+   的实际强制未启用，原因与替代方案见 §3.8、§5、§6。
 3. **修改文件：**
    - 新增 .github/workflows/ci.yml；修改该文件与 tests/test_ci_policy.py，把 checkout 升级到
      v7.0.1、setup-python 升级到 v7.1.0（node24），并同步测试 fixture 的固定 SHA；
@@ -40,7 +48,7 @@
      tests/test_ci_report.py、tests/test_ci_policy.py；
    - 修改 tests/test_rules.py：增加 RULE-SET 无 Provider 支持的失败用例；
    - 修改 .gitignore：忽略生成的 ci-report.md；
-   - 修改 docs/REQUIREMENTS.md：v1.9 → v1.10，新增 §9.1，更新 §4、§12、§14、§15；
+   - 修改 docs/REQUIREMENTS.md：v1.9 → v1.11，新增 §9.2，更新 §4、§12、§14、§15；
    - 新增 docs/SECURITY.md 与本报告；
    - 修改 README.md：CI/安全检查入口、报告链接与当前状态。
 4. **实现内容：**
@@ -53,7 +61,9 @@
    - 运行全部测试并生成中文 Markdown 报告，写入 ci-report.md 与 GITHUB_STEP_SUMMARY；
    - 下载并校验 Mihomo v1.19.33 压缩包与可执行文件，执行两份产物的 -t；
    - 下载 country.mmdb 并校验固定 SHA-256，再用于 -t；
-   - CODEOWNERS 保护 .github/、scripts/、configs/common/、security/ 与 REQUIREMENTS.md。
+   - CODEOWNERS 覆盖 .github/、scripts/、configs/common/、security/ 与 REQUIREMENTS.md；
+   - main 分支保护策略 A：PR 合并、必需检查 `test`、分支最新、0 审批、管理员受限、
+     禁止强推/删除。
 5. **测试命令：**
    - .venv\Scripts\python.exe -m unittest discover -s tests -v
    - .venv\Scripts\python.exe -m pip install --require-hashes --no-index -r requirements.txt
@@ -68,12 +78,13 @@
 6. **测试结果：** 138 项测试通过；依赖锁定校验通过；pip check 无损坏依赖；
    敏感信息扫描无发现；CI 策略检查通过；中文报告 138 项、0 失败/错误；
    Mihomo 压缩包与二进制 SHA-256 校验通过；本机两份配置 -t 均退出码 0；
-   远端 run 42785717956 全部步骤成功，check “test” 的 annotations_count 为 0。
+   远端 main push run 42785717956 与文档提交 run 42786357297 均成功；
+   PR #1 的 `test` 检查 success，PR 状态 closed/unmerged。
 7. **需求偏差：** 见第 5 节。
 8. **遗留问题：** 见第 6 节。
-9. **下一步建议：** 负责人启用远端分支保护与必需状态检查，并创建首个真实 PR 以验证 PR CI；
-   随后进入 ENG-06（Provider、缓存、发布与回滚）。ENG-04 的 NAS/HAOS/Proxmox 路径仍需
-   环境就绪后回补。
+9. **下一步建议：** 进入 ENG-06（Provider、缓存、发布与回滚）；ENG-04 的 NAS/HAOS/Proxmox
+   路径仍需环境就绪后回补。CODEOWNERS 强制若必须启用，需增加第二审查人或由负责人明确
+   bypass 方案。
 
 ---
 
@@ -84,16 +95,26 @@
 .github/workflows/ci.yml 已配置 pull_request 触发，并包含构建、扫描、测试、Mihomo -t 步骤。
 scripts/ci_policy.py 对实际工作流文本检查通过。
 
-远端 main push run 42785717956 已通过；PR 触发仍未实际验证（当前没有打开的 PR）。
+实际验证：临时分支 `test/branch-protection-probe-20261111` 提交 `2982220` 创建 PR #1，
+GitHub Actions 自动运行 `test`，结论 success（run 42956763427 / job 130313590289）。
+PR 页面：https://github.com/hs40/Clash/pull/1
+
+验证后 PR 以 closed/unmerged 关闭，远端与本地临时分支均已删除；main 未接收探针文件。
 
 ### 3.2 失败不能合并
 
-工作流中任一命令非零退出都会使 job 失败；ci_report.py 在失败/错误非零时返回 1；
-Mihomo -t 后显式检查 LASTEXITCODE。
+main 分支保护已启用：
 
-但远端分支保护尚未启用，GitHub 目前不会仅因 CI 失败自动阻止合并。负责人需在
-Settings → Branches/Rulesets 中为 main 启用 PR、1 名审查、CODEOWNERS 审查、必需检查 “test”、
-禁止强推/删除，并禁止绕过。
+- Require a pull request before merging：true；Required approvals：0；
+- Require status checks to pass：`test`；Require branches to be up to date：true；
+- Enforce admins：true；
+- Allow force pushes：false；Allow deletions：false。
+
+工作流中任一命令非零退出都会使 job 失败；ci_report.py 在失败/错误非零时返回 1；
+Mihomo -t 后显式检查 LASTEXITCODE。由于 `test` 是必需检查，检查失败时 GitHub 不允许合并。
+
+本轮没有故意制造失败检查来观察 `mergeable_state=blocked`；上述结论来自分支保护配置与
+GitHub 的必需检查语义，属于配置级验证，不是失败 PR 的运行时复现（见 §6）。
 
 ### 3.3 高风险不能发布
 
@@ -168,7 +189,10 @@ CI 中 country.mmdb 来自上游 latest 标签；内容哈希固定，上游变�
 /docs/REQUIREMENTS.md，所有者均为 @hs40。scripts/ci_policy.py 对实际工作流与 CODEOWNERS
 检查通过，输出“CI 策略检查通过”。
 
-远端 CODEOWNERS 强制与分支保护仍待负责人启用；本轮已验证 main push CI。
+**限制：** main 分支保护策略 A 未启用 Require review from Code Owners。GitHub 不允许 PR
+作者审批自己创建的 PR；在单人仓库启用 Code Owner 审查会使负责人无法合并自己的 PR。
+因此 CODEOWNERS 当前是归属声明与静态检查，不是实际合并门禁。若必须强制，需要增加第二
+审查人，或由负责人明确批准 bypass 方案。
 
 ### 3.9 构建与测试
 
@@ -193,7 +217,30 @@ Mihomo v1.19.33 -t 加载。产物 SHA-256 与本阶段代码变更前一致（�
   的 runs.using 均为 node24，且保留 persist-credentials / python-version 输入。
 - run 42785717956（提交 36e5361）：success；全部步骤成功；check “test” 的
   annotations_count 为 0。
-- PR 触发仍未验证；见第 6 节。
+- run 42786357297（提交 aec4b9b）：success；文档提交也通过 main push CI。
+
+### 3.11 分支保护与 PR 验证
+
+分支保护设置（通过 GitHub REST API 写入并回读）：
+
+| 设置 | 值 |
+| --- | --- |
+| Require PR before merging | true |
+| Required approvals | 0 |
+| Require Code Owner reviews | false |
+| Required status checks | `test` |
+| Require branches up to date | true |
+| Enforce admins | true |
+| Allow force pushes | false |
+| Allow deletions | false |
+
+PR #1 验证：
+
+- 临时分支：`test/branch-protection-probe-20261111`
+- head：`2982220803297bf088b920457d562ad1a60bde94`
+- check：`test` success，run 42956763427 / job 130313590289
+- PR 状态：closed；merged：false
+- 临时分支：已删除
 
 ---
 
@@ -216,8 +263,9 @@ Mihomo v1.19.33 -t 加载。产物 SHA-256 与本阶段代码变更前一致（�
 | RULE-SET 在 Provider 前不可用 | build.py 对 RULE-SET 直接报错，避免悬空 Provider 引用 | 负责人批准的 ENG-05 范围 |
 | 依赖文件中文注释导致 pip 解码失败 | 注释改为 ASCII | 本地验收发现，不改变依赖版本/哈希 |
 | country.mmdb 使用 latest 标签 | 固定内容 SHA-256，上游变化阻断 CI | 上游只提供 latest 可变标签；需负责人更新 |
-| 远端分支保护未启用 | 报告为未完成；已给出负责人操作步骤 | 本地无法配置 GitHub 仓库设置 |
-| Actions Node 20 弃用告警 | checkout 升级 v7.0.1、setup-python 升级 v7.1.0（node24）；重新运行远端 CI | 远端 run 42781834757 annotation；不改变配置产物 |
+| 分支保护采用策略 A | PR + 必需检查 `test` + 0 审批 + 禁止强推/删除；管理员受限 | 负责人 2026-11-11 确认 |
+| CODEOWNERS 未强制 | 单人仓库无法审批自己的 PR；保留静态检查，不启用 Code Owner 审查 | 负责人 2026-11-11 选择策略 A |
+| 未做失败检查的 PR 运行时复现 | 记录为配置级验证限制，不声称已复现 | 避免为测试而故意破坏 main/PR |
 | 不实现发布工作流 | 高风险发布门禁留到 ENG-06 | ENG-05 范围只含 CI/测试/安全 |
 | 仅 Windows CI | 未在 CI 中运行 OpenClash 设备或 alpha 内核 | 设备不可由 GitHub Actions 访问；设备验证见 ENG-04 |
 
@@ -225,11 +273,19 @@ Mihomo v1.19.33 -t 加载。产物 SHA-256 与本阶段代码变更前一致（�
 
 ## 6. 遗留问题
 
-1. PR 触发 CI 尚未实际验证；远端 main push run 42785717956 已通过。
-2. 远端分支保护、必需状态检查与 CODEOWNERS 强制未启用/核验。负责人需在
-   Settings → Branches/Rulesets 为 main 启用 PR、1 名审查、CODEOWNERS 审查、
-   必需检查 “test”、禁止强推/删除，并禁止绕过。
+1. CODEOWNERS 强制未启用；当前仅是归属声明与静态检查。启用需要第二审查人或负责人批准的
+   bypass 方案。
+2. 未通过“故意失败的 PR”复现 `mergeable_state=blocked`；分支保护对 `test` 的必需检查
+   是配置级保证。
 3. country.mmdb 上游 latest 可变；更新哈希需负责人审查。
 4. CI 不能替代真实网络连通性、DNS 泄漏、TUN 接管、OpenClash 透明代理/防火墙验证。
 5. ENG-04 的 NAS 显式代理端到端、HAOS 与 Proxmox 路径仍受环境阻塞。
 6. ENG-06 尚未开始：Provider、缓存/刷新、发布与回滚。
+
+---
+
+## 7. 临时管理凭据处理
+
+本次分支保护设置使用负责人提供的临时 fine-grained PAT，仅通过本地临时脚本读取，未写入
+仓库、测试输出或日志。设置与验证完成后删除本地临时 token 文件，并请负责人立即撤销该 PAT。
+仓库中不保存任何真实 token。

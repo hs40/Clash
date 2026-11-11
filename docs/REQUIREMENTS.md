@@ -1,7 +1,7 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.10
-**来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10 的确认记录
+**版本：** v1.11
+**来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
 
@@ -293,8 +293,19 @@ CI 工作流 `.github/workflows/ci.yml`：
 7. Mihomo：`security/mihomo.yaml` 固定版本、官方 URL、压缩包 SHA-256、可执行文件名与 SHA-256；CI 校验后运行 `-t`。Windows 基准为 v1.19.33。
 8. GeoIP：CI 下载 `country.mmdb` 并固定内容 SHA-256；上游 `latest` 标签可变，哈希变化必须由负责人审查后更新。
 9. 敏感信息：`security_scan.py` 扫描仓库文本文件，只报告路径、行号与类型，不回显命中内容；占位标记（如 `PLACEHOLDER`、`NOT-REAL`）不作为真实凭据。
-10. CODEOWNERS：`@hs40` 审查 `.github/`、`scripts/`、`configs/common/`、`security/`、`docs/REQUIREMENTS.md`；高风险失败阻断发布，仅负责人可解除。
-11. 限制：CI 不能替代 §14 的真实网络连通性与 DNS 泄漏测试；远端分支保护与 CODEOWNERS 的实际强制效果需在 GitHub 仓库设置中核验。
+10. CODEOWNERS：`@hs40` 审查 `.github/`、`scripts/`、`configs/common/`、`security/`、`docs/REQUIREMENTS.md`；高风险失败阻断发布，仅负责人可解除。`ci_policy.py` 只做静态检查；当前分支保护（§9.2）未启用 Require review from Code Owners，因此 CODEOWNERS 目前是归属声明与静态检查，不是合并门禁。
+11. 限制：CI 不能替代 §14 的真实网络连通性与 DNS 泄漏测试。
+
+### 9.2 远端 main 分支保护（策略 A）【确定，2026-11-11 负责人确认】
+
+main 分支保护规则：
+
+1. 要求通过 Pull Request 合并；Required approvals = 0（单人仓库，负责人可自行合并自己的 PR）。
+2. 必需状态检查：`test`；Require branches to be up to date before merging = true。
+3. 管理员同样受保护规则约束（enforce admins）。
+4. 禁止 force push、禁止删除分支。
+5. 不启用 Require review from Code Owners：GitHub 不允许 PR 作者审批自己的 PR，单人仓库启用后会锁死合并。启用它需要增加第二审查人，或显式允许负责人 bypass；两者都需负责人另行确认。
+6. 验证记录：临时 PR #1（head `2982220803297bf088b920457d562ad1a60bde94`）触发 `test` 成功（run 42956763427 / job 130313590289），PR 以 closed/unmerged 关闭，临时分支已删除。
 
 ---
 
@@ -351,7 +362,9 @@ ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-0
 OpenClash 设备端按 alpha-gbc76c13 执行 `-t` 通过；NAS/HAOS/Proxmox 路径尚未完成验证。
 ENG-05 已实现 CI 配置、依赖哈希锁定、敏感信息扫描、Mihomo 固定版本校验、中文测试报告
 与 CODEOWNERS 静态策略检查；远端 main push CI 已于 2026-11-10 运行并通过，Actions 已升级到
-checkout v7.0.1 / setup-python v7.1.0（node24）。PR CI、分支保护与 CODEOWNERS 强制仍待验证。其余仍按 ENG 计划推进。
+checkout v7.0.1 / setup-python v7.1.0（node24）。2026-11-11 已启用 main 分支保护策略 A，
+并通过临时 PR #1 实际验证 PR 触发 CI 与必需检查 `test`（§9.2）；CODEOWNERS 强制未启用。
+其余仍按 ENG 计划推进。
 
 ---
 
@@ -431,7 +444,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 6. 真实网络连通性、DNS 泄漏与绕过代理路径（自动化测试不能替代）。
 7. ~~Google 回退的「指定地区白名单」具体地区。~~【已确认 2026-11-10：狮城、日本、香港】
 8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
-9. GitHub 远端 main push CI 已于 2026-11-10 通过；PR 触发、分支保护与 CODEOWNERS 强制尚未验证/启用。
+9. GitHub 远端 main push CI 已于 2026-11-10 通过；2026-11-11 已启用 main 分支保护策略 A（PR + 必需检查 `test` + 0 审批），并通过临时 PR #1 实际验证 PR CI；CODEOWNERS 强制未启用（§9.2）。
 
 ---
 
@@ -451,3 +464,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.8 | 记录 OpenClash 设备端 `-t` 通过（产物 4006 字节、SHA-256 `6d959695…`）；ENG-04 内核加载验收通过，NAS/HAOS/Proxmox 路径仍未验证 | 项目负责人（事实记录） |
 | 2026-11-10 | v1.9 | 完成 ENG-05 CI/安全实现契约：依赖哈希、敏感扫描、Mihomo 固定校验、中文报告、CODEOWNERS；缓存从 ENG-05 推迟到 ENG-06；远端 CI 与分支保护未验证 | 项目负责人（事实记录） |
 | 2026-11-10 | v1.10 | 记录远端 main push CI 通过；Actions 升级到 checkout v7.0.1 / setup-python v7.1.0（Node 24）；PR CI、分支保护与 CODEOWNERS 强制待验证 | 项目负责人（事实记录） |
+| 2026-11-11 | v1.11 | 启用 main 分支保护策略 A（PR + 必需检查 `test` + 0 审批 + 禁止强推/删除）；临时 PR #1 验证 PR CI 与 `test` 成功；CODEOWNERS 强制未启用 | 项目负责人 |
