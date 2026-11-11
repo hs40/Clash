@@ -102,6 +102,116 @@ def check_workflow(text):
     return errors
 
 
+def check_provider_workflow(text):
+    """检查每周 Provider 检查工作流：只读代码，仅允许写 issue。"""
+    data, errors = _load_yaml(text)
+    if data is None:
+        return errors
+    if "pull_request_target" in text:
+        errors.append("不允许使用 pull_request_target")
+    if SECRETS_RE.search(text):
+        errors.append("工作流不得引用 Secrets 上下文")
+    permissions = data.get("permissions")
+    expected = {"contents": "read", "issues": "write"}
+    if permissions != expected:
+        errors.append("Provider 工作流 permissions 必须为 contents: read、issues: write")
+    event = data.get("on")
+    if isinstance(event, str):
+        event = {event: None}
+    if not isinstance(event, dict):
+        errors.append("Provider 工作流缺少 on 配置")
+    else:
+        if not isinstance(event.get("schedule"), list) or not event["schedule"]:
+            errors.append("Provider 工作流必须包含 schedule")
+        if "workflow_dispatch" not in event:
+            errors.append("Provider 工作流必须支持 workflow_dispatch")
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict) or not jobs:
+        errors.append("工作流缺少 jobs")
+    else:
+        for name, job in jobs.items():
+            if not isinstance(job, dict):
+                errors.append("job %s 必须是映射" % name)
+                continue
+            if job.get("runs-on") != "windows-latest":
+                errors.append("job %s 必须使用 windows-latest" % name)
+    for uses in _walk_uses(data.get("jobs")):
+        if not isinstance(uses, str) or not FULL_SHA_RE.match(uses):
+            errors.append("Action 必须固定完整 SHA：%r" % (uses,))
+    for name, job in (jobs or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for step in job.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            uses = step.get("uses", "")
+            if isinstance(uses, str) and uses.startswith("actions/checkout@"):
+                with_block = step.get("with") or {}
+                if with_block.get("persist-credentials") != "false":
+                    errors.append(
+                        "checkout 必须设置 persist-credentials: false（job %s）" % name
+                    )
+    if "update_providers.py --check" not in text:
+        errors.append("Provider 工作流必须运行 update_providers.py --check")
+    return errors
+
+
+def check_release_workflow(text):
+    """检查发布工作流：仅 tag 触发，只允许 contents: write，动作固定 SHA。"""
+    data, errors = _load_yaml(text)
+    if data is None:
+        return errors
+    if "pull_request_target" in text:
+        errors.append("不允许使用 pull_request_target")
+    if SECRETS_RE.search(text):
+        errors.append("工作流不得引用 Secrets 上下文")
+    if data.get("permissions") != {"contents": "write"}:
+        errors.append("Release 工作流 permissions 必须仅为 contents: write")
+    event = data.get("on")
+    if isinstance(event, str):
+        event = {event: None}
+    if not isinstance(event, dict):
+        errors.append("Release 工作流缺少 on 配置")
+    else:
+        push = event.get("push")
+        tags = push.get("tags") if isinstance(push, dict) else None
+        if not isinstance(tags, list) or "v*" not in tags:
+            errors.append("Release 工作流必须由 v* tag 触发")
+        if "pull_request" in event:
+            errors.append("Release 工作流不得由 pull_request 触发")
+    jobs = data.get("jobs")
+    if not isinstance(jobs, dict) or not jobs:
+        errors.append("工作流缺少 jobs")
+    else:
+        for name, job in jobs.items():
+            if not isinstance(job, dict):
+                errors.append("job %s 必须是映射" % name)
+                continue
+            if job.get("runs-on") != "windows-latest":
+                errors.append("job %s 必须使用 windows-latest" % name)
+    for uses in _walk_uses(data.get("jobs")):
+        if not isinstance(uses, str) or not FULL_SHA_RE.match(uses):
+            errors.append("Action 必须固定完整 SHA：%r" % (uses,))
+    for name, job in (jobs or {}).items():
+        if not isinstance(job, dict):
+            continue
+        for step in job.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            uses = step.get("uses", "")
+            if isinstance(uses, str) and uses.startswith("actions/checkout@"):
+                with_block = step.get("with") or {}
+                if with_block.get("persist-credentials") != "false":
+                    errors.append(
+                        "checkout 必须设置 persist-credentials: false（job %s）" % name
+                    )
+    if "release.py --version" not in text or "release.py --verify" not in text:
+        errors.append("Release 工作流必须构建并校验发布包")
+    if "gh release create" not in text:
+        errors.append("Release 工作流必须创建 GitHub Release")
+    return errors
+
+
 def check_codeowners(text):
     entries = {}
     for raw in text.splitlines():
@@ -126,12 +236,21 @@ def check_codeowners(text):
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    workflow = Path(argv[0]) if argv else ROOT / ".github" / "workflows" / "ci.yml"
+    if argv:
+        workflow = Path(argv[0])
+        checks = [(workflow, check_workflow)]
+    else:
+        checks = [
+            (ROOT / ".github" / "workflows" / "ci.yml", check_workflow),
+            (ROOT / ".github" / "workflows" / "provider-check.yml", check_provider_workflow),
+            (ROOT / ".github" / "workflows" / "release.yml", check_release_workflow),
+        ]
     codeowners = (
         Path(argv[1]) if len(argv) > 1 else ROOT / ".github" / "CODEOWNERS"
     )
+    checks.append((codeowners, check_codeowners))
     errors = []
-    for path, checker in ((workflow, check_workflow), (codeowners, check_codeowners)):
+    for path, checker in checks:
         try:
             text = path.read_text(encoding="utf-8")
         except OSError as exc:

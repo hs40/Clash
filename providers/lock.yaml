@@ -1,0 +1,32 @@
+# ENG-06 Provider 锁（构建期校验，不参与运行时下载）
+#
+# 来源白名单硬编码在 scripts/providers.py；本文件只记录已批准来源的固定版本。
+# 升级必须同时更新 commit、upstream_path、snapshot、sha256、bytes，并通过全部测试。
+version: 1
+
+sources:
+  metacubex:
+    owner: MetaCubeX
+    repository: meta-rules-dat
+    license: GPL-3.0
+    ref: meta
+    approval: "负责人 @hs40 于 2026-11-11 批准；仅使用 geosite private/cn 两个 domain 集"
+
+providers:
+  geosite-private:
+    source: metacubex
+    commit: 458e716abd80ff8c6aee2b7d15c4f94b20e9d279
+    upstream_path: geo/geosite/private.list
+    behavior: domain
+    snapshot: providers/snapshots/geosite-private.list
+    sha256: db9b2da8d7e90f09e183dcde096f72adaacd8de21e0f09d364b413085ecb7b57
+    bytes: 2741
+
+  geosite-cn:
+    source: metacubex
+    commit: 458e716abd80ff8c6aee2b7d15c4f94b20e9d279
+    upstream_path: geo/geosite/cn.list
+    behavior: domain
+    snapshot: providers/snapshots/geosite-cn.list
+    sha256: 703c706f925afa756a404136ce2cbea856763969d241280ce55345519dc9332f
+    bytes: 1613591

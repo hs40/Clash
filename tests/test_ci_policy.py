@@ -37,6 +37,87 @@ VALID_CODEOWNERS = """* @hs40
 """
 
 
+VALID_PROVIDER_WORKFLOW = """name: Provider Check
+on:
+  schedule:
+    - cron: \"0 3 * * 1\"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: python scripts/update_providers.py --check
+"""
+
+
+class ProviderWorkflowPolicyTest(unittest.TestCase):
+    def check(self, text=VALID_PROVIDER_WORKFLOW):
+        return ci_policy.check_provider_workflow(text)
+
+    def test_valid_provider_workflow_passes(self):
+        self.assertEqual(self.check(), [])
+
+    def test_issue_write_is_required(self):
+        text = VALID_PROVIDER_WORKFLOW.replace("issues: write\n", "")
+        self.assertTrue(any("permissions" in e for e in self.check(text)))
+
+    def test_schedule_is_required(self):
+        text = VALID_PROVIDER_WORKFLOW.replace("  schedule:\n    - cron: \"0 3 * * 1\"\n", "")
+        self.assertTrue(any("schedule" in e for e in self.check(text)))
+
+    def test_check_command_is_required(self):
+        text = VALID_PROVIDER_WORKFLOW.replace(
+            "update_providers.py --check", "update_providers.py --help"
+        )
+        self.assertTrue(any("update_providers.py --check" in e for e in self.check(text)))
+
+
+VALID_RELEASE_WORKFLOW = """name: Release
+on:
+  push:
+    tags:
+      - \"v*\"
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: python scripts/release.py --version v0.1.0
+      - run: python scripts/release.py --verify release/0.1.0
+      - run: gh release create v0.1.0
+"""
+
+
+class ReleaseWorkflowPolicyTest(unittest.TestCase):
+    def check(self, text=VALID_RELEASE_WORKFLOW):
+        return ci_policy.check_release_workflow(text)
+
+    def test_valid_release_workflow_passes(self):
+        self.assertEqual(self.check(), [])
+
+    def test_contents_write_is_required(self):
+        text = VALID_RELEASE_WORKFLOW.replace("contents: write", "contents: read")
+        self.assertTrue(any("permissions" in e for e in self.check(text)))
+
+    def test_tag_trigger_is_required(self):
+        text = VALID_RELEASE_WORKFLOW.replace("    tags:\n      - \"v*\"\n", "")
+        self.assertTrue(any("tag" in e for e in self.check(text)))
+
+    def test_release_command_is_required(self):
+        text = VALID_RELEASE_WORKFLOW.replace("gh release create v0.1.0", "echo skip")
+        self.assertTrue(any("Release" in e for e in self.check(text)))
+
+
 class WorkflowPolicyTest(unittest.TestCase):
     def check(self, text=VALID_WORKFLOW):
         return ci_policy.check_workflow(text)
@@ -108,6 +189,14 @@ class ActualPolicyFilesTest(unittest.TestCase):
         )
         codeowners = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
         self.assertEqual(ci_policy.check_workflow(workflow), [])
+        provider = (ROOT / ".github" / "workflows" / "provider-check.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(ci_policy.check_provider_workflow(provider), [])
+        release_text = (ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(ci_policy.check_release_workflow(release_text), [])
         self.assertEqual(ci_policy.check_codeowners(codeowners), [])
 
 
