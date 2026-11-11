@@ -171,10 +171,12 @@ MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03、ENG-05、ENG-06 已完成本地�
 ENG-04 已完成双平台配置，Windows 本机 v1.19.33 与 OpenClash 设备 alpha-gbc76c13 均通过
 `-t` 加载验证，但 NAS 端到端、HAOS/Proxmox 路径未验证，标记为部分通过。ENG-05 的远端
 main push CI、PR CI 与 main 分支保护策略 A 已验证；CODEOWNERS 强制未启用（负责人已批准），
-标记为完成（策略 A）。ENG-06 的 Provider 检查与 Release 工作流尚未在远端实际触发；
-内嵌 Provider 后的新产物只在本机 Windows Mihomo v1.19.33 上 `-t` 通过，iStoreOS 设备
-尚未用新产物重测，标记为「本地完成、远端与设备待验证」。PR #3 的必需检查 `test`
-已通过（run 42962911064）；Provider Check 与 Release 工作流仍待单独触发。
+标记为完成（策略 A）。ENG-06 的 Provider Check 已于 2026-11-11 远端触发并通过
+（run 42972389013，修复首次 Windows 编码失败后）；Release 工作流尚未触发；内嵌
+Provider 后的新产物只在本机 Windows Mihomo v1.19.33 上 `-t` 通过，iStoreOS 设备
+尚未用新产物重测，标记为「本地完成、远端 Provider Check 通过；Release 与设备待验证」。
+PR #3 已合并到 main（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；
+Provider Check 首次失败与修复见 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.12。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
