@@ -1,17 +1,18 @@
 # ENG-06 验收报告：Provider、发布与回滚
 
 - 日期：2026-11-11
-- 分支：`feat/eng-06-provider-release`（基于 main `cc2c938`）；PR #3 已合并到 main，合并提交 `c3436d3`；代码提交 `d05611e`，文档提交 `566a3d5` / `dc6e47c` / `22c1133`
+- 分支：`docs/eng-06-release-record`（基于 main `3c8773f`）；代码分支 `feat/eng-06-provider-release` 已由 PR #3 合并为 `c3436d3`；代码提交 `d05611e`
 - 后续 CI 修复：PR #5（squash merge `d4a7a4a`）；Provider Check UTF-8 修复，见 §3.12
+- 发布记录：annotated tag `v0.1.0` 指向 `3c8773f`，Release run 42997351203
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0，Mihomo v1.19.33（Windows）
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.13
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.14
 - 回滚手册：[ROLLBACK.md](ROLLBACK.md)
 - 安全策略：[SECURITY.md](SECURITY.md)
-- 结论：**本地 Provider 锁定/内嵌、每周检查脚本、发布包、配置差异报告、回滚文档与
-  tag 触发 Release 工作流已完成并通过测试；本机双平台配置通过 Mihomo `-t`。
-  Provider Check 已在本仓库远端实际运行并通过（run 42972389013）；Release 工作流
-  尚未触发。iStoreOS 设备尚未用内嵌 Provider 的新产物重测，因此 ENG-06 标记为
-  “本地完成、远端 Provider Check 通过；Release 与设备待验证”。**
+- 结论：**本地 Provider 锁定/内嵌、每周检查脚本、发布包、配置差异报告与回滚文档已完成；
+  Provider Check、`v0.1.0` Release 与 issue 创建均已远端验证；Windows/OpenClash 发布
+  配置在本机 Mihomo 上 `-t` 通过。iStoreOS 设备尚未用新产物重测，Release 的
+  `SHA256SUMS` 资产覆盖限制已记录，因此 ENG-06 标记为
+  “本地完成、远端 Provider Check/Release 通过；设备重测待完成”。**
 
 ---
 
@@ -19,9 +20,9 @@
 
 | 任务 | 状态 | 提交 |
 | --- | --- | --- |
-| ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI 与 Provider Check 远端通过，Release 与设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` |
+| ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI、Provider Check、v0.1.0 Release 与 issue 创建远端通过；iStoreOS 设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` + 本记录 |
 
-本地自动化测试：**185 项通过，0 失败，0 错误**（168.217 秒）。
+本地自动化测试：**185 项通过，0 失败，0 错误**（231.787 秒）。
 
 关键证据：
 
@@ -30,7 +31,9 @@
 - 本机 Mihomo v1.19.33 对两份产物执行 `-t` 均退出码 0；
 - 敏感信息扫描、CI 策略检查、依赖锁定检查均退出码 0；
 - 上游 Provider 检查：两个集合均“已是最新”；
-- 远端 Provider Check run 42972389013 与 main CI run 42972337584 均成功。
+- 远端 Provider Check run 42972389013 与 main CI run 42972337584 均成功；
+- `v0.1.0` Release run 42997351203 成功，Release 资产下载后哈希与提取配置均校验通过；
+- 临时分支触发 Provider Check run 42996296022，issue #6 由 `app/github-actions` 创建成功。
 
 ---
 
@@ -198,8 +201,29 @@ zip 成员为 `config.yaml`、`THIRD_PARTY_NOTICES.md`、`LICENSE-metacubex.txt`
 `persist-credentials: false`；运行测试、构建、`--verify`，再用 `gh release create`
 上传两个 zip、`SHA256SUMS` 和中文 Notes。`ci_policy.py` 对工作流文本检查通过。
 
-**未在远端实际触发。** 推送 tag 会创建真实 GitHub Release，本轮没有执行；首个
-正式 tag 发布需负责人审查。
+2026-11-11 推送 annotated tag `v0.1.0`（指向 main `3c8773f`）实际触发
+run 42997351203（job 130444646182），3 分 5 秒后 success，创建
+https://github.com/hs40/Clash/releases/tag/v0.1.0。发布资产为
+`windows-0.1.0.zip`（511,738 B，SHA-256
+`38f95d6c876254142b5347146921c76a9a2dc9f1243197b87480a0412f03d7a6`）、
+`openclash-0.1.0.zip`（511,688 B，SHA-256
+`99fbb6157afbc3dc8b9974e8332eb3d286b6232ba445bffa31248dc5cd7980ee`）与
+`SHA256SUMS`（685 B）。
+
+用 `gh release download` 下载全部资产后复核：两个 zip 的哈希与 `SHA256SUMS` 一致；
+zip 均只含 `CONFIG-DIFF.md`、`LICENSE-metacubex.txt`、`THIRD_PARTY_NOTICES.md`、
+`config.yaml`；解出的配置 SHA-256 分别为
+`11eceed5e5760981b691c046c0a70dc2880d348eb0e3fdf3ac1b2c2a4281c265`（Windows）与
+`7bc3d2eed0cd5abc78833279896802ba5e8da075d8a07af80cd3784d403eb787`（OpenClash），
+与 `SHA256SUMS` 的配置行一致。本机 Mihomo Meta v1.19.33 对两个解出的配置执行 `-t`
+均退出 0（759 ms / 537 ms）。**通过。**
+
+已知限制：`SHA256SUMS` 按完整发布目录生成 8 行，而 Release 只上传 2 个 zip 与
+校验文件；单独下载全部资产后执行全量 `sha256sum -c SHA256SUMS` 会因缺少 6 个
+非资产条目（两个 `config.yaml`、`CONFIG-DIFF.md`、`RELEASE-NOTES.md`、
+`THIRD_PARTY_NOTICES.md`、`LICENSE-metacubex.txt`）失败。zip 行可直接校验，
+回滚手册也要求按 zip 行核对。修复需要修改发布流程并生成新版本，不能改写 `v0.1.0`；
+已作为 §5 遗留提交负责人决定。
 
 ### 3.9 本机 Mihomo 加载
 
@@ -215,7 +239,7 @@ Windows `WIN_EXIT=0`，OpenClash `OC_EXIT=0`。这只证明配置可加载，不
 ### 3.10 自动化测试
 
 ```text
-Ran 185 tests in 168.217s
+Ran 185 tests in 231.787s
 OK
 ```
 
@@ -234,8 +258,8 @@ run 42963854278 / job 130336409369。三次运行均包含依赖哈希安装、�
 合并后 main CI 为 run 42964259372，head `c3436d3`，结论 success。
 
 Provider Check 与 Release 工作流不会被 PR 触发（前者只看 schedule/dispatch，后者只看
-`v*` tag）。Provider Check 已单独触发并在 §3.12 记录；Release 仍未运行。
-**PR CI 与 main CI 通过；Provider Check 远端通过；Release 未运行。**
+`v*` tag）。Provider Check 见 §3.12，Release 见 §3.8，issue 创建见 §3.13。
+**PR CI、main CI、Provider Check 与 Release 均通过。**
 
 ### 3.12 远端 Provider Check（2026-11-11）
 
@@ -252,9 +276,30 @@ run 42972002163 成功，squash merge 为 `d4a7a4a`；修复分支预验证 run 
 
 合并后 main 的 Provider Check run 42972389013（job 130363628182）成功，步骤
 “Check pinned provider sources” 与 “Open review issue when upstream changed” 均成功；
-同一 commit 的 main CI run 42972337584 成功。上游当前无变化，因此 `gh issue create`
-分支没有被实际执行，issue 创建权限与内容仍未验证。
-**Provider Check 远端运行通过；issue 创建路径未触发。**
+同一 commit 的 main CI run 42972337584 成功。上游当前无变化，因此该次运行未执行
+`gh issue create`；issue 创建路径随后由 §3.13 的临时分支单独验证。
+**Provider Check 远端运行通过；issue 创建路径见 §3.13。**
+
+### 3.13 远端 issue 创建与清理验证（2026-11-11）
+
+为验证 Provider Check 的变化分支，创建临时分支
+`test/provider-issue-probe-20261111`，仅把 `providers/lock.yaml` 中
+`geosite-private` 的 `upstream_path` 从 `geo/geosite/private.list` 改为
+`geo/geosite/cn.list`。本地 `update_providers.py --check` 报告
+private `changed=true`（上游 1,613,591 B，SHA-256 `703c706f...`），cn 未变化。
+
+推送 commit `aa5c276` 后触发 Provider Check run 42996296022，运行成功；
+issue #6“Provider 上游更新待审核”由 `app/github-actions` 创建，正文记录
+private 从 `db9b2da8...` 变为 `703c706f...`（1,613,591 字节）：
+https://github.com/hs40/Clash/issues/6 。issue 创建权限与正文内容**验证通过**。
+
+清理阶段发现长期 Token 的 Issues 权限仍为只读：本地 API 调用 addComment 与
+closeIssue 均返回 `Resource not accessible by personal access token`。新建
+`close-probe-issue.yml` 并通过 `workflow_dispatch` 触发返回 404
+（新 workflow_dispatch 文件必须已在默认分支）；改用测试分支上已有的
+`provider-check.yml` 临时追加关闭步骤，以 `github.token` 搜索标题并关闭 issue。
+run 42996752062 与 42997036944 成功，#6、#7、#8 均已关闭；测试分支本地与远端删除，
+main 未改动，当前无开放 issue。**清理通过。**
 
 ---
 
@@ -274,11 +319,16 @@ run 42972002163 成功，squash merge 为 `d4a7a4a`；修复分支预验证 run 
 
 ## 5. 遗留问题与未验证项
 
-1. **远端 Provider Check 已运行并通过，但 issue 创建未验证。** 首次 run 42969347805
-   因 Windows 控制台编码失败；修复后 run 42972389013 成功。上游当前无变化，
-   `gh issue create` 分支未实际执行，issue 创建权限与内容仍未验证。
-2. **Release 工作流未运行。** 没有推送 `v0.1.0` tag，未验证 `gh release create`、
-   Release 页面、资产上传与 Notes 渲染。首个正式发布需负责人审查。
+1. **issue 创建已验证，长期 Token 仍不能管理 issue。** 临时分支 run 42996296022
+   创建了 issue #6，#6–#8 随后关闭，当前无开放 issue。长期 Token 的 Issues 权限仍为
+   只读，本地 API 无法 addComment/closeIssue；清理使用了 `github.token`。若需要
+   Agent 关闭 issue，需负责人把该 Token 的 Issues 升为 Read and write。
+2. **Release 已发布，`SHA256SUMS` 资产覆盖有已知限制。** `v0.1.0` Release
+   （run 42997351203）已创建，两个 zip 与校验文件可下载并校验，Release 内配置在本机
+   Mihomo v1.19.33 上 `-t` 通过。但 `SHA256SUMS` 覆盖完整发布目录 8 行，Release
+   只上传 2 个 zip 与 `SHA256SUMS`；全量 `sha256sum -c` 会因缺少 6 个非资产条目失败，
+   zip 行校验有效。修正需要修改发布流程并生成新版本，属于需负责人审查的正式发布变更；
+   `v0.1.0` 不改写。
 3. **iStoreOS 未重测。** 内嵌 Provider 后 OpenClash 配置为 2,282,408 字节；
    设备 alpha-gbc76c13 尚未加载该新产物。旧产物 4,006 字节的 `-t` 结果不能代表新产物。
 4. **NAS/HAOS/Proxmox 仍环境阻塞。** 与 ENG-04 相同，未做端到端透明代理/DNS 验证。

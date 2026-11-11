@@ -171,12 +171,17 @@ MVP-01 至 MVP-06、ENG-01、ENG-02、ENG-03、ENG-05、ENG-06 已完成本地�
 ENG-04 已完成双平台配置，Windows 本机 v1.19.33 与 OpenClash 设备 alpha-gbc76c13 均通过
 `-t` 加载验证，但 NAS 端到端、HAOS/Proxmox 路径未验证，标记为部分通过。ENG-05 的远端
 main push CI、PR CI 与 main 分支保护策略 A 已验证；CODEOWNERS 强制未启用（负责人已批准），
-标记为完成（策略 A）。ENG-06 的 Provider Check 已于 2026-11-11 远端触发并通过
-（run 42972389013，修复首次 Windows 编码失败后）；Release 工作流尚未触发；内嵌
-Provider 后的新产物只在本机 Windows Mihomo v1.19.33 上 `-t` 通过，iStoreOS 设备
-尚未用新产物重测，标记为「本地完成、远端 Provider Check 通过；Release 与设备待验证」。
-PR #3 已合并到 main（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；
-Provider Check 首次失败与修复见 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.12。
+标记为完成（策略 A）。ENG-06 的 Provider Check 与 tag 触发的 Release 工作流均已于
+2026-11-11 远端运行并通过：`v0.1.0` 已发布为
+[GitHub Release](https://github.com/hs40/Clash/releases/tag/v0.1.0)（run 42997351203），
+两个 zip 与 `SHA256SUMS` 已下载校验，Release 内配置在本机 Mihomo v1.19.33 上 `-t` 通过；
+Provider Check 的 issue 创建路径也用临时分支实际验证（issue #6 创建，随后 #6–#8 全部关闭）。
+内嵌 Provider 后的新产物尚未在 iStoreOS 设备上重测，因此 ENG-06 标记为
+「本地完成、远端 Provider Check/Release 通过；设备待验证」。`SHA256SUMS` 覆盖完整发布目录，
+但 Release 仅上传两个 zip 与校验文件；单独下载后应按 zip 行校验，详见验收报告 §5。
+PR #3 已合并到 main（`c3436d3`），PR #5 修复 Windows 编码问题（`d4a7a4a`）；
+PR CI、main CI（run 42964259372）与 Provider Check 均通过，发布记录见
+[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.8、§3.13。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、
