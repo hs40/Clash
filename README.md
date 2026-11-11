@@ -173,7 +173,8 @@ ENG-04 已完成双平台配置，Windows 本机 v1.19.33 与 OpenClash 设备 a
 main push CI、PR CI 与 main 分支保护策略 A 已验证；CODEOWNERS 强制未启用（负责人已批准），
 标记为完成（策略 A）。ENG-06 的 Provider 检查与 Release 工作流尚未在远端实际触发；
 内嵌 Provider 后的新产物只在本机 Windows Mihomo v1.19.33 上 `-t` 通过，iStoreOS 设备
-尚未用新产物重测，标记为「本地完成、远端与设备待验证」。
+尚未用新产物重测，标记为「本地完成、远端与设备待验证」。PR #3 的必需检查 `test`
+已通过（run 42962911064）；Provider Check 与 Release 工作流仍待单独触发。
 验收记录见
 [docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)、
 [docs/ENG-01-ACCEPTANCE.md](docs/ENG-01-ACCEPTANCE.md)、

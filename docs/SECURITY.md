@@ -102,8 +102,9 @@
 4. 分支保护是配置级验证；本轮未故意制造失败检查来观察 `mergeable_state=blocked`。
 5. CI 不替代真实网络连通性、DNS 泄漏、TUN 接管与 OpenClash 透明代理验证（见
    [REQUIREMENTS.md](REQUIREMENTS.md) §14）。
-6. `provider-check.yml` 与 `release.yml` 尚未在 GitHub 远端实际触发；Provider 更新、
-   GitHub Release 创建和回滚包下载均未做端到端演练。
+6. PR #3 的 `test` 检查已通过（run 42962911064）；`provider-check.yml` 与 `release.yml`
+   尚未在 GitHub 远端实际触发；Provider 更新、GitHub Release 创建和回滚包下载均未做
+   端到端演练。
 7. 内嵌 Provider 后的新配置只在本机 Windows Mihomo v1.19.33 上 `-t` 通过；iStoreOS
    设备 alpha-gbc76c13 尚未用新产物重测。
 8. ci-report.md 是本地/CI 生成物，不提交；报告内容不包含凭据。

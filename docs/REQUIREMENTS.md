@@ -392,7 +392,8 @@ checkout v7.0.1 / setup-python v7.1.0（node24）。2026-11-11 已启用 main �
 并通过临时 PR #1 实际验证 PR 触发 CI 与必需检查 `test`（§9.2）；CODEOWNERS 强制未启用。
 ENG-06 已实现 Provider 锁定/内嵌、每周检查、更新脚本、发布包与配置差异报告、回滚文档，
 以及 tag 触发的 Release 工作流（§8.1、§10.1）。远端 Provider 检查与 Release 工作流尚未实际
-运行；设备端未用内嵌 Provider 的新产物重测。其余仍按 ENG 计划推进。
+运行；设备端未用内嵌 Provider 的新产物重测。PR #3 的 PR CI 已于 2026-11-11 通过
+（run 42962911064，必需检查 `test`）；Provider 检查与 Release 工作流仍未触发。其余仍按 ENG 计划推进。
 
 ---
 
@@ -474,7 +475,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
 9. GitHub 远端 main push CI 已于 2026-11-10 通过；2026-11-11 已启用 main 分支保护策略 A（PR + 必需检查 `test` + 0 审批），并通过临时 PR #1 实际验证 PR CI；CODEOWNERS 强制未启用（§9.2）。
 10. ENG-06 内嵌 Provider 后，配置增大约 2.28 MB；仅用 Windows 本机 Mihomo v1.19.33 对两份产物执行 `-t` 通过。iStoreOS 设备 alpha-gbc76c13 未用新产物重测，NAS 端到端仍未验证。
-11. ENG-06 的 `provider-check.yml` 与 `release.yml` 尚未在 GitHub 远端实际触发；`gh release create` 与 GitHub Release 页面未实测；首个正式 tag 发布需负责人审查。
+11. ENG-06 的 PR #3 CI 已通过（run 42962911064，`test` success）；`provider-check.yml` 与 `release.yml` 尚未在 GitHub 远端实际触发；`gh release create` 与 GitHub Release 页面未实测；首个正式 tag 发布需负责人审查。
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
 
