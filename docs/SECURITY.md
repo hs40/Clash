@@ -21,7 +21,8 @@
 - `ci.yml` 只响应 pull_request 与 push 到 main，不使用 pull_request_target；顶层权限为
   contents: read，不引用 Secrets。
 - `provider-check.yml` 每周一 03:00 UTC 与手动触发；顶层 contents: read，job 级
-  issues: write 只用于创建 Provider 更新 issue；不检出不可信 PR，不执行上游代码。
+  issues: write 只用于创建 Provider 更新 issue；job 级 `PYTHONUTF8: "1"` 确保中文输出
+  在 Windows runner 正常编码；不检出不可信 PR，不执行上游代码。
 - `release.yml` 只在推送 `v*` tag 时触发；顶层 contents: write 只用于创建 GitHub Release；
   不使用 pull_request_target，不引用 Secrets。
 - 不可信 PR 不获得额外权限；工作流固定 Action 完整 SHA 并设置 persist-credentials: false。
@@ -102,9 +103,10 @@
 4. 分支保护是配置级验证；本轮未故意制造失败检查来观察 `mergeable_state=blocked`。
 5. CI 不替代真实网络连通性、DNS 泄漏、TUN 接管与 OpenClash 透明代理验证（见
    [REQUIREMENTS.md](REQUIREMENTS.md) §14）。
-6. PR #3 的 `test` 检查已通过（run 42962911064）；`provider-check.yml` 与 `release.yml`
-   尚未在 GitHub 远端实际触发；Provider 更新、GitHub Release 创建和回滚包下载均未做
-   端到端演练。
+6. PR #3 已合并到 main（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；
+   Provider Check 已于 2026-11-11 远端触发并通过（run 42972389013；首次编码失败由
+   PR #5 修复）；`release.yml` 尚未触发，GitHub Release 创建和回滚包下载均未做
+   端到端演练；上游无变化时 `gh issue create` 分支未执行。
 7. 内嵌 Provider 后的新配置只在本机 Windows Mihomo v1.19.33 上 `-t` 通过；iStoreOS
    设备 alpha-gbc76c13 尚未用新产物重测。
 8. ci-report.md 是本地/CI 生成物，不提交；报告内容不包含凭据。

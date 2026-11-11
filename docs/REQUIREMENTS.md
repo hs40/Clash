@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.12
+**版本：** v1.13
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -309,6 +309,7 @@ CI 工作流 `.github/workflows/ci.yml`：
 10. CODEOWNERS：`@hs40` 审查 `.github/`、`scripts/`、`configs/common/`、`security/`、`docs/REQUIREMENTS.md`；高风险失败阻断发布，仅负责人可解除。`ci_policy.py` 只做静态检查；当前分支保护（§9.2）未启用 Require review from Code Owners，因此 CODEOWNERS 目前是归属声明与静态检查，不是合并门禁。负责人 2026-11-11 明确批准策略 A 下的这一 bypass；这是负责人授权，不是 Agent 自行豁免。
 11. 限制：CI 不能替代 §14 的真实网络连通性与 DNS 泄漏测试。
 12. ENG-06 工作流权限：`provider-check.yml` 顶层 `contents: read`、job 级 `issues: write`，只用于创建 Provider 更新 issue；`release.yml` 顶层 `contents: write`，只在 `v*` tag 触发，用于创建 GitHub Release。两者都不引用 Secrets，不使用 `pull_request_target`。
+13. Provider Check 在 Windows runner 的 job 级设置 `PYTHONUTF8: "1"`，避免中文输出在 cp1252 控制台触发 `UnicodeEncodeError`；`tests/test_ci_policy.py` 对此做静态回归检查。
 
 ### 9.2 远端 main 分支保护（策略 A）【确定，2026-11-11 负责人确认】
 
@@ -391,9 +392,11 @@ ENG-05 已实现 CI 配置、依赖哈希锁定、敏感信息扫描、Mihomo �
 checkout v7.0.1 / setup-python v7.1.0（node24）。2026-11-11 已启用 main 分支保护策略 A，
 并通过临时 PR #1 实际验证 PR 触发 CI 与必需检查 `test`（§9.2）；CODEOWNERS 强制未启用。
 ENG-06 已实现 Provider 锁定/内嵌、每周检查、更新脚本、发布包与配置差异报告、回滚文档，
-以及 tag 触发的 Release 工作流（§8.1、§10.1）。远端 Provider 检查与 Release 工作流尚未实际
-运行；设备端未用内嵌 Provider 的新产物重测。PR #3 的 PR CI 已于 2026-11-11 通过
-（run 42962911064，必需检查 `test`）；Provider 检查与 Release 工作流仍未触发。其余仍按 ENG 计划推进。
+以及 tag 触发的 Release 工作流（§8.1、§10.1）。PR #3 已合并到 main（`c3436d3`），PR CI
+与 main CI（run 42964259372）均通过。Provider Check 已于 2026-11-11 在远端实际触发并通过
+（run 42972389013）；首次运行因 Windows 控制台编码失败，已通过 PR #5（`d4a7a4a`）修复并
+补回归测试。Release 工作流尚未运行；设备端未用内嵌 Provider 的新产物重测。其余仍按 ENG
+计划推进。
 
 ---
 
@@ -475,7 +478,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 8. OpenClash 的 DNS 监听、Fake-IP 与防火墙适配未在设备上验证；ENG-03 只做构建期静态校验。
 9. GitHub 远端 main push CI 已于 2026-11-10 通过；2026-11-11 已启用 main 分支保护策略 A（PR + 必需检查 `test` + 0 审批），并通过临时 PR #1 实际验证 PR CI；CODEOWNERS 强制未启用（§9.2）。
 10. ENG-06 内嵌 Provider 后，配置增大约 2.28 MB；仅用 Windows 本机 Mihomo v1.19.33 对两份产物执行 `-t` 通过。iStoreOS 设备 alpha-gbc76c13 未用新产物重测，NAS 端到端仍未验证。
-11. ENG-06 的 PR #3 CI 已通过（run 42962911064，`test` success）；`provider-check.yml` 与 `release.yml` 尚未在 GitHub 远端实际触发；`gh release create` 与 GitHub Release 页面未实测；首个正式 tag 发布需负责人审查。
+11. ENG-06 的 PR #3 已合并（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；Provider Check 已于 2026-11-11 远端触发并通过（修复 run 42972389013；首次 run 42969347805 因 Windows 编码失败，修复见 §9.1 第 13 条）；上游无变化，`gh issue create` 分支未实际执行。`release.yml` 尚未触发；`gh release create` 与 GitHub Release 页面未实测；首个正式 tag 发布需负责人审查。
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
 
@@ -499,3 +502,4 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 2026-11-10 | v1.10 | 记录远端 main push CI 通过；Actions 升级到 checkout v7.0.1 / setup-python v7.1.0（Node 24）；PR CI、分支保护与 CODEOWNERS 强制待验证 | 项目负责人（事实记录） |
 | 2026-11-11 | v1.11 | 启用 main 分支保护策略 A（PR + 必需检查 `test` + 0 审批 + 禁止强推/删除）；临时 PR #1 验证 PR CI 与 `test` 成功；CODEOWNERS 强制未启用 | 项目负责人 |
 | 2026-11-11 | v1.12 | 完成 ENG-06：Provider 锁定/内嵌、每周检查、更新脚本、发布包与差异报告、回滚文档、tag 触发 Release；负责人批准 tag 触发与 GPL-3.0 内嵌再分发 | 项目负责人 |
+| 2026-11-11 | v1.13 | 记录 PR #3 合并（`c3436d3`）、main CI 通过、Provider Check 远端触发、Windows UTF-8 编码修复（PR #5，`d4a7a4a`）与 issue 创建未验证；Release 仍未运行 | 项目负责人（事实记录） |

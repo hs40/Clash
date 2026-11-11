@@ -1,15 +1,17 @@
 # ENG-06 验收报告：Provider、发布与回滚
 
 - 日期：2026-11-11
-- 分支：`feat/eng-06-provider-release`（基于 main `cc2c938`）；PR #3，代码提交 `d05611e`，文档提交 `566a3d5` / `dc6e47c`
+- 分支：`feat/eng-06-provider-release`（基于 main `cc2c938`）；PR #3 已合并到 main，合并提交 `c3436d3`；代码提交 `d05611e`，文档提交 `566a3d5` / `dc6e47c` / `22c1133`
+- 后续 CI 修复：PR #5（squash merge `d4a7a4a`）；Provider Check UTF-8 修复，见 §3.12
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0，Mihomo v1.19.33（Windows）
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.12
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.13
 - 回滚手册：[ROLLBACK.md](ROLLBACK.md)
 - 安全策略：[SECURITY.md](SECURITY.md)
 - 结论：**本地 Provider 锁定/内嵌、每周检查脚本、发布包、配置差异报告、回滚文档与
   tag 触发 Release 工作流已完成并通过测试；本机双平台配置通过 Mihomo `-t`。
-  Provider 检查与 Release 工作流尚未在 GitHub 远端实际触发，iStoreOS 设备尚未用
-  内嵌 Provider 的新产物重测，因此 ENG-06 标记为“本地完成、远端与设备待验证”。**
+  Provider Check 已在本仓库远端实际运行并通过（run 42972389013）；Release 工作流
+  尚未触发。iStoreOS 设备尚未用内嵌 Provider 的新产物重测，因此 ENG-06 标记为
+  “本地完成、远端 Provider Check 通过；Release 与设备待验证”。**
 
 ---
 
@@ -17,9 +19,9 @@
 
 | 任务 | 状态 | 提交 |
 | --- | --- | --- |
-| ENG-06 Provider、发布与回滚 | 本地完成；PR CI 通过，Provider/Release 工作流与设备重测待验证 | `d05611e` + `566a3d5` |
+| ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI 与 Provider Check 远端通过，Release 与设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` |
 
-本地自动化测试：**184 项通过，0 失败，0 错误**（107.221 秒）。
+本地自动化测试：**185 项通过，0 失败，0 错误**（168.217 秒）。
 
 关键证据：
 
@@ -27,7 +29,8 @@
 - 发布包构建与 `release.py --verify` 均退出码 0；
 - 本机 Mihomo v1.19.33 对两份产物执行 `-t` 均退出码 0；
 - 敏感信息扫描、CI 策略检查、依赖锁定检查均退出码 0；
-- 上游 Provider 检查：两个集合均“已是最新”。
+- 上游 Provider 检查：两个集合均“已是最新”；
+- 远端 Provider Check run 42972389013 与 main CI run 42972337584 均成功。
 
 ---
 
@@ -57,7 +60,7 @@
      `tests/test_release.py`；
    - 修改 `tests/test_build.py`、`tests/test_dns.py`、`tests/test_groups.py`、
      `tests/test_rules.py`、`tests/test_ci_policy.py`，覆盖 Provider 注入与工作流策略；
-   - 修改 `docs/REQUIREMENTS.md`（v1.12）、`docs/SECURITY.md`、`README.md`；
+   - 修改 `docs/REQUIREMENTS.md`（v1.12，后续 v1.13）、`docs/SECURITY.md`、`README.md`；
    - 新增 `docs/ROLLBACK.md` 与本报告。
 4. **实现内容：**
    - **来源白名单**：仅 `MetaCubeX/meta-rules-dat`，ref `meta`，GPL-3.0；
@@ -95,7 +98,7 @@
    - `.venv\Scripts\python.exe scripts\update_providers.py --check --json .tmp_provider_check.json`
    - `"C:\Program Files\Clash Verge\verge-mihomo.exe" -t -f dist\windows\config.yaml -d .tmp_mihomo_test`
    - `"C:\Program Files\Clash Verge\verge-mihomo.exe" -t -f dist\openclash\config.yaml -d .tmp_mihomo_test`
-6. **测试结果：** 184 项测试通过；构建退出码 0；发布构建/校验退出码 0；敏感信息扫描、
+6. **测试结果：** 185 项测试通过；构建退出码 0；发布构建/校验退出码 0；敏感信息扫描、
    CI 策略、依赖锁定均退出码 0；Provider 检查两个集合均“已是最新”；Mihomo `-t`
    两份配置均退出码 0（Windows 359 ms，OpenClash 280 ms）。详见第 3 节。
 7. **需求偏差：** 见第 4 节。
@@ -212,22 +215,46 @@ Windows `WIN_EXIT=0`，OpenClash `OC_EXIT=0`。这只证明配置可加载，不
 ### 3.10 自动化测试
 
 ```text
-Ran 184 tests in 107.221s
+Ran 185 tests in 168.217s
 OK
 ```
 
 新增覆盖：Provider 锁/快照/payload/inline、`--check` 与 `--apply` 失败路径、
-发布包/zip/SHA256SUMS/差异报告/重构建一致性、Provider 与 Release 工作流策略。**通过。**
+发布包/zip/SHA256SUMS/差异报告/重构建一致性、Provider 与 Release 工作流策略，
+以及 Provider Check 的 UTF-8 控制台回归测试。**通过。**
 
 ### 3.11 PR CI
 
 PR #3（https://github.com/hs40/Clash/pull/3）的必需检查 `test` 已通过：
-代码提交 `566a3d5` 为 run 42962911064 / job 130333415834；最终文档提交 `dc6e47c`
-为 run 42963182242 / job 130334276545。两次运行均包含依赖哈希安装、双平台构建、
+代码提交 `566a3d5` 为 run 42962911064 / job 130333415834；`dc6e47c`
+为 run 42963182242 / job 130334276545；最终文档提交 `22c1133` 为
+run 42963854278 / job 130336409369。三次运行均包含依赖哈希安装、双平台构建、
 敏感扫描、CI 策略检查、184 项测试与 Mihomo `-t`。
 
-Provider Check 与 Release 工作流没有被 PR 触发（前者只看 schedule/dispatch，后者只看
-`v*` tag），因此仍需单独验证。**PR CI 通过；两个新工作流未运行。**
+合并后 main CI 为 run 42964259372，head `c3436d3`，结论 success。
+
+Provider Check 与 Release 工作流不会被 PR 触发（前者只看 schedule/dispatch，后者只看
+`v*` tag）。Provider Check 已单独触发并在 §3.12 记录；Release 仍未运行。
+**PR CI 与 main CI 通过；Provider Check 远端通过；Release 未运行。**
+
+### 3.12 远端 Provider Check（2026-11-11）
+
+首次在 main 手动触发 run 42969347805 失败：`scripts/update_providers.py` 第 177 行
+中文输出在 windows-latest 的 cp1252 控制台触发
+`UnicodeEncodeError: 'charmap' codec can't encode characters...`，job 130353951706 在
+“Check pinned provider sources” 步骤退出 1。
+
+修复：`.github/workflows/provider-check.yml` 在 job 级设置 `PYTHONUTF8: "1"`，与
+`ci.yml` 的 Windows 中文输出处理一致；`tests/test_ci_policy.py` 增加回归测试断言该
+工作流启用 UTF-8。PR #5（https://github.com/hs40/Clash/pull/5）的 `test` 检查
+run 42972002163 成功，squash merge 为 `d4a7a4a`；修复分支预验证 run 42971641453
+（head `fix/provider-check-utf8`）成功。
+
+合并后 main 的 Provider Check run 42972389013（job 130363628182）成功，步骤
+“Check pinned provider sources” 与 “Open review issue when upstream changed” 均成功；
+同一 commit 的 main CI run 42972337584 成功。上游当前无变化，因此 `gh issue create`
+分支没有被实际执行，issue 创建权限与内容仍未验证。
+**Provider Check 远端运行通过；issue 创建路径未触发。**
 
 ---
 
@@ -247,8 +274,9 @@ Provider Check 与 Release 工作流没有被 PR 触发（前者只看 schedule/
 
 ## 5. 遗留问题与未验证项
 
-1. **远端 Provider Check 未运行。** 工作流只通过本地静态策略检查；未验证
-   `gh issue create` 在真实仓库中的权限与 issue 内容。
+1. **远端 Provider Check 已运行并通过，但 issue 创建未验证。** 首次 run 42969347805
+   因 Windows 控制台编码失败；修复后 run 42972389013 成功。上游当前无变化，
+   `gh issue create` 分支未实际执行，issue 创建权限与内容仍未验证。
 2. **Release 工作流未运行。** 没有推送 `v0.1.0` tag，未验证 `gh release create`、
    Release 页面、资产上传与 Notes 渲染。首个正式发布需负责人审查。
 3. **iStoreOS 未重测。** 内嵌 Provider 后 OpenClash 配置为 2,282,408 字节；
