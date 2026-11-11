@@ -68,7 +68,7 @@ PLATFORM_FILES = {
 
 # 公共独占键：出现在平台配置中即视为合并契约破坏
 COMMON_OWNED_KEYS = ("proxies", "proxy-groups", "rules", "dns",
-                     "mode", "log-level", "ipv6")
+                     "rule-providers", "mode", "log-level", "ipv6")
 
 # OpenClash 运行时注入的键，MVP 不得写入（§11 约束 4）
 RUNTIME_INJECTED_KEYS = ("redir-port", "tproxy-port", "external-controller",
@@ -115,11 +115,11 @@ class PlatformFilesTest(unittest.TestCase):
 
 EXPECTED_WINDOWS_KEYS = [
     "mode", "log-level", "ipv6", "mixed-port", "allow-lan",
-    "tun", "dns", "proxies", "proxy-groups", "rules",
+    "tun", "dns", "rule-providers", "proxies", "proxy-groups", "rules",
 ]
 EXPECTED_OPENCLASH_KEYS = [
     "mode", "log-level", "ipv6", "port", "allow-lan", "bind-address",
-    "dns", "proxies", "proxy-groups", "rules",
+    "dns", "rule-providers", "proxies", "proxy-groups", "rules",
 ]
 
 
@@ -133,6 +133,8 @@ class BuilderMergeTest(unittest.TestCase):
         self.assertFalse(cfg["allow-lan"])
         self.assertEqual(cfg["tun"]["stack"], "gvisor")
         self.assertEqual(cfg["dns"]["enhanced-mode"], "fake-ip")
+        self.assertEqual(set(cfg["rule-providers"]), {"geosite-cn", "geosite-private"})
+        self.assertEqual(cfg["rule-providers"]["geosite-private"]["type"], "inline")
         self.assertEqual(len(cfg["proxies"]), 7)
         self.assertEqual(cfg["rules"][-1], "MATCH,PROXY")
 
@@ -159,6 +161,7 @@ def make_fixture_tree(root_dir):
     (root_dir / "configs" / "common").mkdir(parents=True)
     for src in (ROOT / "configs" / "common").glob("*.yaml"):
         shutil.copy(src, root_dir / "configs" / "common" / src.name)
+    shutil.copytree(ROOT / "providers", root_dir / "providers")
 
 
 class MergeContractTest(unittest.TestCase):
@@ -261,8 +264,10 @@ class CommandLineTest(unittest.TestCase):
                 path = Path(tmp) / platform / "config.yaml"
                 self.assertTrue(path.is_file(), "缺少产物：%s" % path)
                 cfg = load_yaml(path)
-                self.assertEqual(cfg.keys() & {"proxies", "proxy-groups", "rules", "dns"},
-                                 {"proxies", "proxy-groups", "rules", "dns"})
+                self.assertEqual(
+                    cfg.keys() & {"proxies", "proxy-groups", "rules", "dns", "rule-providers"},
+                    {"proxies", "proxy-groups", "rules", "dns", "rule-providers"},
+                )
 
     def test_output_is_byte_identical_across_runs(self):
         with tempfile.TemporaryDirectory() as first, \

@@ -14,6 +14,11 @@ from pathlib import Path
 
 import yaml
 
+from providers import (
+    ProviderError,
+    load_provider_lock,
+    render_rule_providers,
+)
 from regions import REGION_GROUPS, classify_node
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +40,7 @@ COMMON_KEYS = (
     "proxies",
     "proxy-groups",
     "dns",
+    "rule-providers",
     "rules",
 )
 
@@ -55,6 +61,7 @@ KEY_ORDER = (
     "bind-address",
     "tun",
     "dns",
+    "rule-providers",
     "proxies",
     "proxy-groups",
     "rules",
@@ -341,7 +348,7 @@ def _sorted_entries(entries, layer):
     return sorted(items, key=lambda item: item[0])
 
 
-def _rule_target(rule, where, group_names):
+def _rule_target(rule, where, group_names, provider_names):
     """校验规则语法与目标策略，返回 (类型, 目标)。"""
     parts = rule.split(",")
     if len(parts) < 2 or any(not part or part != part.strip() for part in parts):
@@ -350,9 +357,11 @@ def _rule_target(rule, where, group_names):
     if rule_type not in RULE_TYPES:
         raise ConfigError("%s类型不受支持：%r" % (where, rule_type))
     if rule_type == "RULE-SET":
-        raise ConfigError(
-            "%s：RULE-SET 需要 rule-providers，Provider 尚未实现（ENG-06）" % where
-        )
+        if len(parts) != 3:
+            raise ConfigError("%s格式错误：%r" % (where, rule))
+        provider = parts[1]
+        if provider not in provider_names:
+            raise ConfigError("%s引用了未登记的 Provider：%r" % (where, provider))
     if rule_type == "MATCH":
         if len(parts) != 2:
             raise ConfigError("%s格式错误：%r" % (where, rule))
@@ -366,7 +375,7 @@ def _rule_target(rule, where, group_names):
     return rule_type, target
 
 
-def compile_rules(rules, group_names):
+def compile_rules(rules, group_names, provider_names=()):
     """把四层规则编译成 Mihomo 的扁平规则列表。
 
     层顺序固定；层内按 priority 升序；输出不保留 priority 元数据。
@@ -380,10 +389,13 @@ def compile_rules(rules, group_names):
     if missing:
         raise ConfigError("rules：缺少规则层：%s" % ", ".join(missing))
     group_names = set(group_names)
+    provider_names = set(provider_names)
     compiled = []
     for layer in RULE_LAYERS:
         for _priority, rule, where in _sorted_entries(rules[layer], layer):
-            rule_type, _target = _rule_target(rule, where, group_names)
+            rule_type, _target = _rule_target(
+                rule, where, group_names, provider_names
+            )
             if rule_type == "MATCH" and layer != "fallback":
                 raise ConfigError("%s：MATCH 只能出现在 fallback 层" % where)
             compiled.append(rule)
@@ -523,6 +535,19 @@ def build_platform(platform, root=REPO_ROOT):
         PLATFORM_KEYS[platform],
     )
 
+    lock_path = root / "providers" / "lock.yaml"
+    if not lock_path.is_file():
+        raise ConfigError("providers：缺少 providers/lock.yaml")
+    if "rule-providers" in merged:
+        raise ConfigError(
+            "rule-providers 由 providers/lock.yaml 生成，不得在公共配置中定义"
+        )
+    try:
+        lock = load_provider_lock(root)
+        merged["rule-providers"] = render_rule_providers(lock, root)
+    except ProviderError as exc:
+        raise ConfigError(str(exc))
+
     required = set(COMMON_KEYS) | set(PLATFORM_KEYS[platform])
     missing = sorted(required - set(merged))
     if missing:
@@ -545,7 +570,9 @@ def build_platform(platform, root=REPO_ROOT):
         merged["proxy-groups"], merged["proxies"], owners["proxy-groups"]
     )
     merged["rules"] = compile_rules(
-        merged["rules"], {group["name"] for group in merged["proxy-groups"]}
+        merged["rules"],
+        {group["name"] for group in merged["proxy-groups"]},
+        set(merged["rule-providers"]),
     )
 
     return {key: merged[key] for key in KEY_ORDER if key in merged}

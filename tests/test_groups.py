@@ -26,6 +26,7 @@ def make_fixture_tree(root_dir):
     (root_dir / "configs" / "common").mkdir(parents=True)
     for src in (ROOT / "configs" / "common").glob("*.yaml"):
         shutil.copy(src, root_dir / "configs" / "common" / src.name)
+    shutil.copytree(ROOT / "providers", root_dir / "providers")
 
 
 def load_yaml(path):

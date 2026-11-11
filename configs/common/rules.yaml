@@ -7,7 +7,7 @@ rules:
     - priority: 100
       rule: DOMAIN-SUFFIX,local,DIRECT
 
-  # 2. 业务规则（ENG-02 最小代表集；完整名单留待 ENG-06 Provider）
+  # 2. 业务规则（ENG-02 最小代表集；业务名单保持在仓库内联，不使用 Provider）
   business:
     # Google → Google 组（美国优先，组内自动回退）
     - priority: 100
@@ -59,11 +59,15 @@ rules:
     - priority: 700
       rule: DOMAIN-KEYWORD,tracker,DIRECT
 
-  # 3. 基础规则
+  # 3. 基础规则（ENG-06：Provider 锁定的 domain 集 → 直连）
   base:
+    - priority: 90
+      rule: RULE-SET,geosite-private,DIRECT
     - priority: 100
       rule: GEOIP,LAN,DIRECT,no-resolve
     - priority: 110
+      rule: RULE-SET,geosite-cn,DIRECT
+    - priority: 120
       rule: GEOIP,CN,DIRECT
 
   # 4. 兜底规则（最低优先级，必须最后）

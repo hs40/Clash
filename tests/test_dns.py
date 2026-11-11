@@ -195,6 +195,7 @@ class ValidateDnsTest(unittest.TestCase):
 
 def copy_repo_configs(destination):
     shutil.copytree(ROOT / "configs", destination / "configs")
+    shutil.copytree(ROOT / "providers", destination / "providers")
 
 
 def replace_in_file(path, old, new):

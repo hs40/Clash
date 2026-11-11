@@ -31,6 +31,15 @@ class ProductionRulesTest(unittest.TestCase):
             parts = rule.split(",")
             target = parts[1] if parts[0] == "MATCH" else parts[2]
             self.assertIn(target, names, rule)
+            if parts[0] == "RULE-SET":
+                self.assertIn(parts[1], self.cfg["rule-providers"], rule)
+
+    def test_provider_rules_are_present(self):
+        self.assertIn("RULE-SET,geosite-private,DIRECT", self.rules)
+        self.assertIn("RULE-SET,geosite-cn,DIRECT", self.rules)
+        self.assertEqual(
+            set(self.cfg["rule-providers"]), {"geosite-cn", "geosite-private"}
+        )
 
     def test_business_routes_follow_baseline(self):
         expected = {
@@ -132,9 +141,9 @@ class ConflictTest(unittest.TestCase):
 
 
 class CompileRulesValidationTest(unittest.TestCase):
-    def assert_error(self, rules, fragment, groups=None):
+    def assert_error(self, rules, fragment, groups=None, provider_names=()):
         with self.assertRaises(build.ConfigError) as ctx:
-            build.compile_rules(rules, groups or ["PROXY"])
+            build.compile_rules(rules, groups or ["PROXY"], provider_names)
         self.assertIn(fragment, str(ctx.exception))
 
     def test_unknown_layer_is_rejected(self):
@@ -194,10 +203,28 @@ class CompileRulesValidationTest(unittest.TestCase):
         rules["business"][0]["rule"] = "DOMAIN-SUFFIX,example.com,Missing"
         self.assert_error(rules, "Missing")
 
-    def test_rule_set_without_provider_support_is_rejected(self):
+    def test_rule_set_with_known_provider_is_allowed(self):
         rules = make_rules()
         rules["business"][0]["rule"] = "RULE-SET,trusted-set,PROXY"
-        self.assert_error(rules, "Provider")
+        self.assertEqual(
+            build.compile_rules(rules, ["PROXY"], ["trusted-set"]),
+            [
+                "DOMAIN-SUFFIX,local,DIRECT",
+                "RULE-SET,trusted-set,PROXY",
+                "GEOIP,CN,DIRECT",
+                "MATCH,PROXY",
+            ],
+        )
+
+    def test_rule_set_with_unknown_provider_is_rejected(self):
+        rules = make_rules()
+        rules["business"][0]["rule"] = "RULE-SET,trusted-set,PROXY"
+        self.assert_error(rules, "trusted-set", provider_names=["other-set"])
+
+    def test_malformed_rule_set_is_rejected(self):
+        rules = make_rules()
+        rules["business"][0]["rule"] = "RULE-SET,trusted-set,PROXY,extra"
+        self.assert_error(rules, "格式错误", provider_names=["trusted-set"])
 
     def test_match_outside_fallback_is_rejected(self):
         rules = make_rules()
