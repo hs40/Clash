@@ -1,7 +1,7 @@
 # ENG-06 验收报告：Provider、发布与回滚
 
 - 日期：2026-11-11
-- 分支：`feat/eng-06-provider-release`（基于 main `cc2c938`）；PR #3，代码提交 `d05611e`，文档提交 `566a3d5`
+- 分支：`feat/eng-06-provider-release`（基于 main `cc2c938`）；PR #3，代码提交 `d05611e`，文档提交 `566a3d5` / `dc6e47c`
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0，Mihomo v1.19.33（Windows）
 - 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.12
 - 回滚手册：[ROLLBACK.md](ROLLBACK.md)
@@ -222,8 +222,9 @@ OK
 ### 3.11 PR CI
 
 PR #3（https://github.com/hs40/Clash/pull/3）的必需检查 `test` 已通过：
-run 42962911064 / job 130333415834，head `566a3d5`。该运行包含依赖哈希安装、
-双平台构建、敏感扫描、CI 策略检查、184 项测试与 Mihomo `-t`。
+代码提交 `566a3d5` 为 run 42962911064 / job 130333415834；最终文档提交 `dc6e47c`
+为 run 42963182242 / job 130334276545。两次运行均包含依赖哈希安装、双平台构建、
+敏感扫描、CI 策略检查、184 项测试与 Mihomo `-t`。
 
 Provider Check 与 Release 工作流没有被 PR 触发（前者只看 schedule/dispatch，后者只看
 `v*` tag），因此仍需单独验证。**PR CI 通过；两个新工作流未运行。**
