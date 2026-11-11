@@ -93,7 +93,10 @@
 - `release.yml` 仅在 tag 触发；负责人 2026-11-11 批准这一相对 Plan §10.1 的取舍：
   不让每次 main 合并自动发版，保持版本与 tag 显式对齐。
 - 回滚由负责人手动执行，按 [ROLLBACK.md](ROLLBACK.md) 先备份、校验 SHA-256、平台独立回滚。
-- 已知限制：`gh release create` 与 Release 页面尚未在远端实测；首个正式 tag 发布需负责人审查。
+- 2026-11-11 已用 `v0.1.0` tag 实际验证 `gh release create`、Release 页面、两个 zip 与
+  `SHA256SUMS` 上传；资产下载哈希与配置 `-t` 通过。已知限制：`SHA256SUMS` 覆盖完整
+  发布目录，Release 只上传两个 zip 与校验文件，全量校验会缺少非资产条目；详见
+  [ENG-06-ACCEPTANCE.md](ENG-06-ACCEPTANCE.md) §5。
 
 ## 9. 尚未完成与限制
 
@@ -105,8 +108,11 @@
    [REQUIREMENTS.md](REQUIREMENTS.md) §14）。
 6. PR #3 已合并到 main（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；
    Provider Check 已于 2026-11-11 远端触发并通过（run 42972389013；首次编码失败由
-   PR #5 修复）；`release.yml` 尚未触发，GitHub Release 创建和回滚包下载均未做
-   端到端演练；上游无变化时 `gh issue create` 分支未执行。
+   PR #5 修复）。`v0.1.0` Release（run 42997351203）已创建，两个 zip 与
+   `SHA256SUMS` 下载校验通过，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建
+   由临时分支 run 42996296022 验证（#6–#8 已关闭）。未做下载发布包后的真实设备回滚演练。
 7. 内嵌 Provider 后的新配置只在本机 Windows Mihomo v1.19.33 上 `-t` 通过；iStoreOS
    设备 alpha-gbc76c13 尚未用新产物重测。
 8. ci-report.md 是本地/CI 生成物，不提交；报告内容不包含凭据。
+9. 长期 Token 的 Issues 权限仍为只读，Agent 不能通过本地 API 关闭 issue；Provider Check
+   的清理使用工作流 `github.token`。如需要 Agent 管理 issue，需负责人单独授权并轮换。
