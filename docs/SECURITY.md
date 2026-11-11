@@ -2,9 +2,10 @@
 
 - 依据：[REQUIREMENTS.md](REQUIREMENTS.md) §9 与 §9.1。
 - 状态：本地 CI 配置、依赖锁定、敏感信息扫描、Mihomo 固定校验、CODEOWNERS 文件、
-  Provider 锁定/内嵌、发布校验与回滚文档已完成；远端 main push CI、PR CI 与 main 分支保护
-  策略 A 已实际运行/启用并通过验证。CODEOWNERS 的实际合并门禁未启用，负责人 @hs40
-  已于 2026-11-11 明确批准该 bypass；这是单人仓库下的已知限制。
+  Provider 锁定/内嵌、发布校验与回滚文档已完成；远端 main push CI、PR CI、main 分支保护
+  策略 A、Provider Check 与 `v0.1.0`/`v0.1.1` Release 已实际运行/启用并通过验证。
+  CODEOWNERS 的实际合并门禁未启用，负责人 @hs40 已于 2026-11-11 明确批准该 bypass；
+  这是单人仓库下的已知限制。
 - 适用范围：本仓库的构建脚本、公共配置、安全清单、GitHub Actions 与发布流程。
 
 ## 1. 阻断规则
@@ -95,10 +96,13 @@
 - `release.yml` 仅在 tag 触发；负责人 2026-11-11 批准这一相对 Plan §10.1 的取舍：
   不让每次 main 合并自动发版，保持版本与 tag 显式对齐。
 - 回滚由负责人手动执行，按 [ROLLBACK.md](ROLLBACK.md) 先备份、校验 SHA-256、平台独立回滚。
-- 2026-11-11 已用 `v0.1.0` tag 实际验证 `gh release create`、Release 页面、两个 zip 与
-  `SHA256SUMS` 上传；资产下载哈希与配置 `-t` 通过。`v0.1.0` 的清单覆盖完整发布
-  目录，与 Release 仅上传两个 zip 不一致；`v0.1.1` 已改为清单只覆盖两个 zip，
-  发布目录其余文件由结构校验与 zip 内副本核对，详见
+- 2026-11-11 已用 `v0.1.0` 与 `v0.1.1` tag 实际验证 `gh release create`、Release
+  页面、两个 zip 与 `SHA256SUMS` 上传；两次资产下载哈希与配置 `-t` 均通过。
+  `v0.1.0` 的清单覆盖完整发布目录，与 Release 仅上传两个 zip 不一致；`v0.1.1`
+  （run 43003842864）已改为清单只覆盖两个 zip，发布目录其余文件由结构校验与 zip
+  内副本核对。远端 `v0.1.1` 资产为 `openclash-0.1.1.zip` 511,688 B /
+  `3016674d...` 与 `windows-0.1.1.zip` 511,738 B / `e55796c9...`，独立哈希、
+  zip 结构、解出配置与 `-t` 均通过；干净本地目录构建复现相同哈希。详见
   [ENG-06-ACCEPTANCE.md](ENG-06-ACCEPTANCE.md) §3.14、§5。
 
 ## 9. 尚未完成与限制
@@ -111,11 +115,15 @@
    [REQUIREMENTS.md](REQUIREMENTS.md) §14）。
 6. PR #3 已合并到 main（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；
    Provider Check 已于 2026-11-11 远端触发并通过（run 42972389013；首次编码失败由
-   PR #5 修复）。`v0.1.0` Release（run 42997351203）已创建，两个 zip 与
-   `SHA256SUMS` 下载校验通过，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建
-   由临时分支 run 42996296022 验证（#6–#8 已关闭）。未做下载发布包后的真实设备回滚演练。
+   PR #5 修复）。`v0.1.0` Release（run 42997351203）与 `v0.1.1` Release
+   （run 43003842864）均已创建，zip 与 `SHA256SUMS` 下载校验通过，Release 内配置
+   在本机 Mihomo 上 `-t` 通过；issue 创建由临时分支 run 42996296022 验证
+   （#6–#8 已关闭）。未做下载发布包后的真实设备回滚演练。
 7. 内嵌 Provider 后的新配置只在本机 Windows Mihomo v1.19.33 上 `-t` 通过；iStoreOS
    设备 alpha-gbc76c13 尚未用新产物重测。
 8. ci-report.md 是本地/CI 生成物，不提交；报告内容不包含凭据。
 9. 长期 Token 的 Issues 权限在 2026-11-11 清理时仍为只读；负责人随后已将其改为
    Read and write。本轮未在授权后重新执行本地关闭 issue，不能声称该路径已验证。
+10. Release 工作流在干净检出中构建，发布包内 `CONFIG-DIFF.md` 没有上一 GitHub Release
+    的比较基线，会显示“未找到上一版本”。这是发布可观测性限制，不影响 `SHA256SUMS`、
+    zip 或配置正确性；修复需要新的发布流程变更。
