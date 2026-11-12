@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import platform
 import sys
 import time
 import unittest
@@ -84,7 +83,7 @@ def _escape_cell(value):
 
 def build_report(results, generated_at=None, python_version=None):
     generated_at = generated_at or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    python_version = python_version or platform.python_version()
+    python_version = python_version or "%d.%d.%d" % sys.version_info[:3]
     counts = Counter(result["status"] for result in results)
     lines = [
         "# Clash 配置工程测试报告",

@@ -1,6 +1,9 @@
 """ENG-05 中文 CI 测试报告测试（接缝：build_report）。"""
 
+import os
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -29,6 +32,33 @@ RESULTS = [
         "detail": "not now",
     },
 ]
+
+
+class CommandLineTest(unittest.TestCase):
+    def test_runs_from_scripts_dir_without_shadowing_stdlib_platform(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            start = Path(tmp) / "tests"
+            start.mkdir()
+            output = Path(tmp) / "report.md"
+            env = dict(os.environ, PYTHONIOENCODING="utf-8")
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts" / "ci_report.py"),
+                    "--start-dir",
+                    str(start),
+                    "--output",
+                    str(output),
+                ],
+                cwd=str(ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("Python：", output.read_text(encoding="utf-8"))
 
 
 class BuildReportTest(unittest.TestCase):
