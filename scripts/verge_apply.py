@@ -273,8 +273,8 @@ def verify_config(config, expected_proxies):
     if not isinstance(providers, dict) or set(providers) != set(PROVIDERS):
         raise ApplyError("rule-providers 不是且仅是两个内嵌 Provider")
     rules = config.get("rules")
-    if not isinstance(rules, list) or len(rules) != 26:
-        raise ApplyError("规则数不是 26")
+    if not isinstance(rules, list) or len(rules) != 27:
+        raise ApplyError("规则数不是 27")
     if rules[-1] != "MATCH,PROXY" or any(rule == "MATCH,PROXY" for rule in rules[:-1]):
         raise ApplyError("MATCH,PROXY 必须是唯一且最后一条")
     return True

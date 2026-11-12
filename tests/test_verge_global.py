@@ -1,7 +1,7 @@
 """Verge 全局 Merge/Script 生成测试（VERGE-GLOBAL 接缝 G1/G2）。
 
 G1：build_merge 只输出 store-selected 与两个 inline Provider。
-G2：build_script 对任意订阅生成固定 13 组、26 条规则、MVP DNS，
+G2：build_script 对任意订阅生成固定 13 组、27 条规则、MVP DNS，
     并过滤坏节点、保留 Verge 注入的 tun/external-controller/secret。
 """
 
@@ -245,7 +245,7 @@ class ScriptBehaviorTest(unittest.TestCase):
             {"geosite-cn", "geosite-private"},
         )
         self.assertEqual(self.result["rules"], expected)
-        self.assertEqual(len(expected), 26)
+        self.assertEqual(len(expected), 27)
         self.assertEqual(self.result["rules"][-1], "MATCH,PROXY")
 
     def test_only_mvp_providers_remain(self):

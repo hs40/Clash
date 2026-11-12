@@ -1,7 +1,7 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.17
-**来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11 的确认记录
+**版本：** v1.18
+**来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
 
@@ -405,6 +405,8 @@ Release 并上传两个 zip 与 `SHA256SUMS`；资产下载校验与 Mihomo `-t`
 与 Mihomo `-t` 均通过；干净本地目录构建复现了远端 zip 哈希。设备端尚未用内嵌 Provider
 的新产物重测；远端 `CONFIG-DIFF.md` 因干净检出无上一版本基线而显示“未找到上一版本”，
 见 §10.1 第 8 条。
+2026-11-12 按负责人要求增加 Tailscale 直连规则（`100.64.0.0/10`，特殊层），
+构建与 Verge 全局脚本的规则数由 26 增至 27；该规则尚未在 TUN 全接管场景下实测。
 
 ---
 
@@ -476,7 +478,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 | 文件 | 作用 |
 | --- | --- |
 | `profiles/Merge.yaml` | 只写 `profile.store-selected: true` 与 `geosite-cn`、`geosite-private` 两个 inline Provider |
-| `profiles/Script.js` | 删除订阅自带策略组/规则/DNS/多余 Provider，生成固定 13 组、26 条规则与 MVP DNS |
+| `profiles/Script.js` | 删除订阅自带策略组/规则/DNS/多余 Provider，生成固定 13 组、27 条规则与 MVP DNS |
 | `profiles.yaml` | 只切换 `current`，不改订阅 URL 或订阅文件 |
 | `verge.yaml` | 只保留 `enable_tun_mode`、`enable_system_proxy`、`verge_mixed_port` 三项设置 |
 
@@ -485,7 +487,10 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 `OpenAI`、`Claude`、`Cursor`（select：自动选择 + 七个地区组）、`自动选择`（url-test：全部可用节点）、
 七个地区组（select）。地区识别复用 `scripts/regions.py`，空地区回退 `自动选择`。
 
-规则共 26 条（特殊 1、业务 20、基础 4、兜底 1），最后一条唯一为 `MATCH,PROXY`。
+规则共 27 条（特殊 2、业务 20、基础 4、兜底 1），最后一条唯一为 `MATCH,PROXY`。
+特殊层新增 `IP-CIDR,100.64.0.0/10,DIRECT,no-resolve`，覆盖 Tailscale CGNAT
+（含节点 IP 与 MagicDNS 地址 100.100.100.100）；MagicDNS 域名解析仍由 Tailscale DNS 负责，
+未纳入 Clash DNS。
 Script 强制 `mixed-port: 7897`，删除订阅的 `port` / `socks-port`，设置 `mode: rule`、
 `ipv6: false`、`allow-lan: false`；保留 Verge 注入的 `tun`、`external-controller`、
 `secret` 与 `profile`，不写这三个键。
@@ -534,6 +539,7 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
 14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、DNS 泄漏、断网重连、TUN 重启恢复与回滚演练未验证；旧 `mvpClash0001` 保留作回退。
+15. Tailscale CGNAT 直连规则已进入构建源，但本机现有 Tailscale peer 使用 /32 直连路由，尚未在 TUN 全接管或新增 peer 场景复测；MagicDNS 未启用/未验证。
 
 ---
 
@@ -560,3 +566,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-11 | v1.15 | 按负责人要求修正发布清单：`SHA256SUMS` 只覆盖 Release 上传的两个平台 zip；`release.py --verify` 仍校验目录结构与 zip 内副本；生成 `v0.1.1` | 项目负责人 |
 | 2026-11-11 | v1.16 | 记录 `v0.1.1` 远端 Release（run 43003842864）、资产下载校验、干净构建复现与配置 `-t`；记录 `CONFIG-DIFF.md` 在 CI 干净检出中无上一版本基线的已知限制 | 项目负责人（事实记录） |
 | 2026-11-11 | v1.17 | 新增 §13.5：本机 Clash Verge 全局扩展（固定组顺序、26 条规则、坏节点预检/剔除、备份与自动回滚）；记录 FIB 本机验证与限制；该能力不进入 Release | 项目负责人 |
+| 2026-11-12 | v1.18 | 新增 Tailscale CGNAT 特殊层直连规则（`100.64.0.0/10`），规则总数 26→27；记录 MagicDNS 未纳入 Clash DNS、TUN 场景未实测 | 项目负责人（需求） |

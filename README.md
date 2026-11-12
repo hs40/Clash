@@ -168,7 +168,7 @@ zip 内同名文件核对。回滚步骤见 [docs/ROLLBACK.md](docs/ROLLBACK.md)
 ## 本机 Verge 全局复用（可选）
 
 仓库还提供一套**本机部署辅助**工具，把同一套 MVP 设置写入 Clash Verge 的全局
-Merge/Script，使所有使用 inline proxies 的订阅自动复用 13 个策略组、26 条规则与
+Merge/Script，使所有使用 inline proxies 的订阅自动复用 13 个策略组、27 条规则与
 MVP DNS；该能力不进入 dist/ 或 Release。
 
 - 固定组顺序、预检/剔除、备份/回滚与限制见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。

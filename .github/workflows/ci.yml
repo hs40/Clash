@@ -59,9 +59,10 @@ jobs:
           python scripts/check_mihomo.py --binary .tmp_mihomo/extracted/mihomo-windows-amd64.exe
 
           # GeoIP 仅用于 -t 加载校验；内容哈希固定，上游 latest 变化时 CI 会阻断。
+          # 2026-11-12 上游 latest 更新，同步更新固定 SHA-256。
           Invoke-WebRequest -Uri "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb" -OutFile .tmp_mihomo_test/Country.mmdb
           $hash = (Get-FileHash .tmp_mihomo_test/Country.mmdb -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne "c0c6ea5661a3167abb24bbbaf629605aa3856c425384cbf2897c5a0f41027663") {
+          if ($hash -ne "bbedba6ef8584c484e35acdee4153ecf4bc9aa5e22b25d3982870ec1e780f681") {
             throw "Country.mmdb SHA-256 不匹配"
           }
 

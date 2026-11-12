@@ -6,6 +6,10 @@ rules:
   special:
     - priority: 100
       rule: DOMAIN-SUFFIX,local,DIRECT
+    # Tailscale CGNAT（含 MagicDNS 100.100.100.100 与所有节点 IP）必须直连，
+    # 避免被 TUN/兜底规则捕获。MagicDNS 域名解析仍需由 Tailscale DNS 负责。
+    - priority: 110
+      rule: IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
 
   # 2. 业务规则（ENG-02 最小代表集；业务名单保持在仓库内联，不使用 Provider）
   business:
