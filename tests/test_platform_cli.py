@@ -94,7 +94,9 @@ import importlib.util
 import io
 from unittest import mock
 
-from scripts import platform_diff
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import platform_diff  # noqa: E402
 
 
 def load_platform_module():
