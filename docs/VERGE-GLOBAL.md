@@ -181,7 +181,7 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | 备份 | .tmp_verge_apply_backup_20261112-132035，6 个备份文件 + manifest |
 | DNS 默认路径 | 198.18.0.2 与 127.0.0.1:1053 返回 fake-IP；223.5.5.5:53 被劫持 |
 | DNS 泄漏路径（应用前） | 192.168.2.1:53 返回真实地址 69.171.235.22，绕过 TUN；负责人选择方案 C |
-| DNS 护栏（应用后） | 两条出站阻断规则已生效；192.168.2.1:53 超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归通过 |
+| DNS 护栏（应用后） | 两条出站阻断规则已生效；192.168.2.1:53 超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归与管理员 check 通过 |
 
 本次自动重启被 run_code 的 120 秒上限中断，最终由负责人在 Verge 弹窗中选择
 “继续使用 SIDECAR”后恢复；平台需要把该场景做成可检测、可恢复的流程。
@@ -197,9 +197,10 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | 198.18.0.2:53 | 返回 fake-IP 198.18.0.85 |
 | 223.5.5.5:53 | 返回 fake-IP 198.18.0.85（TUN 劫持） |
 | 站点回归 | 百度 200、gstatic 204、Google 200、YouTube 200 |
+| 管理员 check（2026-11-12 17:21） | `UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0` |
 
 规则实际远程地址被 Windows 规范化为 `192.168.2.0/255.255.255.0`，`--check` 已兼容。
-管理员 `dns-guard.cmd check` 的最终复核与 `--remove` 回滚演练尚未完成；
+管理员 `dns-guard.cmd check` 已通过；`--remove` 回滚演练尚未完成；
 详见 [DNS-GUARD.md](DNS-GUARD.md) §4 与 §6。
 
 ## 7. 测试接缝
@@ -221,7 +222,7 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 
 - 只验证了 FIB 一个订阅；其他订阅的 inline 节点格式、脚本执行与组生成尚未实测。
 - 2026-11-12 发现 `192.168.2.1:53` 直连绕过 TUN；负责人选择方案 C，护栏已应用，
-  路由器 DNS 已阻断且站点回归通过；管理员 `check` 复核与 `--remove` 回滚演练仍未完成。
+  路由器 DNS 已阻断、站点回归与管理员 `check` 均已通过；`--remove` 回滚演练仍未完成。
 - 未做断网重连、重启后 TUN 自动恢复、回滚演练。
 - 未删除旧本地 mvpClash0001；它仍是回退路径。
 - 重命名订阅后，MVP_EXCLUDED 的 profileName 键不会自动迁移；需重新运行 verge-sync.cmd（静态 short-id 过滤仍生效）。

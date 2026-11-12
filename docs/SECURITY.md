@@ -129,5 +129,6 @@
     zip 或配置正确性；修复需要新的发布流程变更。
 11. 本机 DNS 泄漏护栏（C）已于 2026-11-12 在管理员上下文应用，两条出站规则只阻断
     到 `192.168.2.0/24` 的 UDP/TCP 53；`192.168.2.1:53` 已超时，TUN 与 `223.5.5.5:53`
-    返回 fake-IP，站点回归通过。代码与 9 个单测覆盖点分掩码返回；管理员 `check` 复核、
-    `--remove` 回滚演练与浏览器 DoH 仍未验证，见 [DNS-GUARD.md](DNS-GUARD.md)。
+    返回 fake-IP，站点回归与管理员 `check` 通过（`UDP: OK`、`TCP: OK`、`overall: OK`、
+    `Exit code: 0`）。代码与 9 个单测覆盖点分掩码返回；`--remove` 回滚演练与浏览器 DoH
+    仍未验证，见 [DNS-GUARD.md](DNS-GUARD.md)。
