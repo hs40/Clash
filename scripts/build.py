@@ -517,8 +517,12 @@ def validate_dns(dns):
     return dns
 
 
-def build_platform(platform, root=REPO_ROOT):
-    """合并公共配置与指定平台配置，返回按键顺序排列的配置字典。"""
+def build_platform(platform, root=REPO_ROOT, proxies=None, dns_listen=None):
+    """合并公共配置与指定平台配置，返回按键顺序排列的配置字典。
+
+    proxies/dns_listen 只供部署平台覆盖运行时节点与监听地址；仓库默认构建
+    不传这两个参数，因此 dist 产物保持原样。
+    """
     if platform not in PLATFORM_KEYS:
         raise ConfigError(
             "未知平台 %r，可用平台：%s" % (platform, ", ".join(sorted(PLATFORM_KEYS)))
@@ -552,6 +556,13 @@ def build_platform(platform, root=REPO_ROOT):
     missing = sorted(required - set(merged))
     if missing:
         raise ConfigError("缺少顶层键：%s" % ", ".join(missing))
+
+    if proxies is not None:
+        merged["proxies"] = proxies
+    if dns_listen is not None:
+        dns = dict(merged["dns"])
+        dns["listen"] = dns_listen
+        merged["dns"] = dns
 
     if merged.get("ipv6") is not False:
         raise ConfigError("ipv6：必须为 false（IPv4-only 基线）")

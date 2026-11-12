@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-from verge_global import GROUP_ORDER, build_merge, build_script
+from verge_global import GROUP_ORDER, build_merge, build_script, load_rules
 from verge_preflight import PreflightError, preflight
 
 APP_DIR_NAME = "io.github.clash-verge-rev.clash-verge-rev"
@@ -198,6 +198,9 @@ def prepare_plan(appdir, root, mihomo, workdir, target_uid=None):
         "profile_name": name,
         "settings": snapshot_settings(appdir),
         "expected_proxies": len(result["usable"]),
+        "proxy_names": [node["name"] for node in result["usable"]],
+        "proxies": result["usable"],
+        "expected_rules": len(load_rules(root)),
         "preflight": {
             "total": result["total"],
             "static_bad": [node["name"] for node in result["static_bad"]],
@@ -214,7 +217,7 @@ def _group(groups, name):
     raise ApplyError("缺少策略组：%s" % name)
 
 
-def verify_config(config, expected_proxies):
+def verify_config(config, expected_proxies, expected_rules):
     """校验 Verge 生成的 config.yaml 是否符合 MVP 固定契约。"""
     if not isinstance(config, dict):
         raise ApplyError("config.yaml 顶层不是映射")
@@ -273,8 +276,10 @@ def verify_config(config, expected_proxies):
     if not isinstance(providers, dict) or set(providers) != set(PROVIDERS):
         raise ApplyError("rule-providers 不是且仅是两个内嵌 Provider")
     rules = config.get("rules")
-    if not isinstance(rules, list) or len(rules) != 27:
-        raise ApplyError("规则数不是 27")
+    if not isinstance(rules, list) or len(rules) != expected_rules:
+        raise ApplyError("规则数不是 %d：%r" % (
+            expected_rules, len(rules) if isinstance(rules, list) else rules
+        ))
     if rules[-1] != "MATCH,PROXY" or any(rule == "MATCH,PROXY" for rule in rules[:-1]):
         raise ApplyError("MATCH,PROXY 必须是唯一且最后一条")
     return True
@@ -289,7 +294,8 @@ def _switch_current(profiles_path, uid):
     write_atomic(profiles_path, text)
 
 
-def _wait_for_config(appdir, expected_proxies, timeout, sleep, min_mtime_ns=None):
+def _wait_for_config(appdir, expected_proxies, expected_rules, timeout, sleep,
+                     min_mtime_ns=None):
     deadline = time.monotonic() + timeout
     last_error = None
     runtime = Path(appdir) / "clash-verge.yaml"
@@ -299,7 +305,7 @@ def _wait_for_config(appdir, expected_proxies, timeout, sleep, min_mtime_ns=None
                 if runtime.stat().st_mtime_ns <= min_mtime_ns:
                     raise ApplyError("clash-verge.yaml 尚未重新生成")
             data = _read_yaml(runtime)
-            verify_config(data, expected_proxies)
+            verify_config(data, expected_proxies, expected_rules)
             return True
         except ApplyError as exc:
             last_error = exc
@@ -319,6 +325,7 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
             "dry_run": True,
             "profile_uid": plan["profile_uid"],
             "expected_proxies": plan["expected_proxies"],
+            "expected_rules": plan["expected_rules"],
             "merge_bytes": len(plan["merge"].encode("utf-8")),
             "script_bytes": len(plan["script"].encode("utf-8")),
         }
@@ -343,8 +350,8 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
             reload()
             if verify_timeout is not None:
                 _wait_for_config(
-                    appdir, plan["expected_proxies"], verify_timeout, sleep,
-                    min_mtime_ns=before_mtime,
+                    appdir, plan["expected_proxies"], plan["expected_rules"],
+                    verify_timeout, sleep, min_mtime_ns=before_mtime,
                 )
             print("[6/6] 校验通过", flush=True)
     except Exception as exc:
@@ -362,6 +369,7 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
         "profile_name": plan["profile_name"],
         "previous_current": original_current,
         "expected_proxies": plan["expected_proxies"],
+        "expected_rules": plan["expected_rules"],
         "preflight": plan.get("preflight"),
         "files": manifest["files"],
     }

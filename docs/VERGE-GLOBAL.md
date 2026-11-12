@@ -1,6 +1,6 @@
 # Clash Verge 全局 MVP 复用（本机部署辅助）
 
-状态：2026-11-12 已在本机 Clash Verge Rev 2.5.10 + FIB 订阅上重新验证（27 规则）。
+状态：2026-11-12 已在本机 Clash Verge Rev 2.5.10 + FIB 订阅上重新验证（当时 27 规则）；当前生成器为 33 条规则，尚未重新部署。
 该能力是**本机部署辅助**，不进入 dist/、GitHub Release 或 OpenClash 配置；
 仓库的正式构建契约仍以 [REQUIREMENTS.md](REQUIREMENTS.md) §11 为准。
 
@@ -13,8 +13,9 @@
   远程节点清单。
 - 只写 Verge AppData 下的全局 profiles/Merge.yaml、profiles/Script.js、
   profiles.yaml 与 verge.yaml；FIB 订阅文件、订阅 URL、系统 DNS、hosts 与路由均不改。
-- 防火墙默认不改；DNS 泄漏护栏（负责人 2026-11-12 选择 C）是独立可选步骤，
-  只增删两条出站规则，见 [DNS-GUARD.md](DNS-GUARD.md)。
+- 防火墙默认不改；DNS 泄漏护栏是独立可选步骤，只增删两条出站规则。负责人
+  2026-11-12 先选择 C（阻断 `/24`），后选择 A（放行 `192.168.2.10:53`）；新规则
+  待管理员重新应用，见 [DNS-GUARD.md](DNS-GUARD.md)。
 - 不写入真实凭据；生成文件中只有仓库的占位节点与 Provider 数据。
 - 坏节点采用**运行时过滤 + 预检剔除**，不建立永久黑名单；节点修复后会自动恢复。
 - 旧本地 profile mvpClash0001 保留为回退，不自动删除。
@@ -24,7 +25,7 @@
     subscription (inline proxies)
       -> Verge app settings (mixed-port / TUN ...)
       -> global Merge.yaml (profile.store-selected + 2 inline providers)
-      -> global Script.js (filter, 13 groups, 27 rules, MVP DNS)
+      -> global Script.js (filter, 13 groups, 33 rules, MVP DNS)
       -> Verge runtime clash-verge.yaml
 
 ### 2.1 全局 Merge.yaml
@@ -46,7 +47,7 @@ main(config, profileName) 对当前订阅执行：
 - 强制 mixed-port: 7897，删除订阅的 port / socks-port，设置
   mode: rule、ipv6: false、allow-lan: false；
 - 保留 Verge 注入的 tun、external-controller、secret 与 profile；
-- 生成固定 13 个策略组、27 条规则和仓库 DNS。
+- 生成固定 13 个策略组、33 条规则和仓库 DNS。
 
 不写 tun、external-controller、secret；这些键由 Verge 管理。
 
@@ -68,8 +69,8 @@ main(config, profileName) 对当前订阅执行：
 tolerance: 50。地区关键词与构建器共用同一个 scripts/regions.py；空地区回退到
 自动选择。
 
-规则共 27 条：特殊 2 条、业务 20 条、基础 4 条、兜底 1 条，最后一条唯一为
-MATCH,PROXY。
+规则共 33 条：特殊 8 条、业务 20 条、基础 4 条、兜底 1 条，最后一条唯一为
+MATCH,PROXY。特殊层含 Tailscale CGNAT/域名与 dsh-pocket 的 Cloudflare 隧道域名/网段直连。
 
 ## 4. 节点预检与剔除
 
@@ -202,13 +203,13 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 
 规则实际远程地址被 Windows 规范化为 `192.168.2.0/255.255.255.0`，`--check` 已兼容。
 管理员 `dns-guard.cmd check` 与 `--remove` 回滚演练均已完成；
-详见 [DNS-GUARD.md](DNS-GUARD.md) §4 与 §6。
+以上为旧 `/24` 规则；A 决策后的新规则尚未应用，详见 [DNS-GUARD.md](DNS-GUARD.md) §4.5 与 §6。
 
 ## 7. 测试接缝
 
 | 接缝 | 文件 | 覆盖 |
 | --- | --- | --- |
-| G1/G2 | tests/test_verge_global.py | Merge 只含 store-selected 与两个 Provider；Script 生成 13 组/27 规则/DNS/端口；坏节点过滤；空地区回退；Node 执行真实脚本 |
+| G1/G2 | tests/test_verge_global.py | Merge 只含 store-selected 与两个 Provider；Script 生成 13 组/33 规则/DNS/端口；坏节点过滤；空地区回退；Node 执行真实脚本 |
 | P1/P2 | tests/test_verge_preflight.py | short-id 静态过滤；逐节点预检；proxy-providers 拒绝；本机 Mihomo 可用时执行真实 -t |
 | A1/A2 | tests/test_verge_apply.py | 备份/恢复字节；原子 LF 写入；校验接受/拒绝；失败自动回滚；dry-run 不写 |
 

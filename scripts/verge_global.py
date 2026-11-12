@@ -77,9 +77,14 @@ def _javascript_const(name, value):
     )
 
 
-def _rules_for_root(root):
+def load_rules(root=REPO_ROOT):
+    """读取并编译仓库规则；供 Script 生成与部署校验共用。"""
     data = _read_yaml(Path(root) / "configs" / "common" / "rules.yaml")
     return compile_rules(data.get("rules"), set(GROUP_ORDER), set(PROVIDER_NAMES))
+
+
+def _rules_for_root(root):
+    return load_rules(root)
 
 
 def _dns_for_root(root):

@@ -2,6 +2,8 @@
 
 负责人 2026-11-12 选择 C：阻断本机到 192.168.2.0/24 的 53 端口出站，
 保留 TUN DNS 198.18.0.2，防止应用显式查询路由器 DNS 绕过 Mihomo。
+负责人 2026-11-12 选择 A：放行受控解析器 192.168.2.10:53，其余 LAN
+地址仍阻断；地址集合由该网段去掉 192.168.2.10/32 后汇总而成。
 
 只增删两条 Windows 防火墙规则（UDP/TCP），不改系统 DNS、hosts、
 路由或代理设置。需要管理员权限；--check 只读。
@@ -9,6 +11,7 @@
 
 import argparse
 import ctypes
+import ipaddress
 import json
 import os
 import subprocess
@@ -17,8 +20,18 @@ import sys
 RULE_GROUP = "Clash DNS Guard"
 RULE_PREFIX = "Clash DNS Guard - Block LAN DNS"
 PROTOCOLS = ("UDP", "TCP")
-REMOTE_ADDRESS = "192.168.2.0/24"
-REMOTE_ADDRESS_NETMASK = "192.168.2.0/255.255.255.0"
+# 192.168.2.0/24 去掉 192.168.2.10/32 后的精确汇总。
+REMOTE_ADDRESSES = (
+    "192.168.2.0/29",
+    "192.168.2.8/31",
+    "192.168.2.11/32",
+    "192.168.2.12/30",
+    "192.168.2.16/28",
+    "192.168.2.32/27",
+    "192.168.2.64/26",
+    "192.168.2.128/25",
+)
+REMOTE_ADDRESS = ",".join(REMOTE_ADDRESSES)
 REMOTE_PORT = 53
 
 
@@ -122,6 +135,17 @@ def _text(value):
     return str(value).strip()
 
 
+def _normalize_address(value):
+    try:
+        return str(ipaddress.ip_network(value.strip(), strict=False))
+    except ValueError:
+        return value.strip()
+
+
+def _address_set(value):
+    return {_normalize_address(part) for part in _text(value).split(",") if part.strip()}
+
+
 def is_expected(rule, protocol):
     spec = rule_spec(protocol)
     return (
@@ -130,10 +154,7 @@ def is_expected(rule, protocol):
         and _text(rule.get("Direction")).lower() == "outbound"
         and _text(rule.get("Action")).lower() == "block"
         and _text(rule.get("Protocol")).upper() == spec["Protocol"]
-        and (
-            spec["RemoteAddress"] in _text(rule.get("RemoteAddress"))
-            or REMOTE_ADDRESS_NETMASK in _text(rule.get("RemoteAddress"))
-        )
+        and _address_set(rule.get("RemoteAddress")) == set(REMOTE_ADDRESSES)
         and spec["RemotePort"] in _text(rule.get("RemotePort"))
         and _text(rule.get("Profile")).lower() == "any"
     )
@@ -149,7 +170,7 @@ def build_new_rule_script(protocol):
             _ps_quote(spec["DisplayName"]),
             _ps_quote(spec["Group"]),
             spec["Protocol"],
-            _ps_quote(spec["RemoteAddress"]),
+            spec["RemoteAddress"],
             spec["RemotePort"],
             _ps_quote("Clash DNS Guard: block direct LAN DNS to prevent TUN bypass"),
         )

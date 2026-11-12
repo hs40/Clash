@@ -105,6 +105,7 @@ def plan():
             "verge_mixed_port": 7897,
         },
         "expected_proxies": 46,
+        "expected_rules": 27,
     }
 
 
@@ -137,25 +138,25 @@ class AtomicWriteTest(unittest.TestCase):
 
 class VerifyConfigTest(unittest.TestCase):
     def test_accepts_contract(self):
-        verge_apply.verify_config(make_config(), expected_proxies=46)
+        verge_apply.verify_config(make_config(), expected_proxies=46, expected_rules=27)
 
     def test_rejects_wrong_rule_count(self):
         bad = make_config()
         bad["rules"].append("GEOIP,CN,DIRECT")
         with self.assertRaises(verge_apply.ApplyError):
-            verge_apply.verify_config(bad, expected_proxies=46)
+            verge_apply.verify_config(bad, expected_proxies=46, expected_rules=27)
 
     def test_rejects_wrong_port(self):
         bad = make_config()
         bad["mixed-port"] = 7890
         with self.assertRaises(verge_apply.ApplyError):
-            verge_apply.verify_config(bad, expected_proxies=46)
+            verge_apply.verify_config(bad, expected_proxies=46, expected_rules=27)
 
     def test_rejects_wrong_proxy_order(self):
         bad = make_config()
         bad["proxy-groups"][0]["proxies"] = ["DIRECT"]
         with self.assertRaises(verge_apply.ApplyError):
-            verge_apply.verify_config(bad, expected_proxies=46)
+            verge_apply.verify_config(bad, expected_proxies=46, expected_rules=27)
 
 
 class ApplyMigrationTest(unittest.TestCase):

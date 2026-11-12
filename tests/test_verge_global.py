@@ -245,7 +245,7 @@ class ScriptBehaviorTest(unittest.TestCase):
             {"geosite-cn", "geosite-private"},
         )
         self.assertEqual(self.result["rules"], expected)
-        self.assertEqual(len(expected), 27)
+        self.assertEqual(len(expected), 33)
         self.assertEqual(self.result["rules"][-1], "MATCH,PROXY")
 
     def test_only_mvp_providers_remain(self):

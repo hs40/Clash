@@ -11,6 +11,23 @@ rules:
     - priority: 110
       rule: IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
 
+    # dsh-pocket 的 Cloudflare 隧道端点必须直连，避免被 TUN/兜底规则捕获。
+    # 参考：https://github.com/shaobeichen/dsh-pocket README 的 DIRECT 建议。
+    - priority: 120
+      rule: DOMAIN-SUFFIX,argotunnel.com,DIRECT
+    - priority: 130
+      rule: DOMAIN-SUFFIX,trycloudflare.com,DIRECT
+    - priority: 140
+      rule: IP-CIDR,198.41.192.0/24,DIRECT,no-resolve
+
+    # Tailscale 控制面与 MagicDNS 域名直连；节点 CGNAT 已由 priority 110 覆盖。
+    - priority: 150
+      rule: DOMAIN-SUFFIX,tailscale.com,DIRECT
+    - priority: 160
+      rule: DOMAIN-SUFFIX,tailscale.io,DIRECT
+    - priority: 170
+      rule: DOMAIN-SUFFIX,ts.net,DIRECT
+
   # 2. 业务规则（ENG-02 最小代表集；业务名单保持在仓库内联，不使用 Provider）
   business:
     # Google → Google 组（美国优先，组内自动回退）

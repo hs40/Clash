@@ -124,9 +124,9 @@ py -m venv .venv
 - 发布：SemVer 与 `VERSION` 一致性、双平台独立包、zip 成员、`SHA256SUMS`、
   中文发布说明、`CONFIG-DIFF.md`、重新构建字节一致、篡改/缺文件/zip 不一致失败路径；
 - Verge 全局扩展：Merge 只含 `profile.store-selected` 与两个 inline Provider；Script 生成
-  13 组/27 规则/DNS/端口、过滤坏 `short-id`、空地区回退；预检逐节点 `-t`；备份与失败回滚；
+  13 组/33 规则/DNS/端口、过滤坏 `short-id`、空地区回退；预检逐节点 `-t`；备份与失败回滚；
   Node 执行真实 Script（无 Node 时跳过）。
-- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除、Windows 点分掩码匹配（9 项）；真实防火墙已应用，DNS 路径/站点验收、管理员 `check` 与 `--remove` 回滚演练均通过。
+- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除、新 CIDR 集合、拒绝旧 `/24`、Windows 点分掩码匹配（11 项）；旧 `/24` 规则已在真实防火墙应用并通过回滚演练，A 决策后的新规则待管理员重新应用。
 
 ## CI 与安全检查
 
@@ -172,20 +172,53 @@ zip 内同名文件核对。回滚步骤见 [docs/ROLLBACK.md](docs/ROLLBACK.md)
 ## 本机 Verge 全局复用（可选）
 
 仓库还提供一套**本机部署辅助**工具，把同一套 MVP 设置写入 Clash Verge 的全局
-Merge/Script，使所有使用 inline proxies 的订阅自动复用 13 个策略组、27 条规则与
+Merge/Script，使所有使用 inline proxies 的订阅自动复用 13 个策略组、33 条规则与
 MVP DNS；该能力不进入 dist/ 或 Release。
 
 - 固定组顺序、预检/剔除、备份/回滚与限制见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
 - 应用入口：管理员运行 verge-sync.cmd；失败自动恢复六个备份文件并重启。
 - 只写 Verge AppData 的全局文件与 current，不改订阅文件、订阅 URL、系统 DNS、hosts 或路由。
-- DNS 泄漏护栏是独立可选步骤，只增删两条出站防火墙规则；仅在 Mihomo TUN 接管时使用，见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)。
+- DNS 泄漏护栏是独立可选步骤，只增删两条出站防火墙规则；当前生产规则仍为旧 `192.168.2.0/24` 全阻断，新策略（放行 `192.168.2.10:53`）待管理员重新应用；仅在 Mihomo TUN 接管时使用，见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)。
 - 旧本地 profile mvpClash0001 保留为回退，未自动删除。
 
-2026-11-12 已在本机 FIB 上重新部署并验证：46 节点 / 13 组 / 27 规则，7897 与 1053 监听，
+2026-11-12 已在本机 FIB 上重新部署并验证（历史记录，当时规则数为 27）：46 节点 / 13 组 /
+27 规则，7897 与 1053 监听，
 TUN 与 fake-ip 正常，百度/Google/YouTube 连通；显式查询 `192.168.2.1:53` 曾绕过
 TUN 返回真实地址，负责人选择方案 C 后已在管理员上下文应用两条出站阻断规则：
 路由器 DNS 已超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归与管理员 `check` 通过
 （`UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0`）；`--remove` 回滚演练已完成。
+A 决策后代码已改为放行 `192.168.2.10:53`；旧 `/24` 规则尚未替换，新的管理员应用与实测待执行。
+
+## 个人网络部署平台（Windows + OpenClash）
+
+仓库提供单一命令行入口 `scripts/platform.py`，把同一套公共配置部署到本机 Clash Verge
+与 iStoreOS 上的 OpenClash，并提供计划、验证与回滚。需求与边界见
+[docs/PLATFORM-REQUIREMENTS.md](docs/PLATFORM-REQUIREMENTS.md)。
+
+```powershell
+# 只读计划（默认命令；不写配置、不建状态目录）
+.venv\Scripts\python.exe scripts\platform.py plan --platform windows
+
+# OpenClash：显式指定本地节点来源（Verge profile YAML）
+.venv\Scripts\python.exe scripts\platform.py plan --platform openclash --node-source "C:\path\to\profile.yaml"
+
+# Windows：显示摘要并确认一次后部署（在管理员/普通桌面会话运行）
+deploy-windows.cmd
+
+# OpenClash：显示差异并确认一次后部署
+deploy-openclash.cmd "C:\path\to\profile.yaml"
+
+# 回滚到指定备份目录
+rollback.cmd windows "%LOCALAPPDATA%\ClashPlatform\backups\<run>"
+```
+
+- 默认 `plan` 只读；`deploy` 必须同时给出 `--apply` 并在终端确认一次；`--yes` 仅用于非交互或测试。
+- 退出码：`0` 成功/无变更，`1` 执行或验证失败，`2` 参数错误，`4` 未确认。
+- Windows 读取 `CLASH_NODE_SOURCE` 或现有 Verge profile，复用 `verge_apply`/`verge_global`，只写 Verge 全局文件与 current；关闭物理网卡 IPv6，补齐 DNS 护栏，重启 Verge 后验证。
+- OpenClash 写独立的 `/etc/openclash/config/clash-platform.yaml` 并通过 UCI 切换，旧 `FIB.yaml` 原样保留；设备端先 `mihomo -t`，失败自动回滚。
+- 本地不保存含真实节点的完整 OpenClash 配置；备份只留在设备 root-only 目录，报告只含哈希与脱敏摘要。
+- 状态目录默认 `%LOCALAPPDATA%\ClashPlatform\`，报告保留最近 5 次；`.tmp_*` 与本地状态不进 Git。
+- 当前状态：代码与 327 项本地测试完成，真实 Windows/OpenClash 部署尚未执行，不能据此宣称已在生产环境生效。
 
 ## 占位内容说明
 
@@ -231,8 +264,8 @@ PR CI、main CI（run 43003765690）与 Provider Check 均通过，发布记录�
 [docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md) 与
 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md)。
 
-本机 Clash Verge 全局复用已于 2026-11-12 在 FIB 订阅上重新部署并验证：46 节点 / 13 组 /
-27 规则，7897 与 1053 监听，TUN 与 fake-ip 正常，关键站点连通；旧本地 profile
+本机 Clash Verge 全局复用已于 2026-11-12 在 FIB 订阅上重新部署并验证（历史记录，当时规则数为
+27）：46 节点 / 13 组 / 27 规则，7897 与 1053 监听，TUN 与 fake-ip 正常，关键站点连通；旧本地 profile
 mvpClash0001 保留作回退。该能力是部署辅助，不进入 Release；只验证 FIB 一个订阅，
 其他订阅、断网重连与 TUN 重启恢复未验证。DNS 泄漏护栏见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)，
 已应用，管理员 `check` 与 `--remove` 回滚演练均通过。详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
