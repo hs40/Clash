@@ -124,7 +124,7 @@ py -m venv .venv
 - Verge 全局扩展：Merge 只含 `profile.store-selected` 与两个 inline Provider；Script 生成
   13 组/27 规则/DNS/端口、过滤坏 `short-id`、空地区回退；预检逐节点 `-t`；备份与失败回滚；
   Node 执行真实 Script（无 Node 时跳过）。
-- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除、Windows 点分掩码匹配（9 项）；真实防火墙已应用，DNS 路径/站点验收与管理员 `check` 均通过；`--remove` 回滚演练待完成。
+- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除、Windows 点分掩码匹配（9 项）；真实防火墙已应用，DNS 路径/站点验收、管理员 `check` 与 `--remove` 回滚演练均通过。
 
 ## CI 与安全检查
 
@@ -183,7 +183,7 @@ MVP DNS；该能力不进入 dist/ 或 Release。
 TUN 与 fake-ip 正常，百度/Google/YouTube 连通；显式查询 `192.168.2.1:53` 曾绕过
 TUN 返回真实地址，负责人选择方案 C 后已在管理员上下文应用两条出站阻断规则：
 路由器 DNS 已超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归与管理员 `check` 通过
-（`UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0`）；`--remove` 回滚演练仍待完成。
+（`UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0`）；`--remove` 回滚演练已完成。
 
 ## 占位内容说明
 
@@ -232,5 +232,5 @@ PR CI、main CI（run 43003765690）与 Provider Check 均通过，发布记录�
 本机 Clash Verge 全局复用已于 2026-11-12 在 FIB 订阅上重新部署并验证：46 节点 / 13 组 /
 27 规则，7897 与 1053 监听，TUN 与 fake-ip 正常，关键站点连通；旧本地 profile
 mvpClash0001 保留作回退。该能力是部署辅助，不进入 Release；只验证 FIB 一个订阅，
-其他订阅、DNS 泄漏与回滚演练未验证。DNS 泄漏护栏见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)，
-已应用并通过管理员 `check`，`--remove` 回滚演练待完成。详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
+其他订阅、断网重连与 TUN 重启恢复未验证。DNS 泄漏护栏见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)，
+已应用，管理员 `check` 与 `--remove` 回滚演练均通过。详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
