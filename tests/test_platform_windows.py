@@ -418,5 +418,33 @@ class ControllerTest(unittest.TestCase):
         self.assertEqual(len(requested), 3)
 
 
+class IntegrityTest(unittest.TestCase):
+    def test_parses_high_and_low_integrity_sids(self):
+        self.assertEqual(
+            platform_windows.parse_integrity("Mandatory Label\\High Mandatory Level S-1-16-12288"),
+            "high",
+        )
+        self.assertEqual(
+            platform_windows.parse_integrity("Mandatory Label\\Low Mandatory Level S-1-16-4096"),
+            "low",
+        )
+        self.assertEqual(platform_windows.parse_integrity("S-1-16-8192"), "medium")
+        self.assertEqual(platform_windows.parse_integrity("no label"), "unknown")
+
+    def test_integrity_level_uses_whoami_output(self):
+        class Completed:
+            returncode = 0
+            stdout = "Mandatory Label\\High Mandatory Level S-1-16-12288\n"
+
+        calls = []
+
+        def runner(args, **kwargs):
+            calls.append((args, kwargs))
+            return Completed()
+
+        self.assertEqual(platform_windows.integrity_level(runner), "high")
+        self.assertEqual(calls[0][0][:2], ["whoami", "/groups"])
+
+
 if __name__ == "__main__":
     unittest.main()

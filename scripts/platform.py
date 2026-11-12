@@ -129,6 +129,22 @@ def _print_plan(platform, plan, show_diff=False):
         print(plan.get("diff") or "配置内容无变化", flush=True)
 
 
+def _windows_admin_error():
+    """Windows 部署/回滚需要 High/System 完整性；Low 会被 MIC 拒绝写入。"""
+    if os.name != "nt":
+        return None
+    try:
+        level = platform_windows.integrity_level()
+    except Exception as exc:
+        return "无法确认 Windows 管理员权限：%s" % exc
+    if level in ("high", "system"):
+        return None
+    return (
+        "Windows 部署需要管理员权限：当前 Python 进程完整性级别为 %s。"
+        "请用 deploy-windows.cmd，或在“以管理员身份运行”的 PowerShell 中运行。" % level
+    )
+
+
 def _stdin_is_console():
     if os.name != "nt":
         return sys.stdin.isatty()
@@ -218,6 +234,11 @@ def cmd_deploy(args, parser):
         print(platform_diff.render_summary(summary, args.platform), flush=True)
         print("没有需要变更的配置，已结束。", flush=True)
         return EXIT_OK
+    if args.platform == "windows":
+        error = _windows_admin_error()
+        if error:
+            print(error, file=sys.stderr, flush=True)
+            return EXIT_FAIL
     _print_plan(args.platform, plan)
     if not _confirm(args, "部署"):
         print("已取消，未做任何修改", file=sys.stderr, flush=True)
@@ -281,6 +302,11 @@ def cmd_rollback(args, parser):
         parser.error("rollback 需要 --backup-dir")
     if not Path(args.backup_dir).is_dir():
         parser.error("备份目录不存在：%s" % args.backup_dir)
+    if args.platform == "windows":
+        error = _windows_admin_error()
+        if error:
+            print(error, file=sys.stderr, flush=True)
+            return EXIT_FAIL
     if not args.yes and not _stdin_is_console():
         print("未检测到交互终端；非交互回滚必须显式 --yes", file=sys.stderr, flush=True)
         return EXIT_UNCONFIRMED

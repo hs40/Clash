@@ -29,6 +29,37 @@ FILES = (
 PROXY = "http://127.0.0.1:7897"
 
 
+INTEGRITY_SIDS = {
+    "S-1-16-16384": "system",
+    "S-1-16-12288": "high",
+    "S-1-16-8192": "medium",
+    "S-1-16-4096": "low",
+}
+
+
+def parse_integrity(text):
+    """从 whoami /groups 输出识别完整性级别；SID 不随系统语言变化。"""
+    for sid, level in INTEGRITY_SIDS.items():
+        if sid in (text or ""):
+            return level
+    return "unknown"
+
+
+def integrity_level(runner=None):
+    """返回当前 Python 进程的 Windows 完整性级别。"""
+    runner = runner or subprocess.run
+    try:
+        completed = runner(
+            ["whoami", "/groups"], capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+        )
+    except OSError as exc:
+        raise WindowsError("无法读取进程完整性级别：%s" % exc) from exc
+    if completed.returncode != 0:
+        raise WindowsError("无法读取进程完整性级别：whoami 退出码 %s" % completed.returncode)
+    return parse_integrity(completed.stdout)
+
+
 class WindowsError(Exception):
     """Windows 适配器命令失败或返回不可解析的结果。"""
 
@@ -260,7 +291,7 @@ def apply_windows(appdir, plan, backup_dir, reload=None, runner=None,
     配置已加载后的业务验证不在这里做；技术步骤失败会恢复全部已改状态。
     """
     backup_dir = Path(backup_dir)
-    apply_kwargs = {"reload": reload}
+    apply_kwargs = {"reload": reload, "stop": verge_apply.stop_verge}
     if verify_timeout is not None:
         apply_kwargs["verify_timeout"] = verify_timeout
     if sleep is not None:

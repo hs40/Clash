@@ -135,6 +135,25 @@ class AtomicWriteTest(unittest.TestCase):
             verge_apply.write_atomic(path, "a\r\nb\r\n")
             self.assertEqual(path.read_bytes(), b"a\nb\n")
 
+    def test_retries_replace_when_file_handle_is_released(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "x.txt"
+            path.write_text("old", encoding="utf-8")
+            calls = []
+            real_replace = verge_apply.os.replace
+
+            def flaky(src, dst):
+                calls.append(dst)
+                if len(calls) == 1:
+                    raise PermissionError(13, "denied", str(dst))
+                return real_replace(src, dst)
+
+            with mock.patch.object(verge_apply.os, "replace", side_effect=flaky), \
+                    mock.patch.object(verge_apply.time, "sleep", return_value=None):
+                verge_apply.write_atomic(path, "new")
+            self.assertEqual(path.read_text(encoding="utf-8"), "new")
+            self.assertEqual(len(calls), 2)
+
 
 class VerifyConfigTest(unittest.TestCase):
     def test_accepts_contract(self):
@@ -187,6 +206,33 @@ class ApplyMigrationTest(unittest.TestCase):
             manifest = yaml.safe_load((backup / "manifest.yaml").read_text(encoding="utf-8"))
             self.assertIn("profiles/Script.js", manifest["files"])
             self.assertTrue((backup / "profiles" / "Script.js").is_file())
+
+    def test_stops_verge_before_first_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            appdir = write_appdir(tmp)
+            backup = Path(tmp) / "backup"
+            events = []
+            original = verge_apply.write_atomic
+
+            def recording(path, text):
+                events.append("write:%s" % Path(path).name)
+                return original(path, text)
+
+            def reload():
+                events.append("reload")
+                (appdir / "clash-verge.yaml").write_text(
+                    yaml.safe_dump(make_config(46), allow_unicode=True, sort_keys=False),
+                    encoding="utf-8",
+                )
+
+            with mock.patch.object(verge_apply, "write_atomic", recording):
+                verge_apply.apply_migration(
+                    appdir, plan(), backup, reload=reload,
+                    stop=lambda: events.append("stop"),
+                    verify_timeout=2, sleep=lambda _: None,
+                )
+            self.assertEqual(events[:2], ["stop", "write:Merge.yaml"])
+            self.assertIn("reload", events)
 
     def test_failed_verification_restores_everything(self):
         with tempfile.TemporaryDirectory() as tmp:

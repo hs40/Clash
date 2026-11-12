@@ -129,7 +129,18 @@ def write_atomic(path, text):
         handle.write(data)
         handle.flush()
         os.fsync(handle.fileno())
-    os.replace(temp, path)
+    for attempt in range(5):
+        try:
+            os.replace(temp, path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                try:
+                    temp.unlink()
+                except OSError:
+                    pass
+                raise
+            time.sleep(0.2)
 
 
 def set_setting(path, key, value):
@@ -317,7 +328,7 @@ def _wait_for_config(appdir, expected_proxies, expected_rules, timeout, sleep,
 
 
 def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
-                    verify_timeout=45, sleep=time.sleep):
+                    verify_timeout=45, sleep=time.sleep, stop=None):
     """执行迁移；任何异常都恢复备份（dry_run 不写文件）。"""
     appdir = Path(appdir)
     if dry_run:
@@ -335,7 +346,11 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
     manifest = backup(appdir, backup_dir)
     original_current = _read_yaml(appdir / "profiles.yaml").get("current")
     try:
-        print("[2/6] 写入全局 Merge/Script", flush=True)
+        if stop is not None:
+            print("[2/6] 停止 Verge 并写入全局 Merge/Script", flush=True)
+            stop()
+        else:
+            print("[2/6] 写入全局 Merge/Script", flush=True)
         write_atomic(appdir / "profiles" / "Merge.yaml", plan["merge"])
         write_atomic(appdir / "profiles" / "Script.js", plan["script"])
         print("[3/6] 切换 current -> %s" % plan["profile_uid"], flush=True)
@@ -378,11 +393,11 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
 RESTART_IMAGES = ("clash-verge.exe", "verge-mihomo.exe")
 
 
-def restart_verge(task_name="Clash Verge (Admin)", wait=3.0):
-    """强制结束 Verge UI/核心，再用计划任务以管理员身份启动。
+def stop_verge(wait=0.5):
+    """按镜像名结束 Verge UI/核心，释放 profiles 文件句柄。
 
-    schtasks /End 只结束计划任务的直接进程，实测不会结束 sidecar 核心，
-    也不会让 Verge 重新生成 clash-verge.yaml；因此这里按镜像名结束两者。
+    Verge 运行时会持有 Merge.yaml 等文件的句柄，直接 os.replace 会报
+    Permission denied；写入前必须先停止，并留出句柄释放时间。
     """
     for image in RESTART_IMAGES:
         subprocess.run(
@@ -391,6 +406,17 @@ def restart_verge(task_name="Clash Verge (Admin)", wait=3.0):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+    if wait:
+        time.sleep(wait)
+
+
+def restart_verge(task_name="Clash Verge (Admin)", wait=3.0):
+    """强制结束 Verge UI/核心，再用计划任务以管理员身份启动。
+
+    schtasks /End 只结束计划任务的直接进程，实测不会结束 sidecar 核心，
+    也不会让 Verge 重新生成 clash-verge.yaml；因此这里按镜像名结束两者。
+    """
+    stop_verge(wait=0)
     time.sleep(wait)
     proc = subprocess.run(
         ["schtasks", "/Run", "/TN", task_name],
@@ -448,6 +474,7 @@ def main(argv=None):
             appdir, plan, backup_dir,
             reload=restart_verge if args.restart else None,
             verify_timeout=45 if args.restart else None,
+            stop=stop_verge if args.restart else None,
         )
         print("迁移完成：profile=%s，节点=%d，备份=%s" % (
             result["profile_name"], result["expected_proxies"], result["backup"]

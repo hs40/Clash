@@ -137,5 +137,48 @@ class DeployFlowTest(unittest.TestCase):
         self.assertIn("没有需要变更", stdout.getvalue())
 
 
+class IntegrityGuardTest(unittest.TestCase):
+    def test_reports_low_integrity_with_actionable_message(self):
+        cli = load_platform_module()
+        with mock.patch.object(cli.platform_windows, "integrity_level", return_value="low"):
+            message = cli._windows_admin_error()
+        self.assertIn("管理员权限", message)
+        self.assertIn("low", message)
+        self.assertIn("deploy-windows.cmd", message)
+
+    def test_accepts_high_integrity(self):
+        cli = load_platform_module()
+        with mock.patch.object(cli.platform_windows, "integrity_level", return_value="high"):
+            self.assertIsNone(cli._windows_admin_error())
+
+    def test_deploy_refuses_windows_before_creating_state(self):
+        cli = load_platform_module()
+        plan = {"summary": {"has_changes": True}, "diff": "x"}
+        args = argparse.Namespace(
+            platform="windows",
+            apply=True,
+            yes=True,
+            state=str(Path(tempfile.mkdtemp(prefix="clash-platform-state-")) / "state"),
+            json=False,
+            diff=False,
+            appdir=None,
+            mihomo=None,
+            workdir=None,
+            profile=None,
+            node_source=None,
+            backup_dir=None,
+            root=str(ROOT),
+        )
+        parser = argparse.ArgumentParser()
+        with mock.patch.object(cli, "_make_plan", return_value=plan), \
+                mock.patch.object(cli, "_windows_admin_error", return_value="需要管理员权限"), \
+                mock.patch.object(cli.platform_state, "create_run") as create_run, \
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            code = cli.cmd_deploy(args, parser)
+        self.assertEqual(code, 1)
+        create_run.assert_not_called()
+        self.assertIn("管理员权限", stderr.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
