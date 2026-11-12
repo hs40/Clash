@@ -34,6 +34,14 @@ class ProductionRulesTest(unittest.TestCase):
             if parts[0] == "RULE-SET":
                 self.assertIn(parts[1], self.cfg["rule-providers"], rule)
 
+    def test_tailscale_cgnat_is_direct_before_lan_geoip(self):
+        rule = "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve"
+        self.assertIn(rule, self.rules)
+        self.assertLess(
+            self.rules.index(rule),
+            self.rules.index("GEOIP,LAN,DIRECT,no-resolve"),
+        )
+
     def test_provider_rules_are_present(self):
         self.assertIn("RULE-SET,geosite-private,DIRECT", self.rules)
         self.assertIn("RULE-SET,geosite-cn,DIRECT", self.rules)

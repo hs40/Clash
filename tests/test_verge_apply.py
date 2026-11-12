@@ -55,7 +55,7 @@ def make_config(proxies=46):
             "geosite-cn": {"type": "inline"},
             "geosite-private": {"type": "inline"},
         },
-        "rules": ["DOMAIN-SUFFIX,local,DIRECT"] * 25 + ["MATCH,PROXY"],
+        "rules": ["DOMAIN-SUFFIX,local,DIRECT"] * 26 + ["MATCH,PROXY"],
     }
 
 

@@ -2,7 +2,7 @@
 
 设计约束（2026-11-11 负责人确认）：
 - Merge 只写 profile.store-selected 与两个 inline Provider，不写节点/策略组/规则。
-- Script 对当前订阅的 inline 节点做地区识别，生成固定 13 组、26 条规则与 MVP DNS。
+- Script 对当前订阅的 inline 节点做地区识别，生成固定 13 组、27 条规则与 MVP DNS。
 - Script 不写 tun / external-controller / secret，这三个键由 Verge 注入并原样保留。
 - 坏节点在运行时静态过滤；预检发现的额外坏节点写入 MVP_EXCLUDED 标记块。
 """
