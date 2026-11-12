@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.21
+**版本：** v1.22
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -331,7 +331,7 @@ main 分支保护规则：
 4. 边界：只增删上述两条规则；不改系统 DNS、hosts、路由、代理设置或任何入站规则；不进入 `dist/` 或 GitHub Release；需要管理员权限。仅在 Mihomo TUN 已接管、默认 DNS 为 `198.18.0.2` 时使用；TUN 关闭或 Mihomo 停止时应先移除规则，避免本机失去 DNS。
 5. 实现：`scripts/dns_guard.py`、`dns-guard.cmd`；`--check` 只读，`--apply` 幂等，`--remove` 回滚；应用失败时清理本次已创建的规则。`dns-guard.cmd` 优先从 `.venv\pyvenv.cfg` 的 `home` 读取基础解释器，避免 `.venv\Scripts\python.exe` 启动器在管理员窗口中的完整性问题；`dns_guard.py` 只使用标准库。
 6. 验收：`--check` 的 UDP/TCP 均为 OK；默认解析仍为 fake-IP；`192.168.2.1:53` 超时；`223.5.5.5:53` 仍被 TUN 劫持；百度、gstatic、Google、YouTube 回归；`--remove` 后可恢复路由器 DNS。
-7. 当前状态（2026-11-12）：代码、文档与 9 个单测完成；已在管理员上下文（High Mandatory Level）应用两条规则。实测 `192.168.2.1:53` 超时，`198.18.0.2:53` 与 `223.5.5.5:53` 返回 fake-IP `198.18.0.85`，百度/gstatic/Google/YouTube 回归通过。管理员 `dns-guard.cmd check` 输出 `UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0`（2026-11-12 17:21）。`--remove` 回滚演练仍未完成；本机 DSH 进程为 Low Integrity（`S-1-16-4096`），不能在普通 DSH 终端内读写防火墙。
+7. 当前状态（2026-11-12）：代码、文档与 9 个单测完成；已在管理员上下文（High Mandatory Level）应用两条规则。实测 `192.168.2.1:53` 超时，`198.18.0.2:53` 与 `223.5.5.5:53` 返回 fake-IP `198.18.0.85`，百度/gstatic/Google/YouTube 回归通过。管理员 `dns-guard.cmd check` 输出 `UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0`（2026-11-12 17:21）。2026-11-12 17:48 完成 `--remove` 回滚演练：移除后 `--check` 退出 1、规则为空，`192.168.2.1:53` 返回真实地址 `172.66.147.243`（泄漏路径恢复）；重新 `--apply` 后规则恢复、LAN 查询超时、TUN 与 fake-IP 正常，站点回归通过；泄漏窗口约 26 秒。本机 DSH 进程为 Low Integrity（`S-1-16-4096`），不能在普通 DSH 终端内读写防火墙，演练由负责人在管理员桌面会话执行。
 8. 该高风险安全变更由负责人 2026-11-12 选择 C 授权；2026-11-12 已在管理员上下文应用。后续修改仍按高风险变更审查。
 
 ---
@@ -529,9 +529,9 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 百度 200、gstatic 204、Google 200、YouTube 200、dns.google Status 0；出口 HK；
 备份 `.tmp_verge_apply_backup_20261112-132035`。详见 `docs/VERGE-GLOBAL.md` §6.1。
 
-限制：只验证 FIB 一个订阅；其他订阅、断网重连、重启后 TUN 自动恢复与回滚演练未验证；
+限制：只验证 FIB 一个订阅；其他订阅、断网重连、重启后 TUN 自动恢复与 Verge 应用回滚演练未验证；
 2026-11-12 发现显式查询 `192.168.2.1:53` 会绕过 TUN，负责人选择 C，护栏见 §9.3，
-已应用，DNS 路径/站点回归与管理员 `check` 均通过，`--remove` 回滚演练待完成；`verge-sync.cmd` 需要管理员权限；DSH 低完整性 `.venv` 写 AppData 会被拒绝，
+已应用，DNS 路径/站点回归、管理员 `check` 与 `--remove` 回滚演练均通过；`verge-sync.cmd` 需要管理员权限；DSH 低完整性 `.venv` 写 AppData 会被拒绝，
 需改用系统 Python；订阅重命名后需重跑 `verge-sync.cmd` 更新排除键。详见 `docs/VERGE-GLOBAL.md`。
 
 ---
@@ -555,9 +555,9 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 11. ENG-06 的 PR #3 已合并（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；Provider Check 已于 2026-11-11 远端触发并通过（修复 run 42972389013；首次 run 42969347805 因 Windows 编码失败，修复见 §9.1 第 13 条）。`v0.1.0` Release run 42997351203 成功，两个 zip 与 `SHA256SUMS` 已上传并下载校验，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建由临时分支 run 42996296022 实际验证（issue #6，随后 #6–#8 关闭）。`v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录 8 行，Release 只上传 2 个 zip 与校验文件，全量校验会缺少 6 个非资产条目；该限制已在 PR #10（`6d0555b`）修正，squash merge `4cb9148` 并发布 `v0.1.1`（Release run 43003842864）：清单只列两个 Release zip，发布目录的其余文件由结构校验与 zip 内副本核对。远端 `v0.1.1` 资产为 `openclash-0.1.1.zip` 511,688 B / `3016674d...` 与 `windows-0.1.1.zip` 511,738 B / `e55796c9...`；下载后独立校验、zip 结构、解出配置与 `-t` 均通过，干净本地目录构建复现相同 zip 哈希。`v0.1.0` 保持原样，不重写。远端 `CONFIG-DIFF.md` 仍无上一版本基线，见 §10.1 第 8 条；设备重测见第 10 项。
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
-14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、断网重连、TUN 重启恢复与回滚演练未验证；DNS 泄漏已复现（`192.168.2.1:53` 绕过 TUN），护栏见 §9.3，已于 2026-11-12 应用并完成 DNS 路径/站点回归；旧 `mvpClash0001` 保留作回退。
+14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、断网重连、TUN 重启恢复与 Verge 应用回滚演练未验证；DNS 泄漏已复现（`192.168.2.1:53` 绕过 TUN），护栏见 §9.3，已于 2026-11-12 应用并完成 DNS 路径/站点回归；旧 `mvpClash0001` 保留作回退。
 15. Tailscale CGNAT 直连规则已进入构建源，但本机现有 Tailscale peer 使用 /32 直连路由，尚未在 TUN 全接管或新增 peer 场景复测；MagicDNS 未启用/未验证。
-16. DNS 泄漏护栏（§9.3）已于 2026-11-12 在管理员上下文应用，`192.168.2.1:53` 已阻断，站点回归与管理员 `dns-guard.cmd check`（UDP/TCP/overall 均 OK，Exit code 0）均已通过；仍需完成 `--remove` 回滚演练。
+16. DNS 泄漏护栏（§9.3）已于 2026-11-12 在管理员上下文应用，`192.168.2.1:53` 已阻断，站点回归与管理员 `dns-guard.cmd check`（UDP/TCP/overall 均 OK，Exit code 0）均已通过；`--remove` 回滚演练已完成：移除后路由器 DNS 恢复真实解析，重新应用后阻断与 fake-IP 恢复，站点回归通过。
 
 ---
 
@@ -588,3 +588,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-12 | v1.19 | 新增 §9.3 本机 DNS 泄漏护栏（C）：两条 Windows 出站阻断规则，阻断到 `192.168.2.0/24` 的 53；代码与单测完成，DSH Low Integrity 尚未应用，验收未完成 | 项目负责人（需求） |
 | 2026-11-12 | v1.20 | 应用 §9.3 两条规则并记录实测：路由器 DNS 超时、TUN/223.5.5.5 返回 fake-IP、站点回归通过；修复 Windows 点分掩码匹配与 `dns-guard.cmd` 基础解释器选择；管理员 `check` 复核与回滚演练待完成 | 项目负责人（需求） |
 | 2026-11-12 | v1.21 | 管理员 `dns-guard.cmd check` 通过（UDP/TCP/overall 均 OK，Exit code 0）；§9.3 与 §14 第 16 项更新；`--remove` 回滚演练仍待执行 | 项目负责人（事实记录） |
+| 2026-11-12 | v1.22 | 完成 §9.3 `--remove` 回滚演练：移除后规则为空、`192.168.2.1:53` 恢复真实解析；重新应用后阻断、fake-IP 与站点回归恢复；泄漏窗口约 26 秒 | 项目负责人（事实记录） |
