@@ -1,6 +1,6 @@
 # Clash Verge 全局 MVP 复用（本机部署辅助）
 
-状态：2026-11-11 已在本机 Clash Verge Rev 2.5.10 + FIB 订阅上验证。
+状态：2026-11-12 已在本机 Clash Verge Rev 2.5.10 + FIB 订阅上重新验证（27 规则）。
 该能力是**本机部署辅助**，不进入 dist/、GitHub Release 或 OpenClash 配置；
 仓库的正式构建契约仍以 [REQUIREMENTS.md](REQUIREMENTS.md) §11 为准。
 
@@ -12,8 +12,9 @@
 - 适用于订阅自身提供 inline proxies 的情况；遇到 proxy-providers 会中止，不猜测
   远程节点清单。
 - 只写 Verge AppData 下的全局 profiles/Merge.yaml、profiles/Script.js、
-  profiles.yaml 与 verge.yaml；FIB 订阅文件、订阅 URL、系统 DNS、hosts、路由和
-  防火墙均不改。
+  profiles.yaml 与 verge.yaml；FIB 订阅文件、订阅 URL、系统 DNS、hosts 与路由均不改。
+- 防火墙默认不改；DNS 泄漏护栏（负责人 2026-11-12 选择 C）是独立可选步骤，
+  只增删两条出站规则，见 [DNS-GUARD.md](DNS-GUARD.md)。
 - 不写入真实凭据；生成文件中只有仓库的占位节点与 Provider 数据。
 - 坏节点采用**运行时过滤 + 预检剔除**，不建立永久黑名单；节点修复后会自动恢复。
 - 旧本地 profile mvpClash0001 保留为回退，不自动删除。
@@ -162,11 +163,45 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | 备份 | .tmp_verge_apply_backup_20261111-2247b，6/6 文件哈希与大小匹配 |
 
 上表是 2026-11-11 的运行记录（当时源规则 26 条）。2026-11-12 增加 Tailscale
-`100.64.0.0/10` 直连规则后，源规则为 27 条；重新部署后运行时也应为 27 条，
-尚未重新验证。
+`100.64.0.0/10` 直连规则并重新部署后，运行时已为 27 条，见 §6.1。
 
 验证时 enable_tun_mode: true、enable_system_proxy: false、verge_mixed_port: 7897。
 网络测试使用 Python OpenSSL 绕过系统代理，避免本机 PowerShell/schannel 的 TLS 问题干扰。
+
+### 6.1 2026-11-12 重新部署与 27 规则验证
+
+| 项目 | 结果 |
+| --- | --- |
+| 运行时配置 | clash-verge.yaml 2,297,734 B；46 proxies / 13 groups / 27 rules / 2 providers |
+| SHA-256 | 620D83D58D5D08641715FEEDB59E3ACD83A1809B380E4AB2DDFF95BD1FFD960E |
+| 端口 | 127.0.0.1:7897、0.0.0.0:1053 监听（PID 43984） |
+| TUN | Mihomo 适配器 Up；默认路由 198.18.0.2；最后一条 MATCH,PROXY |
+| 规则 | 特殊 2 / 业务 20 / 基础 4 / 兜底 1，共 27；含 Tailscale `100.64.0.0/10` 直连 |
+| 网络 | 百度 200、gstatic 204、Google 200、YouTube 200、dns.google Status 0；ipinfo 出口 HK |
+| 备份 | .tmp_verge_apply_backup_20261112-132035，6 个备份文件 + manifest |
+| DNS 默认路径 | 198.18.0.2 与 127.0.0.1:1053 返回 fake-IP；223.5.5.5:53 被劫持 |
+| DNS 泄漏路径（应用前） | 192.168.2.1:53 返回真实地址 69.171.235.22，绕过 TUN；负责人选择方案 C |
+| DNS 护栏（应用后） | 两条出站阻断规则已生效；192.168.2.1:53 超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归与管理员 check 通过 |
+
+本次自动重启被 run_code 的 120 秒上限中断，最终由负责人在 Verge 弹窗中选择
+“继续使用 SIDECAR”后恢复；平台需要把该场景做成可检测、可恢复的流程。
+
+### 6.2 2026-11-12 DNS 护栏应用
+
+在管理员上下文（High Mandatory Level）应用 `Clash DNS Guard` 两条出站阻断规则，
+只阻断本机到 `192.168.2.0/24` 的 UDP/TCP 53，不改 DNS、hosts、路由或其他防火墙规则。
+
+| 验证 | 结果 |
+| --- | --- |
+| 192.168.2.1:53 | UDP 查询超时 |
+| 198.18.0.2:53 | 返回 fake-IP 198.18.0.85 |
+| 223.5.5.5:53 | 返回 fake-IP 198.18.0.85（TUN 劫持） |
+| 站点回归 | 百度 200、gstatic 204、Google 200、YouTube 200 |
+| 管理员 check（2026-11-12 17:21） | `UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0` |
+
+规则实际远程地址被 Windows 规范化为 `192.168.2.0/255.255.255.0`，`--check` 已兼容。
+管理员 `dns-guard.cmd check` 已通过；`--remove` 回滚演练尚未完成；
+详见 [DNS-GUARD.md](DNS-GUARD.md) §4 与 §6。
 
 ## 7. 测试接缝
 
@@ -186,7 +221,9 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 ## 8. 限制与未验证项
 
 - 只验证了 FIB 一个订阅；其他订阅的 inline 节点格式、脚本执行与组生成尚未实测。
-- 未做 DNS 泄漏、断网重连、重启后 TUN 自动恢复、回滚演练。
+- 2026-11-12 发现 `192.168.2.1:53` 直连绕过 TUN；负责人选择方案 C，护栏已应用，
+  路由器 DNS 已阻断、站点回归与管理员 `check` 均已通过；`--remove` 回滚演练仍未完成。
+- 未做断网重连、重启后 TUN 自动恢复、回滚演练。
 - 未删除旧本地 mvpClash0001；它仍是回退路径。
 - 重命名订阅后，MVP_EXCLUDED 的 profileName 键不会自动迁移；需重新运行 verge-sync.cmd（静态 short-id 过滤仍生效）。
 - 未验证所有订阅都能通过 mihomo -t；预检只针对当前目标订阅。
@@ -196,6 +233,8 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 
 ## 9. 相关文件
 
+- scripts/dns_guard.py、dns-guard.cmd：Windows DNS 泄漏护栏（可选，需管理员）
+- docs/DNS-GUARD.md：规则契约、验收与回滚
 - scripts/verge_global.py：生成 Merge/Script
 - scripts/verge_preflight.py：静态 + 运行时节点预检
 - scripts/verge_apply.py：备份、应用、重启、校验、回滚
