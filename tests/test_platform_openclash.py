@@ -29,12 +29,16 @@ def node_source(path):
 
 
 class FakeSsh:
-    def __init__(self, state_text="", fail=None, files=None):
+    def __init__(self, state_text="", fail=None, files=None, proc_net=None):
         self.calls = []
         self.puts = []
         self.fail = fail or (lambda command: False)
         self.state_text = state_text
         self.files = files or {}
+        self.proc_net = proc_net if proc_net is not None else (
+            "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+            "   0: 0100007F:1ED5 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 1\n"
+        )
 
     def run(self, command, input_text=None, timeout=None):
         self.calls.append(command)
@@ -44,8 +48,8 @@ class FakeSsh:
             return self.state_text
         if "sha256sum" in command:
             return self.state_text
-        if "ss -ltn" in command:
-            return "yes\n"
+        if "/proc/net/tcp" in command:
+            return self.proc_net
         if "curl" in command:
             return "204\n"
         return "ok\n"
@@ -127,6 +131,23 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(plan["summary"]["files"], [platform_openclash.NEW_CONFIG])
 
 
+class PortTest(unittest.TestCase):
+    def test_detects_listening_port_from_proc_net(self):
+        ssh = FakeSsh(proc_net=(
+            "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+            "   0: 0100007F:1ED5 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 1\n"
+        ))
+        self.assertTrue(platform_openclash._port_open(ssh, 7893))
+        self.assertIn("/proc/net/tcp", "\n".join(ssh.calls))
+
+    def test_absent_port_is_false(self):
+        ssh = FakeSsh(proc_net=(
+            "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
+            "   0: 0100007F:1ED2 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 1\n"
+        ))
+        self.assertFalse(platform_openclash._port_open(ssh, 7893))
+
+
 class ApplyTest(unittest.TestCase):
     def state(self):
         return {
@@ -162,6 +183,29 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(ssh.puts[0][0], platform_openclash.TEMP_CONFIG)
         self.assertEqual(manifest["old_config_path"], "/etc/openclash/config/FIB.yaml")
         self.assertEqual(result["port"], 7893)
+
+    def test_port_failure_records_restore_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ssh = FakeSsh(proc_net="")
+            with self.assertRaises(platform_openclash.OpenClashError) as ctx:
+                platform_openclash.apply_openclash(
+                    ssh, self.plan(), Path(tmp), verify_timeout=0.01, sleep=lambda seconds: None
+                )
+        self.assertTrue(ctx.exception.restored)
+        self.assertIn("已恢复旧 config_path", str(ctx.exception))
+
+    def test_restore_failure_is_reported(self):
+        def fail(command):
+            return "uci set openclash.config.config_path=/etc/openclash/config/FIB.yaml" in command
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ssh = FakeSsh(fail=fail, proc_net="")
+            with self.assertRaises(platform_openclash.OpenClashError) as ctx:
+                platform_openclash.apply_openclash(
+                    ssh, self.plan(), Path(tmp), verify_timeout=0.01, sleep=lambda seconds: None
+                )
+        self.assertFalse(ctx.exception.restored)
+        self.assertIn("恢复旧 config_path 失败", str(ctx.exception))
 
     def test_test_failure_restores_old_path_without_switching(self):
         def fail(command):

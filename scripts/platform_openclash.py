@@ -33,6 +33,10 @@ PROXY = "http://192.168.2.10:%d" % PORT
 class OpenClashError(Exception):
     """OpenClash 规划、备份、切换或校验失败。"""
 
+    def __init__(self, message, restored=None):
+        super().__init__(message)
+        self.restored = restored
+
 
 def _run(ssh, command, timeout=None):
     try:
@@ -182,12 +186,24 @@ def _restart(ssh):
     _run(ssh, "/etc/init.d/openclash restart", timeout=120)
 
 
+def _listening_ports(text):
+    """解析 /proc/net/tcp{,6}；0A 为 LISTEN，本地端口为十六进制。"""
+    ports = set()
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) < 4 or fields[3] != "0A":
+            continue
+        try:
+            ports.add(int(fields[1].rsplit(":", 1)[1], 16))
+        except (IndexError, ValueError):
+            continue
+    return ports
+
+
 def _port_open(ssh, port=PORT):
-    output = _run(
-        ssh,
-        "if ss -ltn 2>/dev/null | grep -q ':%d '; then echo yes; else echo no; fi" % port,
-    )
-    return output.strip() == "yes"
+    # iStoreOS 的 BusyBox 没有 ss；直接读 /proc/net/tcp 更可靠。
+    output = _run(ssh, "cat /proc/net/tcp /proc/net/tcp6 2>/dev/null || true")
+    return port in _listening_ports(output)
 
 
 def _wait_port(ssh, port=PORT, timeout=60, sleep=time.sleep):
@@ -258,12 +274,19 @@ def apply_openclash(ssh, plan, backup_dir, verify_timeout=60, sleep=time.sleep):
         if not _wait_port(ssh, PORT, verify_timeout, sleep):
             raise OpenClashError("OpenClash 重启后 %d 端口未监听" % PORT)
     except Exception as exc:
+        restored = False
+        restore_error = None
         try:
             _run(ssh, "rm -f %s" % _quote(TEMP_CONFIG))
             _restore_remote(ssh, manifest)
-        except Exception:
-            pass
-        raise OpenClashError("%s；已请求恢复旧 config_path" % exc) from exc
+            restored = True
+        except Exception as restore_exc:
+            restore_error = str(restore_exc)
+        if restored:
+            message = "%s；已恢复旧 config_path" % exc
+        else:
+            message = "%s；恢复旧 config_path 失败：%s" % (exc, restore_error)
+        raise OpenClashError(message, restored=restored) from exc
     return {
         "ok": True,
         "backup": str(backup_dir),

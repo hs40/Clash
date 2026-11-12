@@ -287,6 +287,8 @@ def cmd_deploy(args, parser):
     except Exception as exc:
         report["ok"] = False
         report["error"] = str(exc)
+        if getattr(exc, "restored", None) is not None:
+            report["rolled_back"] = bool(exc.restored)
         print("部署失败：%s" % exc, file=sys.stderr, flush=True)
     _write_report(run["report"], report)
     platform_state.prune_runs(args.platform, state=args.state)
