@@ -152,9 +152,11 @@ def main(argv=None):
             handle.write(report)
 
     total = len(records)
-    failures = sum(1 for r in records if r["status"] in ("失败", "错误"))
-    print("测试报告：%s（%d 项，失败/错误 %d 项）" % (args.output, total, failures))
-    return 0 if failures == 0 else 1
+    failed = [r for r in records if r["status"] in ("失败", "错误")]
+    for failure in failed:
+        print("失败测试：%s" % failure["name"])
+    print("测试报告：%s（%d 项，失败/错误 %d 项）" % (args.output, total, len(failed)))
+    return 0 if not failed else 1
 
 
 if __name__ == "__main__":
