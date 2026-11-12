@@ -127,3 +127,6 @@
 10. Release 工作流在干净检出中构建，发布包内 `CONFIG-DIFF.md` 没有上一 GitHub Release
     的比较基线，会显示“未找到上一版本”。这是发布可观测性限制，不影响 `SHA256SUMS`、
     zip 或配置正确性；修复需要新的发布流程变更。
+11. 本机 DNS 泄漏护栏（C）的代码与 8 个单测已加入，但 DSH 进程为 Low Integrity，
+    防火墙规则尚未应用；实际阻断效果需管理员在 DSH 外执行 `dns-guard.cmd` 后验收，见
+    [DNS-GUARD.md](DNS-GUARD.md)。
