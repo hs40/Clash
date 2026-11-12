@@ -9,7 +9,7 @@ if /I "%~1"=="remove" set "ACTION=--remove"
 if /I "%~1"=="--remove" set "ACTION=--remove"
 
 if /I not "%ACTION%"=="--check" (
-  net session >nul 2>&1
+  whoami /groups | findstr /C:"S-1-16-12288" /C:"S-1-16-16384" >nul 2>&1
   if errorlevel 1 (
     echo Requesting administrator privileges...
     powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -ArgumentList '%ACTION%' -Verb RunAs"

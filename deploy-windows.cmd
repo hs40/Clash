@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
-net session >nul 2>&1
+whoami /groups | findstr /C:"S-1-16-12288" /C:"S-1-16-16384" >nul 2>&1
 if errorlevel 1 (
     echo 正在请求管理员权限……
     powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
