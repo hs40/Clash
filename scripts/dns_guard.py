@@ -18,6 +18,7 @@ RULE_GROUP = "Clash DNS Guard"
 RULE_PREFIX = "Clash DNS Guard - Block LAN DNS"
 PROTOCOLS = ("UDP", "TCP")
 REMOTE_ADDRESS = "192.168.2.0/24"
+REMOTE_ADDRESS_NETMASK = "192.168.2.0/255.255.255.0"
 REMOTE_PORT = 53
 
 
@@ -129,7 +130,10 @@ def is_expected(rule, protocol):
         and _text(rule.get("Direction")).lower() == "outbound"
         and _text(rule.get("Action")).lower() == "block"
         and _text(rule.get("Protocol")).upper() == spec["Protocol"]
-        and spec["RemoteAddress"] in _text(rule.get("RemoteAddress"))
+        and (
+            spec["RemoteAddress"] in _text(rule.get("RemoteAddress"))
+            or REMOTE_ADDRESS_NETMASK in _text(rule.get("RemoteAddress"))
+        )
         and spec["RemotePort"] in _text(rule.get("RemotePort"))
         and _text(rule.get("Profile")).lower() == "any"
     )

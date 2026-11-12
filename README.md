@@ -124,7 +124,7 @@ py -m venv .venv
 - Verge 全局扩展：Merge 只含 `profile.store-selected` 与两个 inline Provider；Script 生成
   13 组/27 规则/DNS/端口、过滤坏 `short-id`、空地区回退；预检逐节点 `-t`；备份与失败回滚；
   Node 执行真实 Script（无 Node 时跳过）。
-- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除；真实防火墙写入需管理员验收。
+- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除、Windows 点分掩码匹配（9 项）；真实防火墙已应用并完成 DNS 路径/站点验收，管理员 `check` 复核与回滚演练待完成。
 
 ## CI 与安全检查
 
@@ -180,8 +180,10 @@ MVP DNS；该能力不进入 dist/ 或 Release。
 - 旧本地 profile mvpClash0001 保留为回退，未自动删除。
 
 2026-11-12 已在本机 FIB 上重新部署并验证：46 节点 / 13 组 / 27 规则，7897 与 1053 监听，
-TUN 与 fake-ip 正常，百度/Google/YouTube 连通；显式查询 `192.168.2.1:53` 会绕过
-TUN 返回真实地址，已由负责人选择方案 C，护栏代码待管理员应用。
+TUN 与 fake-ip 正常，百度/Google/YouTube 连通；显式查询 `192.168.2.1:53` 曾绕过
+TUN 返回真实地址，负责人选择方案 C 后已在管理员上下文应用两条出站阻断规则：
+路由器 DNS 已超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归通过；管理员 `check`
+复核与 `--remove` 回滚演练仍待完成。
 
 ## 占位内容说明
 

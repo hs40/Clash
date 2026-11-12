@@ -1,8 +1,8 @@
 # Windows DNS 泄漏护栏（C 决策）
 
-状态：代码与测试已加入；**尚未在本机应用**（当前 DSH 进程为 Low Integrity，
-Windows 防火墙 WMI 返回“拒绝访问”）。需要负责人在桌面以管理员权限运行
-`dns-guard.cmd`，应用后再做验收。
+状态：代码、测试与文档已加入；**2026-11-12 已在本机以管理员上下文应用**，
+两条规则存在，DNS 路径与站点回归已验证。`dns-guard.cmd check` 仍需在管理员窗口
+执行；本机 DSH 进程为 Low Integrity，不能在 DSH 内直接读取或写入防火墙。
 
 ## 1. 背景与决策
 
@@ -31,6 +31,8 @@ Windows 防火墙 WMI 返回“拒绝访问”）。需要负责人在桌面以�
 | 启用 | True |
 
 脚本只增删上述两条规则；按显示名精确识别，不触碰其他防火墙规则。
+Windows 可能把 `192.168.2.0/24` 规范化为 `192.168.2.0/255.255.255.0`；
+`--check` 同时接受 CIDR 与点分掩码两种返回形式。
 
 ## 3. 使用
 
@@ -55,22 +57,45 @@ Windows 防火墙 WMI 返回“拒绝访问”）。需要负责人在桌面以�
     .venv\Scripts\python.exe scripts\dns_guard.py --apply
     .venv\Scripts\python.exe scripts\dns_guard.py --remove
 
+`dns-guard.cmd` 会优先从 `.venv\pyvenv.cfg` 的 `home` 读取基础解释器，
+避免 `.venv\Scripts\python.exe` 启动器在管理员窗口中可能未保持高完整性的问题；
+`dns_guard.py` 只使用标准库，因此不依赖 venv 中的第三方包。
+
 `--check` 只读；`--apply` 幂等，已存在的正确规则会跳过；`--remove` 只删除
 两条具名规则。应用失败时脚本会尝试删除本次已创建的规则。
 `--check` 在无法读取防火墙配置时返回退出码 2 并显示原因，不会把“无权限”误报为“规则缺失”。
 
 ## 4. 验收
 
-应用后依次检查：
+### 4.1 2026-11-12 应用记录
 
-1. `dns-guard.cmd check` 显示 UDP/TCP 均为 `OK`。
-2. 默认解析仍返回 fake-IP，例如 `nslookup www.google.com` -> `198.18.0.x`。
-3. 显式查询 `192.168.2.1:53` 应超时（被阻断），不再返回真实地址。
-4. `223.5.5.5:53` 仍被 TUN 劫持为 fake-IP。
-5. 回归：百度、gstatic 204、Google、YouTube 均可访问。
-6. 移除规则后，`--check` 显示缺失，路由器 DNS 恢复可解析。
+管理员上下文（`High Mandatory Level S-1-16-12288`）使用基础解释器
+`D:\Programs\Python\python.exe` 调用 `dns_guard.apply()`，返回：
 
-验收记录写入 [VERGE-GLOBAL.md](VERGE-GLOBAL.md) §6。
+    APPLY_OK {"created": ["UDP", "TCP"], "skipped": []}
+
+实际规则（Windows 规范化后的值）：
+
+| 协议 | 显示名 | 方向/动作 | 远程地址 | 远程端口 | 配置文件 | 启用 |
+| --- | --- | --- | --- | --- | --- | --- |
+| UDP | `Clash DNS Guard - Block LAN DNS (UDP)` | Outbound / Block | `192.168.2.0/255.255.255.0` | 53 | Any | True |
+| TCP | `Clash DNS Guard - Block LAN DNS (TCP)` | Outbound / Block | `192.168.2.0/255.255.255.0` | 53 | Any | True |
+
+### 4.2 已完成的验证
+
+1. `192.168.2.1:53` UDP 查询 -> `TimeoutError`（被阻断）。
+2. `198.18.0.2:53` -> 45 字节响应，A 记录 `198.18.0.85`（fake-IP）。
+3. `223.5.5.5:53` -> 45 字节响应，A 记录 `198.18.0.85`（被 TUN 劫持）。
+4. 站点回归：百度 200 / 0.22s；gstatic 204 / 2.61s；Google 200 / 11.09s；YouTube 200 / 5.25s。
+
+### 4.3 仍需完成的验证
+
+1. 在管理员窗口执行 `dns-guard.cmd check`，确认 UDP/TCP 均为 `OK`；
+   此前 `.venv` 启动器在管理员窗口返回拒绝访问，已改为优先使用 `pyvenv.cfg` 的基础解释器，待复核。
+2. 移除规则后的第 6 条回滚验收尚未执行；`--remove` 会短暂恢复 `192.168.2.1:53` 泄漏路径，
+   只在负责人确认的维护窗口执行。
+
+验收记录同步写入 [VERGE-GLOBAL.md](VERGE-GLOBAL.md) §6.2。
 
 ## 5. 回滚
 
@@ -87,13 +112,17 @@ Windows 防火墙 WMI 返回“拒绝访问”）。需要负责人在桌面以�
 - 不阻断 DoH/DoT；浏览器自带 DoH 仍可能绕过系统 DNS，需在浏览器层单独验收。
 - 需要管理员权限。若企业策略或安全软件锁定防火墙，`New-NetFirewallRule` 会
   返回拒绝访问；此时不得绕过策略，应改用手工防火墙配置或回到方案 A/B。
-- 当前 DSH 进程为 Low Integrity（`S-1-16-4096`），即使 `Start-Process -Verb RunAs`
-  也继承低完整性，无法写防火墙；必须在 DSH 之外的桌面管理员会话执行。
+- 本机 DSH 进程本身为 Low Integrity（`S-1-16-4096`），普通 DSH 进程不能读写防火墙；
+  管理员操作必须在 DSH 之外的桌面管理员会话执行。本次应用通过 DSH 的
+  `danger-full-access` 审批在 High 上下文完成，不能用普通 DSH 终端重复。
+- `.venv\Scripts\python.exe` 在本机是 `py.exe` 启动器（274,712 B，OriginalFilename `py.exe`），
+  在管理员窗口可能未保持高完整性；`dns-guard.cmd` 已改为优先使用 `pyvenv.cfg` 中的基础解释器。
 - 本脚本不改 Verge 配置，也不进入 `dist/` 或 GitHub Release。
 
 ## 7. 测试
 
     .venv\Scripts\python.exe -m unittest discover -s tests -p test_dns_guard.py -v
 
-覆盖：规则规格、协议校验、空状态、runner 错误传播、创建 UDP/TCP、已存在时跳过、删除两条规则。
+覆盖：规则规格、协议校验、空状态、runner 错误传播、创建 UDP/TCP、已存在时跳过、
+删除两条规则，以及 Windows 返回点分掩码时的匹配（共 9 项）。
 防火墙实际写入由管理员在真实 Windows 上验收；CI 不执行该系统变更。

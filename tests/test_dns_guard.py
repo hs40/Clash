@@ -57,6 +57,19 @@ class GuardActionsTest(unittest.TestCase):
         with self.assertRaises(dns_guard.DnsGuardError):
             dns_guard.list_rules(runner=runner)
 
+    def test_accepts_netmask_form_returned_by_windows(self):
+        rule = {
+            "DisplayName": "Clash DNS Guard - Block LAN DNS (UDP)",
+            "Enabled": "True",
+            "Direction": "Outbound",
+            "Action": "Block",
+            "Protocol": "UDP",
+            "RemoteAddress": "192.168.2.0/255.255.255.0",
+            "RemotePort": "53",
+            "Profile": "Any",
+        }
+        self.assertTrue(dns_guard.is_expected(rule, "UDP"))
+
     def test_apply_creates_missing_udp_and_tcp(self):
         runner = FakeRunner("")
         result = dns_guard.apply(runner=runner)

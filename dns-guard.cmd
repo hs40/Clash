@@ -17,7 +17,16 @@ if /I not "%ACTION%"=="--check" (
   )
 )
 
-".venv\Scripts\python.exe" "scripts\dns_guard.py" %ACTION%
+rem Prefer the base interpreter recorded in pyvenv.cfg. This script only uses
+rem the standard library, and the base interpreter has proven reliable when elevated.
+set "PYTHON=.venv\Scripts\python.exe"
+if exist ".venv\pyvenv.cfg" (
+  for /f "usebackq tokens=1,* delims== " %%A in (".venv\pyvenv.cfg") do (
+    if /I "%%A"=="home" set "PYHOME=%%B"
+  )
+)
+if defined PYHOME if exist "%PYHOME%\python.exe" set "PYTHON=%PYHOME%\python.exe"
+"%PYTHON%" "scripts\dns_guard.py" %ACTION%
 set "CODE=%ERRORLEVEL%"
 echo.
 echo Exit code: %CODE%
