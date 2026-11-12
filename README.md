@@ -218,7 +218,7 @@ rollback.cmd windows "%LOCALAPPDATA%\ClashPlatform\backups\<run>"
 - OpenClash 写独立的 `/etc/openclash/config/clash-platform.yaml` 并通过 UCI 切换，旧 `FIB.yaml` 原样保留；设备端先 `mihomo -t`，失败自动回滚。
 - 本地不保存含真实节点的完整 OpenClash 配置；备份只留在设备 root-only 目录，报告只含哈希与脱敏摘要。
 - 状态目录默认 `%LOCALAPPDATA%\ClashPlatform\`，报告保留最近 5 次；`.tmp_*` 与本地状态不进 Git。
-- 当前状态：代码与 327 项本地测试完成，真实 Windows/OpenClash 部署尚未执行，不能据此宣称已在生产环境生效。
+- 当前状态：代码与 329 项本地测试完成，PR #17 的 CI（run 43233835411）已通过；真实 Windows/OpenClash 部署尚未执行，不能据此宣称已在生产环境生效。
 
 ## 占位内容说明
 

@@ -1,6 +1,6 @@
 # 个人网络部署平台需求（v1.0）
 
-- 状态：**平台代码与本地单元测试完成；真实部署与验收待负责人执行。**
+- 状态：**平台代码与本地单元测试完成，PR #17 的 CI（run 43233835411）已通过；真实部署与验收待负责人执行。**
 - 实现：`scripts/platform*.py`、`deploy-windows.cmd`、`deploy-openclash.cmd`、`rollback.cmd`；单元测试见 `tests/test_platform*.py`、`tests/test_dns_guard.py`。
 - 适用范围：本机 Windows（Clash Verge Rev + Mihomo）与 iStoreOS 192.168.2.10（OpenClash）。
 - 依据：`Clash 配置工程开发 Plan.md`、负责人 2026-11-11/12 的 Q13–Q30 回答、2026-11-12 iStoreOS 只读核查。
