@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.18
+**版本：** v1.19
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -323,6 +323,17 @@ main 分支保护规则：
 6. **负责人批准记录（2026-11-11）**：负责人 @hs40 明确批准策略 A，并批准在单人仓库下不启用 Require review from Code Owners 的 bypass；该批准针对当前单人维护模式，增加第二审查人后应重新评估。Agent 未自行批准该例外。
 7. 验证记录：临时 PR #1（head `2982220803297bf088b920457d562ad1a60bde94`）触发 `test` 成功（run 42956763427 / job 130313590289），PR 以 closed/unmerged 关闭，临时分支已删除。
 
+### 9.3 本机 DNS 泄漏护栏（C）【确定，2026-11-12 负责人确认】
+
+1. 背景：默认解析路径返回 fake-IP，但显式查询 `192.168.2.1:53` 会绕过 TUN 返回真实地址，构成 DNS 泄漏。
+2. 决策 C：在 Windows 防火墙新增两条出站阻断规则，阻断本机到 `192.168.2.0/24` 的 UDP/TCP 53，保留 TUN DNS `198.18.0.2`。
+3. 规则契约：组 `Clash DNS Guard`；显示名 `Clash DNS Guard - Block LAN DNS (UDP)` / `(TCP)`；Outbound、Block、Profile Any、Enabled True；远程地址 `192.168.2.0/24`，远程端口 53。
+4. 边界：只增删上述两条规则；不改系统 DNS、hosts、路由、代理设置或任何入站规则；不进入 `dist/` 或 GitHub Release；需要管理员权限。
+5. 实现：`scripts/dns_guard.py`、`dns-guard.cmd`；`--check` 只读，`--apply` 幂等，`--remove` 回滚；应用失败时清理本次已创建的规则。
+6. 验收：`--check` 的 UDP/TCP 均为 OK；默认解析仍为 fake-IP；`192.168.2.1:53` 超时；`223.5.5.5:53` 仍被 TUN 劫持；百度、gstatic、Google、YouTube 回归；`--remove` 后可恢复路由器 DNS。
+7. 当前状态：代码、文档与 7 个单测已完成；当前 DSH 进程为 Low Integrity（`S-1-16-4096`），`New-NetFirewallRule` 与 `Get-NetFirewallProfile` 均被拒绝，规则尚未应用，验收未完成。
+8. 该高风险安全变更由负责人 2026-11-12 选择 C 授权；实际应用仍需管理员在 DSH 之外执行。
+
 ---
 
 ## 10. 发布与回滚【确定】
@@ -470,7 +481,7 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 `cipher: aes-128-gcm`、`password: PLACEHOLDER-NOT-REAL`、`udp: false`，
 并在文件头注明「占位节点，禁止部署」。占位内容不得被描述为真实节点。
 
-### 13.5 本机 Clash Verge 全局扩展【已实施，2026-11-11 负责人确认；部署辅助，非发布配置】
+### 13.5 本机 Clash Verge 全局扩展【已实施，2026-11-11 负责人确认；2026-11-12 复验；部署辅助，非发布配置】
 
 目标：把同一套 MVP 设置套用到 Verge 的所有订阅，订阅更新或切换后不必重建本地 profile。
 该能力不进入 `dist/`、GitHub Release 或 OpenClash 配置，不改变 §11 的构建契约。
@@ -513,8 +524,14 @@ sidecar。
 Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局文件与备份哈希见
 `docs/VERGE-GLOBAL.md` §6。旧本地 `mvpClash0001` 保留作回退。
 
-限制：只验证 FIB 一个订阅；未验证其他订阅、DNS 泄漏、断网重连、重启后 TUN 自动恢复、
-回滚演练；`verge-sync.cmd` 需要管理员权限；DSH 低完整性 `.venv` 写 AppData 会被拒绝，
+重新部署（2026-11-12，FIB）：运行时 2,297,734 B、SHA-256 `620D83D5…`，
+46 proxies / 13 groups / 27 rules / 2 providers；7897 与 1053 监听；TUN Up；
+百度 200、gstatic 204、Google 200、YouTube 200、dns.google Status 0；出口 HK；
+备份 `.tmp_verge_apply_backup_20261112-132035`。详见 `docs/VERGE-GLOBAL.md` §6.1。
+
+限制：只验证 FIB 一个订阅；其他订阅、断网重连、重启后 TUN 自动恢复与回滚演练未验证；
+2026-11-12 发现显式查询 `192.168.2.1:53` 会绕过 TUN，负责人选择 C，护栏见 §9.3，
+尚未应用；`verge-sync.cmd` 需要管理员权限；DSH 低完整性 `.venv` 写 AppData 会被拒绝，
 需改用系统 Python；订阅重命名后需重跑 `verge-sync.cmd` 更新排除键。详见 `docs/VERGE-GLOBAL.md`。
 
 ---
@@ -538,8 +555,9 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 11. ENG-06 的 PR #3 已合并（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；Provider Check 已于 2026-11-11 远端触发并通过（修复 run 42972389013；首次 run 42969347805 因 Windows 编码失败，修复见 §9.1 第 13 条）。`v0.1.0` Release run 42997351203 成功，两个 zip 与 `SHA256SUMS` 已上传并下载校验，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建由临时分支 run 42996296022 实际验证（issue #6，随后 #6–#8 关闭）。`v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录 8 行，Release 只上传 2 个 zip 与校验文件，全量校验会缺少 6 个非资产条目；该限制已在 PR #10（`6d0555b`）修正，squash merge `4cb9148` 并发布 `v0.1.1`（Release run 43003842864）：清单只列两个 Release zip，发布目录的其余文件由结构校验与 zip 内副本核对。远端 `v0.1.1` 资产为 `openclash-0.1.1.zip` 511,688 B / `3016674d...` 与 `windows-0.1.1.zip` 511,738 B / `e55796c9...`；下载后独立校验、zip 结构、解出配置与 `-t` 均通过，干净本地目录构建复现相同 zip 哈希。`v0.1.0` 保持原样，不重写。远端 `CONFIG-DIFF.md` 仍无上一版本基线，见 §10.1 第 8 条；设备重测见第 10 项。
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
-14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、DNS 泄漏、断网重连、TUN 重启恢复与回滚演练未验证；旧 `mvpClash0001` 保留作回退。
+14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、断网重连、TUN 重启恢复与回滚演练未验证；DNS 泄漏已复现（`192.168.2.1:53` 绕过 TUN），护栏见 §9.3，尚未应用；旧 `mvpClash0001` 保留作回退。
 15. Tailscale CGNAT 直连规则已进入构建源，但本机现有 Tailscale peer 使用 /32 直连路由，尚未在 TUN 全接管或新增 peer 场景复测；MagicDNS 未启用/未验证。
+16. DNS 泄漏护栏（§9.3）的代码与单测已完成，但当前 DSH 为 Low Integrity，防火墙规则尚未应用；需管理员在 DSH 外执行 `dns-guard.cmd` 后完成 §9.3 第 6 条验收。
 
 ---
 
@@ -567,3 +585,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-11 | v1.16 | 记录 `v0.1.1` 远端 Release（run 43003842864）、资产下载校验、干净构建复现与配置 `-t`；记录 `CONFIG-DIFF.md` 在 CI 干净检出中无上一版本基线的已知限制 | 项目负责人（事实记录） |
 | 2026-11-11 | v1.17 | 新增 §13.5：本机 Clash Verge 全局扩展（固定组顺序、26 条规则、坏节点预检/剔除、备份与自动回滚）；记录 FIB 本机验证与限制；该能力不进入 Release | 项目负责人 |
 | 2026-11-12 | v1.18 | 新增 Tailscale CGNAT 特殊层直连规则（`100.64.0.0/10`），规则总数 26→27；记录 MagicDNS 未纳入 Clash DNS、TUN 场景未实测 | 项目负责人（需求） |
+| 2026-11-12 | v1.19 | 新增 §9.3 本机 DNS 泄漏护栏（C）：两条 Windows 出站阻断规则，阻断到 `192.168.2.0/24` 的 53；代码与单测完成，DSH Low Integrity 尚未应用，验收未完成 | 项目负责人（需求） |
