@@ -23,7 +23,7 @@
     subscription (inline proxies)
       -> Verge app settings (mixed-port / TUN ...)
       -> global Merge.yaml (profile.store-selected + 2 inline providers)
-      -> global Script.js (filter, 13 groups, 26 rules, MVP DNS)
+      -> global Script.js (filter, 13 groups, 27 rules, MVP DNS)
       -> Verge runtime clash-verge.yaml
 
 ### 2.1 全局 Merge.yaml
@@ -45,7 +45,7 @@ main(config, profileName) 对当前订阅执行：
 - 强制 mixed-port: 7897，删除订阅的 port / socks-port，设置
   mode: rule、ipv6: false、allow-lan: false；
 - 保留 Verge 注入的 tun、external-controller、secret 与 profile；
-- 生成固定 13 个策略组、26 条规则和仓库 DNS。
+- 生成固定 13 个策略组、27 条规则和仓库 DNS。
 
 不写 tun、external-controller、secret；这些键由 Verge 管理。
 
@@ -67,7 +67,7 @@ main(config, profileName) 对当前订阅执行：
 tolerance: 50。地区关键词与构建器共用同一个 scripts/regions.py；空地区回退到
 自动选择。
 
-规则共 26 条：特殊 1 条、业务 20 条、基础 4 条、兜底 1 条，最后一条唯一为
+规则共 27 条：特殊 2 条、业务 20 条、基础 4 条、兜底 1 条，最后一条唯一为
 MATCH,PROXY。
 
 ## 4. 节点预检与剔除
@@ -161,6 +161,10 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | FIB 原文件 | 未修改；SHA-256 f35dd65a... |
 | 备份 | .tmp_verge_apply_backup_20261111-2247b，6/6 文件哈希与大小匹配 |
 
+上表是 2026-11-11 的运行记录（当时源规则 26 条）。2026-11-12 增加 Tailscale
+`100.64.0.0/10` 直连规则后，源规则为 27 条；重新部署后运行时也应为 27 条，
+尚未重新验证。
+
 验证时 enable_tun_mode: true、enable_system_proxy: false、verge_mixed_port: 7897。
 网络测试使用 Python OpenSSL 绕过系统代理，避免本机 PowerShell/schannel 的 TLS 问题干扰。
 
@@ -168,7 +172,7 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 
 | 接缝 | 文件 | 覆盖 |
 | --- | --- | --- |
-| G1/G2 | tests/test_verge_global.py | Merge 只含 store-selected 与两个 Provider；Script 生成 13 组/26 规则/DNS/端口；坏节点过滤；空地区回退；Node 执行真实脚本 |
+| G1/G2 | tests/test_verge_global.py | Merge 只含 store-selected 与两个 Provider；Script 生成 13 组/27 规则/DNS/端口；坏节点过滤；空地区回退；Node 执行真实脚本 |
 | P1/P2 | tests/test_verge_preflight.py | short-id 静态过滤；逐节点预检；proxy-providers 拒绝；本机 Mihomo 可用时执行真实 -t |
 | A1/A2 | tests/test_verge_apply.py | 备份/恢复字节；原子 LF 写入；校验接受/拒绝；失败自动回滚；dry-run 不写 |
 
