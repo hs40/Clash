@@ -20,6 +20,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - 回滚手册：[docs/ROLLBACK.md](docs/ROLLBACK.md)
 - 本机 Verge 全局复用：[docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)
 - 安全策略：[docs/SECURITY.md](docs/SECURITY.md)
+- dsh-pocket 移动端补丁：[docs/DSH-POCKET.md](docs/DSH-POCKET.md)（本机插件，非 Clash 配置）
 - 原始开发计划：[Clash 配置工程开发 Plan.md](Clash 配置工程开发 Plan.md)
 - 兼容基准：Windows Mihomo v1.19.33；OpenClash Mihomo Meta alpha-gbc76c13（仅 OpenClash）
 
@@ -37,6 +38,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 | 测试 | `tests/` | 是 | 构建结果、安全与 CI 策略校验 |
 | 本机 Verge 部署辅助 | `scripts/verge_global.py`、`scripts/verge_preflight.py`、`scripts/verge_apply.py`、`verge-sync.cmd` | 是 | 生成/预检/应用 Verge 全局 Merge 与 Script；不进入 `dist/` 或 Release |
 | 本机 DNS 泄漏护栏 | `scripts/dns_guard.py`、`dns-guard.cmd`、`docs/DNS-GUARD.md` | 是 | 可选的 Windows 两条出站防火墙规则；不改 DNS/路由；需管理员 |
+| 本机 dsh-pocket 补丁 | `scripts/dsh_pocket_patch.py`、`docs/DSH-POCKET.md` | 是 | 修复窄视口 DOM 选择器；只改本机插件，不进 `dist/` 或 Release |
 | 构建产物 | `dist/` | 否（见 `.gitignore`） | 每次构建重新生成 |
 | 文档 | `docs/` | 是 | 需求基线、验收报告 |
 
