@@ -331,7 +331,7 @@ main 分支保护规则：
 4. 边界：只增删上述两条规则；不改系统 DNS、hosts、路由、代理设置或任何入站规则；不进入 `dist/` 或 GitHub Release；需要管理员权限。仅在 Mihomo TUN 已接管、默认 DNS 为 `198.18.0.2` 时使用；TUN 关闭或 Mihomo 停止时应先移除规则，避免本机失去 DNS。
 5. 实现：`scripts/dns_guard.py`、`dns-guard.cmd`；`--check` 只读，`--apply` 幂等，`--remove` 回滚；应用失败时清理本次已创建的规则。
 6. 验收：`--check` 的 UDP/TCP 均为 OK；默认解析仍为 fake-IP；`192.168.2.1:53` 超时；`223.5.5.5:53` 仍被 TUN 劫持；百度、gstatic、Google、YouTube 回归；`--remove` 后可恢复路由器 DNS。
-7. 当前状态：代码、文档与 7 个单测已完成；当前 DSH 进程为 Low Integrity（`S-1-16-4096`），`New-NetFirewallRule` 与 `Get-NetFirewallProfile` 均被拒绝，规则尚未应用，验收未完成。
+7. 当前状态：代码、文档与 8 个单测已完成；当前 DSH 进程为 Low Integrity（`S-1-16-4096`），`New-NetFirewallRule` 与 `Get-NetFirewallProfile` 均被拒绝，规则尚未应用，验收未完成。
 8. 该高风险安全变更由负责人 2026-11-12 选择 C 授权；实际应用仍需管理员在 DSH 之外执行。
 
 ---

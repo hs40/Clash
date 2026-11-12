@@ -50,6 +50,13 @@ class GuardActionsTest(unittest.TestCase):
         self.assertEqual(len(runner.scripts), 1)
         self.assertIn("Get-NetFirewallRule", runner.scripts[0])
 
+    def test_list_rules_propagates_runner_error(self):
+        def runner(script):
+            raise dns_guard.DnsGuardError("Access is denied")
+
+        with self.assertRaises(dns_guard.DnsGuardError):
+            dns_guard.list_rules(runner=runner)
+
     def test_apply_creates_missing_udp_and_tcp(self):
         runner = FakeRunner("")
         result = dns_guard.apply(runner=runner)

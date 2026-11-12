@@ -56,6 +56,8 @@ def _ps_quote(value):
 
 
 STATUS_SCRIPT = """
+$ErrorActionPreference = 'Stop'
+Get-NetFirewallProfile | Out-Null
 $names = @('Clash DNS Guard - Block LAN DNS (UDP)', 'Clash DNS Guard - Block LAN DNS (TCP)')
 $rules = @(Get-NetFirewallRule -DisplayName 'Clash DNS Guard*' -ErrorAction SilentlyContinue | ForEach-Object {
     $port = $_ | Get-NetFirewallPortFilter
