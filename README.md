@@ -176,7 +176,7 @@ MVP DNS；该能力不进入 dist/ 或 Release。
 - 固定组顺序、预检/剔除、备份/回滚与限制见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
 - 应用入口：管理员运行 verge-sync.cmd；失败自动恢复六个备份文件并重启。
 - 只写 Verge AppData 的全局文件与 current，不改订阅文件、订阅 URL、系统 DNS、hosts 或路由。
-- DNS 泄漏护栏是独立可选步骤，只增删两条出站防火墙规则，见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)。
+- DNS 泄漏护栏是独立可选步骤，只增删两条出站防火墙规则；仅在 Mihomo TUN 接管时使用，见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)。
 - 旧本地 profile mvpClash0001 保留为回退，未自动删除。
 
 2026-11-12 已在本机 FIB 上重新部署并验证：46 节点 / 13 组 / 27 规则，7897 与 1053 监听，
