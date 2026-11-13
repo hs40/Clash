@@ -196,6 +196,9 @@ A 决策后代码已改为放行 `192.168.2.10:53`；旧 `/24` 规则尚未替�
 [docs/PLATFORM-REQUIREMENTS.md](docs/PLATFORM-REQUIREMENTS.md)。
 
 ```powershell
+# 以下命令均在仓库根目录执行
+cd "F:\WorkBuddy AI\Clash"
+
 # 只读计划（默认命令；不写配置、不建状态目录）
 .venv\Scripts\python.exe scripts\platform.py plan --platform windows
 
@@ -216,7 +219,7 @@ rollback.cmd windows "%LOCALAPPDATA%\ClashPlatform\backups\<run>"
 - 退出码：`0` 成功/无变更，`1` 执行或验证失败，`2` 参数错误，`4` 未确认。
 - Windows 读取 `CLASH_NODE_SOURCE` 或现有 Verge profile，复用 `verge_apply`/`verge_global`，只写 Verge 全局文件与 current；关闭物理网卡 IPv6，补齐 DNS 护栏，重启 Verge 后验证。
 - OpenClash 写独立的 `/etc/openclash/config/clash-platform.yaml` 并通过 UCI 切换，旧 `FIB.yaml` 原样保留；设备端先 `mihomo -t`，失败自动回滚。
-- 7893 启用代理认证时，部署前在当前 PowerShell 会话临时设置 `$env:CLASH_PROXY_AUTH = "user:pass"`；平台只从环境变量读取并在内存使用，不落盘、不写日志、不放进命令参数；部署后执行 `Remove-Item Env:\CLASH_PROXY_AUTH`。平台不读取设备 UCI 认证。
+- 7893 启用代理认证时，部署前在当前 PowerShell 会话执行 `$env:CLASH_PROXY_AUTH = Read-Host "输入 7893 认证（user:pass）"`，避免凭据进入命令历史；平台只从环境变量读取并在内存使用，不落盘、不写日志、不放进命令参数；部署后执行 `Remove-Item Env:\CLASH_PROXY_AUTH`。平台不读取设备 UCI 认证。
 - 本地不保存含真实节点的完整 OpenClash 配置；备份只留在设备 root-only 目录，报告只含哈希与脱敏摘要。
 - 状态目录默认 `%LOCALAPPDATA%\ClashPlatform\`，报告保留最近 5 次；`.tmp_*` 与本地状态不进 Git。
 - 当前状态：代码与 349 项本地测试完成；Windows 本机已真实部署（46 节点 / 13 组 / 33 规则，详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)），OpenClash 真实部署尚未通过验收，不能据此宣称已在生产环境生效。

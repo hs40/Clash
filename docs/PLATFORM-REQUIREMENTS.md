@@ -49,7 +49,7 @@
 | Q29 | 本地不存含真实节点的完整 OpenClash 配置；本地只保留备份清单/哈希/差异报告；完整备份只留 iStoreOS root-only 目录；本地报告保留最近 5 次。 |
 | Q30 | 先做 iStoreOS 只读核查，再实现平台。 |
 | Q31 | 2026-11-12 补充：Windows DNS 护栏放行受控解析器 192.168.2.10:53；仍阻断 192.168.2.0/24 内其余地址的 53，原因是 OpenClash 验收需要查询 192.168.2.10:53 的 fake-IP。 |
-| Q32 | 2026-11-13：OpenClash 7893 代理认证改用一次性环境变量 `CLASH_PROXY_AUTH`（`user:pass`）。平台只在内存读取，用于设备本机 curl 与 Windows 探针；不落盘、不写日志、不放进命令参数；不读取设备 UCI 中的认证。未设置时按匿名验证，若 407 则验收失败并按 Q28 自动回滚。 |
+| Q32 | 2026-11-13：OpenClash 7893 代理认证改用一次性环境变量 `CLASH_PROXY_AUTH`（`user:pass`）。平台只在内存读取，用于设备本机 curl 与 Windows 探针；不落盘、不写日志、不放进命令参数；不读取设备 UCI 中的认证。建议用 `Read-Host` 输入，避免凭据进入 PowerShell 命令历史。未设置时按匿名验证，若 407 则验收失败并按 Q28 自动回滚。 |
 
 ## 3. 环境与固定参数
 
@@ -133,7 +133,7 @@ scripts/platform.py rollback --platform windows|openclash --backup-dir PATH [--y
 - DNS：OpenClash 实际由 UCI `dns_port=7874` 接管，生产实际监听 7874。平台生成配置时使用 `dns.listen: 127.0.0.1:7874`（负责人已确认；不沿用公共 1053），`enhanced-mode: fake-ip`、`ipv6: false`；LAN 53 仍由 dnsmasq/OpenClash 重定向。
 - 部署顺序：本地生成 → 本地静态校验 → SSH 上传临时文件 → 设备 `mihomo -t` → 备份旧配置/UCI → 原子替换新配置 → `uci set config_path` → 重启 → 验证；任一步失败按 Q6/Q28 自动回滚。
 - 验证：`mihomo -t`、服务/端口、iStoreOS 本机 curl、Windows 经 7893、Windows 查询 192.168.2.10:53 fake-IP、出口 IP 国家码；LAN 客户端/WebRTC/长期观察为人工项。
-- 7893 代理认证（Q32）：部署前在当前 PowerShell 会话临时设置 `$env:CLASH_PROXY_AUTH = "user:pass"`，平台只从环境变量读取并仅在内存使用；部署后执行 `Remove-Item Env:\CLASH_PROXY_AUTH`。平台不读取设备 UCI 认证，不把凭据写入报告、日志、命令行参数或 SSH 命令。
+- 7893 代理认证（Q32）：部署前在当前 PowerShell 会话执行 `$env:CLASH_PROXY_AUTH = Read-Host "输入 7893 认证（user:pass）"`，避免凭据进入命令历史；平台只从环境变量读取并仅在内存使用；部署后执行 `Remove-Item Env:\CLASH_PROXY_AUTH`。平台不读取设备 UCI 认证，不把凭据写入报告、日志、命令行参数或 SSH 命令。
 - `external-controller :9090` 是现有生产配置，不在本次变更范围；平台只通过 SSH 本机访问验证，不新增暴露。
 
 ### 5.4 Tailscale 与 dsh-pocket 规则
@@ -215,7 +215,7 @@ DNS 的 Tailscale MagicDNS（`*.ts.net` → 100.100.100.100）先不写 `nameser
 
 1. 负责人以管理员身份重新应用 DNS 护栏：`.venv\Scripts\python.exe scripts\dns_guard.py --apply`，再验证 `--check`、`192.168.2.10:53` 与 `192.168.2.1:53`。
 2. Windows 已完成真实部署（run `20261113-000005-652752`）；如需重跑，负责人运行 `deploy-windows.cmd`（普通 PowerShell 自提权），按摘要确认，失败时保留配置等待负责人决定。
-3. OpenClash 重跑只读 plan（负责人普通 PowerShell；DSH 的 ssh-agent 不可达），审阅差异；如 7893 需要认证，在当前会话临时设置 `$env:CLASH_PROXY_AUTH` 后再 deploy，完成后立即移除。
+3. OpenClash 重跑只读 plan（负责人普通 PowerShell；DSH 的 ssh-agent 不可达），审阅差异；如 7893 需要认证，在当前会话用 `Read-Host` 临时设置 `$env:CLASH_PROXY_AUTH` 后再 deploy，完成后立即移除。
 4. 完成真实 Windows/OpenClash 验收后，写 `docs/PLATFORM-ACCEPTANCE.md`，更新 `README.md` 与 `docs/REQUIREMENTS.md`。
 5. 提交 PR，等待 CI 与负责人审查合并。
 6. ENG-04 的 NAS/HAOS/Proxmox 仍为环境阻塞，设备就绪后回补。
