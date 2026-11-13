@@ -42,19 +42,25 @@ class SshRunner:
         self._runner = runner or self._subprocess_runner
 
     def _subprocess_runner(self, args, input_text, timeout):
+        # 必须用二进制 stdin/stdout：Windows 文本模式会把 \n 改写成 \r\n，
+        # 导致上传文件与本地计算出的 LF 哈希不一致。
+        data = None if input_text is None else input_text.encode("utf-8")
         try:
-            return subprocess.run(
+            result = subprocess.run(
                 args,
-                input=input_text,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+                input=data,
                 capture_output=True,
                 timeout=timeout,
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise SshError("SSH 执行失败：%s" % exc) from exc
+        return subprocess.CompletedProcess(
+            result.args,
+            result.returncode,
+            result.stdout.decode("utf-8", "replace"),
+            result.stderr.decode("utf-8", "replace"),
+        )
 
     def args(self, command):
         return [

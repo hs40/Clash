@@ -1,5 +1,6 @@
 """SSH 适配器测试（S3）；fake runner，不连接真实设备。"""
 
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -73,6 +74,22 @@ class SshRunnerTest(unittest.TestCase):
         digest = "a" * 64
         fake = FakeRunner([digest + "  /tmp/x\n"])
         self.assertEqual(platform_ssh.SshRunner(runner=fake).sha256("/tmp/x"), digest)
+
+
+class SubprocessStdinTest(unittest.TestCase):
+    """进程边界回归：Windows 文本模式不得把上传内容改成 CRLF。"""
+
+    def test_subprocess_runner_preserves_lf(self):
+        runner = platform_ssh.SshRunner()
+        text = "a\nb\n"
+        expected = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        code = (
+            "import sys, hashlib; "
+            "sys.stdout.write(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())"
+        )
+        result = runner._subprocess_runner([sys.executable, "-c", code], text, 10)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), expected)
 
 
 if __name__ == "__main__":
