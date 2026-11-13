@@ -1,6 +1,7 @@
 # Clash Verge 全局 MVP 复用（本机部署辅助）
 
-状态：2026-11-12 已在本机 Clash Verge Rev 2.5.10 + FIB 订阅上重新验证（27 规则）。
+状态：2026-11-13 已在本机 Clash Verge Rev 2.5.10 + FIB 订阅上重新部署并验证 33 条规则
+（46 节点 / 13 组）；当前 verify 通过，节点地区比对因未取得选中节点而降级。
 该能力是**本机部署辅助**，不进入 dist/、GitHub Release 或 OpenClash 配置；
 仓库的正式构建契约仍以 [REQUIREMENTS.md](REQUIREMENTS.md) §11 为准。
 
@@ -13,8 +14,9 @@
   远程节点清单。
 - 只写 Verge AppData 下的全局 profiles/Merge.yaml、profiles/Script.js、
   profiles.yaml 与 verge.yaml；FIB 订阅文件、订阅 URL、系统 DNS、hosts 与路由均不改。
-- 防火墙默认不改；DNS 泄漏护栏（负责人 2026-11-12 选择 C）是独立可选步骤，
-  只增删两条出站规则，见 [DNS-GUARD.md](DNS-GUARD.md)。
+- 防火墙默认不改；DNS 泄漏护栏是独立可选步骤，只增删两条出站规则。负责人
+  2026-11-12 先选择 C（阻断 `/24`），后选择 A（放行 `192.168.2.10:53`）；8 条 CIDR
+  新规则已于 2026-11-13 应用，见 [DNS-GUARD.md](DNS-GUARD.md) §4.5。
 - 不写入真实凭据；生成文件中只有仓库的占位节点与 Provider 数据。
 - 坏节点采用**运行时过滤 + 预检剔除**，不建立永久黑名单；节点修复后会自动恢复。
 - 旧本地 profile mvpClash0001 保留为回退，不自动删除。
@@ -24,7 +26,7 @@
     subscription (inline proxies)
       -> Verge app settings (mixed-port / TUN ...)
       -> global Merge.yaml (profile.store-selected + 2 inline providers)
-      -> global Script.js (filter, 13 groups, 27 rules, MVP DNS)
+      -> global Script.js (filter, 13 groups, 33 rules, MVP DNS)
       -> Verge runtime clash-verge.yaml
 
 ### 2.1 全局 Merge.yaml
@@ -46,7 +48,7 @@ main(config, profileName) 对当前订阅执行：
 - 强制 mixed-port: 7897，删除订阅的 port / socks-port，设置
   mode: rule、ipv6: false、allow-lan: false；
 - 保留 Verge 注入的 tun、external-controller、secret 与 profile；
-- 生成固定 13 个策略组、27 条规则和仓库 DNS。
+- 生成固定 13 个策略组、33 条规则和仓库 DNS。
 
 不写 tun、external-controller、secret；这些键由 Verge 管理。
 
@@ -68,8 +70,8 @@ main(config, profileName) 对当前订阅执行：
 tolerance: 50。地区关键词与构建器共用同一个 scripts/regions.py；空地区回退到
 自动选择。
 
-规则共 27 条：特殊 2 条、业务 20 条、基础 4 条、兜底 1 条，最后一条唯一为
-MATCH,PROXY。
+规则共 33 条：特殊 8 条、业务 20 条、基础 4 条、兜底 1 条，最后一条唯一为
+MATCH,PROXY。特殊层含 Tailscale CGNAT/域名与 dsh-pocket 的 Cloudflare 隧道域名/网段直连。
 
 ## 4. 节点预检与剔除
 
@@ -163,7 +165,8 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | 备份 | .tmp_verge_apply_backup_20261111-2247b，6/6 文件哈希与大小匹配 |
 
 上表是 2026-11-11 的运行记录（当时源规则 26 条）。2026-11-12 增加 Tailscale
-`100.64.0.0/10` 直连规则并重新部署后，运行时已为 27 条，见 §6.1。
+`100.64.0.0/10` 直连规则并重新部署后，运行时为 27 条（§6.1）；2026-11-13 再次部署，
+运行时为 33 条，见 §6.3。
 
 验证时 enable_tun_mode: true、enable_system_proxy: false、verge_mixed_port: 7897。
 网络测试使用 Python OpenSSL 绕过系统代理，避免本机 PowerShell/schannel 的 TLS 问题干扰。
@@ -202,13 +205,31 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 
 规则实际远程地址被 Windows 规范化为 `192.168.2.0/255.255.255.0`，`--check` 已兼容。
 管理员 `dns-guard.cmd check` 与 `--remove` 回滚演练均已完成；
-详见 [DNS-GUARD.md](DNS-GUARD.md) §4 与 §6。
+以上为旧 `/24` 规则。A 决策的 8 条 CIDR 新规则已于 2026-11-13 应用，
+详见 [DNS-GUARD.md](DNS-GUARD.md) §4.5 与 §5。
+
+### 6.3 2026-11-13 33 规则重新部署
+
+使用 `deploy-windows.cmd` 重新部署，run `20261113-000005-652752`：
+
+| 项目 | 结果 |
+| --- | --- |
+| 运行时配置 | 46 proxies / 13 groups / 33 rules |
+| 端口 | 7897（mixed-port）与 1053（DNS）监听 |
+| TUN | 启用；DNS fake-IP `198.18.0.9` |
+| 当前 verify | `passed:true`；gstatic HTTP 204；出口 HK（非 CN） |
+| 节点地区比对 | `exit.verified:false`、`selected:null`，未取得选中节点，已降级 |
+| DNS 护栏 | 8 条 CIDR 新规则已应用；`192.168.2.1:53` 超时，`192.168.2.10:53` 返回 fake-IP |
+| 备份 | `%LOCALAPPDATA%\ClashPlatform\windows\backups\20261113-000005-652752` |
+
+部署报告生成于提交 `e377fcc` 之前，报告中的 `exit` 字段曾为 null；当前代码复验已通过，
+以当前 verify 结果为准。完整验收记录见 [PLATFORM-ACCEPTANCE.md](PLATFORM-ACCEPTANCE.md)。
 
 ## 7. 测试接缝
 
 | 接缝 | 文件 | 覆盖 |
 | --- | --- | --- |
-| G1/G2 | tests/test_verge_global.py | Merge 只含 store-selected 与两个 Provider；Script 生成 13 组/27 规则/DNS/端口；坏节点过滤；空地区回退；Node 执行真实脚本 |
+| G1/G2 | tests/test_verge_global.py | Merge 只含 store-selected 与两个 Provider；Script 生成 13 组/33 规则/DNS/端口；坏节点过滤；空地区回退；Node 执行真实脚本 |
 | P1/P2 | tests/test_verge_preflight.py | short-id 静态过滤；逐节点预检；proxy-providers 拒绝；本机 Mihomo 可用时执行真实 -t |
 | A1/A2 | tests/test_verge_apply.py | 备份/恢复字节；原子 LF 写入；校验接受/拒绝；失败自动回滚；dry-run 不写 |
 
@@ -222,8 +243,9 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 ## 8. 限制与未验证项
 
 - 只验证了 FIB 一个订阅；其他订阅的 inline 节点格式、脚本执行与组生成尚未实测。
-- 2026-11-12 发现 `192.168.2.1:53` 直连绕过 TUN；负责人选择方案 C，护栏已应用，
-  路由器 DNS 已阻断，站点回归、管理员 `check` 与 `--remove` 回滚演练均已通过。
+- 2026-11-12 发现 `192.168.2.1:53` 直连绕过 TUN；负责人选择方案 C，随后选择 A。
+  2026-11-13 已应用放行 `.10` 的 8 条 CIDR 新规则，管理员 `check` 与路径实测通过；
+  新规则的 `--remove` 回滚演练尚未重做。
 - 未做断网重连、重启后 TUN 自动恢复与 Verge 应用回滚演练。
 - 未删除旧本地 mvpClash0001；它仍是回退路径。
 - 重命名订阅后，MVP_EXCLUDED 的 profileName 键不会自动迁移；需重新运行 verge-sync.cmd（静态 short-id 过滤仍生效）。

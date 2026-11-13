@@ -18,7 +18,11 @@ class RuleSpecTest(unittest.TestCase):
         self.assertEqual(spec["Direction"], "Outbound")
         self.assertEqual(spec["Action"], "Block")
         self.assertEqual(spec["Protocol"], "UDP")
-        self.assertEqual(spec["RemoteAddress"], "192.168.2.0/24")
+        self.assertEqual(
+            spec["RemoteAddress"],
+            "192.168.2.0/29,192.168.2.8/31,192.168.2.11/32,192.168.2.12/30,192.168.2.16/28,192.168.2.32/27,192.168.2.64/26,192.168.2.128/25",
+        )
+        self.assertNotIn("192.168.2.10/32", spec["RemoteAddress"].split(","))
         self.assertEqual(str(spec["RemotePort"]), "53")
         self.assertEqual(spec["Profile"], "Any")
         self.assertTrue(spec["Enabled"])
@@ -57,7 +61,7 @@ class GuardActionsTest(unittest.TestCase):
         with self.assertRaises(dns_guard.DnsGuardError):
             dns_guard.list_rules(runner=runner)
 
-    def test_accepts_netmask_form_returned_by_windows(self):
+    def test_rejects_legacy_full_lan_block(self):
         rule = {
             "DisplayName": "Clash DNS Guard - Block LAN DNS (UDP)",
             "Enabled": "True",
@@ -65,6 +69,41 @@ class GuardActionsTest(unittest.TestCase):
             "Action": "Block",
             "Protocol": "UDP",
             "RemoteAddress": "192.168.2.0/255.255.255.0",
+            "RemotePort": "53",
+            "Profile": "Any",
+        }
+        self.assertFalse(dns_guard.is_expected(rule, "UDP"))
+
+    def test_accepts_netmask_form_for_exclusion_cidrs(self):
+        rule = {
+            "DisplayName": "Clash DNS Guard - Block LAN DNS (UDP)",
+            "Enabled": "True",
+            "Direction": "Outbound",
+            "Action": "Block",
+            "Protocol": "UDP",
+            "RemoteAddress": (
+                "192.168.2.0/255.255.255.248,"
+                "192.168.2.8/255.255.255.254,"
+                "192.168.2.11/255.255.255.255,"
+                "192.168.2.12/255.255.255.252,"
+                "192.168.2.16/255.255.255.240,"
+                "192.168.2.32/255.255.255.224,"
+                "192.168.2.64/255.255.255.192,"
+                "192.168.2.128/255.255.255.128"
+            ),
+            "RemotePort": "53",
+            "Profile": "Any",
+        }
+        self.assertTrue(dns_guard.is_expected(rule, "UDP"))
+
+    def test_accepts_cidrs_that_exclude_istoreos(self):
+        rule = {
+            "DisplayName": "Clash DNS Guard - Block LAN DNS (UDP)",
+            "Enabled": "True",
+            "Direction": "Outbound",
+            "Action": "Block",
+            "Protocol": "UDP",
+            "RemoteAddress": "192.168.2.0/29,192.168.2.8/31,192.168.2.11/32,192.168.2.12/30,192.168.2.16/28,192.168.2.32/27,192.168.2.64/26,192.168.2.128/25",
             "RemotePort": "53",
             "Profile": "Any",
         }
@@ -80,16 +119,17 @@ class GuardActionsTest(unittest.TestCase):
         self.assertIn("New-NetFirewallRule", runner.scripts[2])
         self.assertIn("UDP", runner.scripts[1])
         self.assertIn("TCP", runner.scripts[2])
+        self.assertIn("-RemoteAddress 192.168.2.0/29,", runner.scripts[1])
 
     def test_apply_skips_existing_rules(self):
         status = (
             '[{"DisplayName":"Clash DNS Guard - Block LAN DNS (UDP)",'
             '"Enabled":true,"Direction":"Outbound","Action":"Block",'
-            '"Protocol":"UDP","RemoteAddress":"192.168.2.0/24","RemotePort":"53",'
+            '"Protocol":"UDP","RemoteAddress":"192.168.2.0/29,192.168.2.8/31,192.168.2.11/32,192.168.2.12/30,192.168.2.16/28,192.168.2.32/27,192.168.2.64/26,192.168.2.128/25","RemotePort":"53",'
             '"Profile":"Any"},'
             '{"DisplayName":"Clash DNS Guard - Block LAN DNS (TCP)",'
             '"Enabled":true,"Direction":"Outbound","Action":"Block",'
-            '"Protocol":"TCP","RemoteAddress":"192.168.2.0/24","RemotePort":"53",'
+            '"Protocol":"TCP","RemoteAddress":"192.168.2.0/29,192.168.2.8/31,192.168.2.11/32,192.168.2.12/30,192.168.2.16/28,192.168.2.32/27,192.168.2.64/26,192.168.2.128/25","RemotePort":"53",'
             '"Profile":"Any"}]'
         )
         runner = FakeRunner(status)

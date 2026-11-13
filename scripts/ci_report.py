@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import platform
 import sys
 import time
 import unittest
@@ -84,7 +83,7 @@ def _escape_cell(value):
 
 def build_report(results, generated_at=None, python_version=None):
     generated_at = generated_at or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    python_version = python_version or platform.python_version()
+    python_version = python_version or "%d.%d.%d" % sys.version_info[:3]
     counts = Counter(result["status"] for result in results)
     lines = [
         "# Clash 配置工程测试报告",
@@ -153,9 +152,11 @@ def main(argv=None):
             handle.write(report)
 
     total = len(records)
-    failures = sum(1 for r in records if r["status"] in ("失败", "错误"))
-    print("测试报告：%s（%d 项，失败/错误 %d 项）" % (args.output, total, failures))
-    return 0 if failures == 0 else 1
+    failed = [r for r in records if r["status"] in ("失败", "错误")]
+    for failure in failed:
+        print("失败测试：%s" % failure["name"])
+    print("测试报告：%s（%d 项，失败/错误 %d 项）" % (args.output, total, len(failed)))
+    return 0 if not failed else 1
 
 
 if __name__ == "__main__":

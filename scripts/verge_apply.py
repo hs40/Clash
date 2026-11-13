@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-from verge_global import GROUP_ORDER, build_merge, build_script
+from verge_global import GROUP_ORDER, build_merge, build_script, load_rules
 from verge_preflight import PreflightError, preflight
 
 APP_DIR_NAME = "io.github.clash-verge-rev.clash-verge-rev"
@@ -129,7 +129,18 @@ def write_atomic(path, text):
         handle.write(data)
         handle.flush()
         os.fsync(handle.fileno())
-    os.replace(temp, path)
+    for attempt in range(5):
+        try:
+            os.replace(temp, path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                try:
+                    temp.unlink()
+                except OSError:
+                    pass
+                raise
+            time.sleep(0.2)
 
 
 def set_setting(path, key, value):
@@ -198,6 +209,9 @@ def prepare_plan(appdir, root, mihomo, workdir, target_uid=None):
         "profile_name": name,
         "settings": snapshot_settings(appdir),
         "expected_proxies": len(result["usable"]),
+        "proxy_names": [node["name"] for node in result["usable"]],
+        "proxies": result["usable"],
+        "expected_rules": len(load_rules(root)),
         "preflight": {
             "total": result["total"],
             "static_bad": [node["name"] for node in result["static_bad"]],
@@ -214,7 +228,7 @@ def _group(groups, name):
     raise ApplyError("缺少策略组：%s" % name)
 
 
-def verify_config(config, expected_proxies):
+def verify_config(config, expected_proxies, expected_rules):
     """校验 Verge 生成的 config.yaml 是否符合 MVP 固定契约。"""
     if not isinstance(config, dict):
         raise ApplyError("config.yaml 顶层不是映射")
@@ -273,8 +287,10 @@ def verify_config(config, expected_proxies):
     if not isinstance(providers, dict) or set(providers) != set(PROVIDERS):
         raise ApplyError("rule-providers 不是且仅是两个内嵌 Provider")
     rules = config.get("rules")
-    if not isinstance(rules, list) or len(rules) != 27:
-        raise ApplyError("规则数不是 27")
+    if not isinstance(rules, list) or len(rules) != expected_rules:
+        raise ApplyError("规则数不是 %d：%r" % (
+            expected_rules, len(rules) if isinstance(rules, list) else rules
+        ))
     if rules[-1] != "MATCH,PROXY" or any(rule == "MATCH,PROXY" for rule in rules[:-1]):
         raise ApplyError("MATCH,PROXY 必须是唯一且最后一条")
     return True
@@ -289,7 +305,8 @@ def _switch_current(profiles_path, uid):
     write_atomic(profiles_path, text)
 
 
-def _wait_for_config(appdir, expected_proxies, timeout, sleep, min_mtime_ns=None):
+def _wait_for_config(appdir, expected_proxies, expected_rules, timeout, sleep,
+                     min_mtime_ns=None):
     deadline = time.monotonic() + timeout
     last_error = None
     runtime = Path(appdir) / "clash-verge.yaml"
@@ -299,7 +316,7 @@ def _wait_for_config(appdir, expected_proxies, timeout, sleep, min_mtime_ns=None
                 if runtime.stat().st_mtime_ns <= min_mtime_ns:
                     raise ApplyError("clash-verge.yaml 尚未重新生成")
             data = _read_yaml(runtime)
-            verify_config(data, expected_proxies)
+            verify_config(data, expected_proxies, expected_rules)
             return True
         except ApplyError as exc:
             last_error = exc
@@ -311,7 +328,7 @@ def _wait_for_config(appdir, expected_proxies, timeout, sleep, min_mtime_ns=None
 
 
 def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
-                    verify_timeout=45, sleep=time.sleep):
+                    verify_timeout=45, sleep=time.sleep, stop=None):
     """执行迁移；任何异常都恢复备份（dry_run 不写文件）。"""
     appdir = Path(appdir)
     if dry_run:
@@ -319,6 +336,7 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
             "dry_run": True,
             "profile_uid": plan["profile_uid"],
             "expected_proxies": plan["expected_proxies"],
+            "expected_rules": plan["expected_rules"],
             "merge_bytes": len(plan["merge"].encode("utf-8")),
             "script_bytes": len(plan["script"].encode("utf-8")),
         }
@@ -328,7 +346,11 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
     manifest = backup(appdir, backup_dir)
     original_current = _read_yaml(appdir / "profiles.yaml").get("current")
     try:
-        print("[2/6] 写入全局 Merge/Script", flush=True)
+        if stop is not None:
+            print("[2/6] 停止 Verge 并写入全局 Merge/Script", flush=True)
+            stop()
+        else:
+            print("[2/6] 写入全局 Merge/Script", flush=True)
         write_atomic(appdir / "profiles" / "Merge.yaml", plan["merge"])
         write_atomic(appdir / "profiles" / "Script.js", plan["script"])
         print("[3/6] 切换 current -> %s" % plan["profile_uid"], flush=True)
@@ -343,8 +365,8 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
             reload()
             if verify_timeout is not None:
                 _wait_for_config(
-                    appdir, plan["expected_proxies"], verify_timeout, sleep,
-                    min_mtime_ns=before_mtime,
+                    appdir, plan["expected_proxies"], plan["expected_rules"],
+                    verify_timeout, sleep, min_mtime_ns=before_mtime,
                 )
             print("[6/6] 校验通过", flush=True)
     except Exception as exc:
@@ -362,6 +384,7 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
         "profile_name": plan["profile_name"],
         "previous_current": original_current,
         "expected_proxies": plan["expected_proxies"],
+        "expected_rules": plan["expected_rules"],
         "preflight": plan.get("preflight"),
         "files": manifest["files"],
     }
@@ -370,11 +393,11 @@ def apply_migration(appdir, plan, backup_dir, reload=None, dry_run=False,
 RESTART_IMAGES = ("clash-verge.exe", "verge-mihomo.exe")
 
 
-def restart_verge(task_name="Clash Verge (Admin)", wait=3.0):
-    """强制结束 Verge UI/核心，再用计划任务以管理员身份启动。
+def stop_verge(wait=0.5):
+    """按镜像名结束 Verge UI/核心，释放 profiles 文件句柄。
 
-    schtasks /End 只结束计划任务的直接进程，实测不会结束 sidecar 核心，
-    也不会让 Verge 重新生成 clash-verge.yaml；因此这里按镜像名结束两者。
+    Verge 运行时会持有 Merge.yaml 等文件的句柄，直接 os.replace 会报
+    Permission denied；写入前必须先停止，并留出句柄释放时间。
     """
     for image in RESTART_IMAGES:
         subprocess.run(
@@ -383,6 +406,17 @@ def restart_verge(task_name="Clash Verge (Admin)", wait=3.0):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+    if wait:
+        time.sleep(wait)
+
+
+def restart_verge(task_name="Clash Verge (Admin)", wait=3.0):
+    """强制结束 Verge UI/核心，再用计划任务以管理员身份启动。
+
+    schtasks /End 只结束计划任务的直接进程，实测不会结束 sidecar 核心，
+    也不会让 Verge 重新生成 clash-verge.yaml；因此这里按镜像名结束两者。
+    """
+    stop_verge(wait=0)
     time.sleep(wait)
     proc = subprocess.run(
         ["schtasks", "/Run", "/TN", task_name],
@@ -440,6 +474,7 @@ def main(argv=None):
             appdir, plan, backup_dir,
             reload=restart_verge if args.restart else None,
             verify_timeout=45 if args.restart else None,
+            stop=stop_verge if args.restart else None,
         )
         print("迁移完成：profile=%s，节点=%d，备份=%s" % (
             result["profile_name"], result["expected_proxies"], result["backup"]

@@ -146,6 +146,21 @@ class BuilderMergeTest(unittest.TestCase):
         self.assertNotIn("mixed-port", cfg)
         self.assertNotIn("tun", cfg)
 
+    def test_accepts_runtime_proxies_and_dns_listen(self):
+        proxies = [
+            {"name": "香港 01", "type": "ss", "server": "192.0.2.1", "port": 443,
+             "cipher": "aes-128-gcm", "password": "PLACEHOLDER-NOT-REAL"},
+            {"name": "美国 01", "type": "ss", "server": "192.0.2.2", "port": 443,
+             "cipher": "aes-128-gcm", "password": "PLACEHOLDER-NOT-REAL"},
+        ]
+        cfg = build.build_platform(
+            "openclash", ROOT, proxies=proxies, dns_listen="127.0.0.1:7874"
+        )
+        self.assertEqual([item["name"] for item in cfg["proxies"]], ["香港 01", "美国 01"])
+        self.assertEqual(cfg["dns"]["listen"], "127.0.0.1:7874")
+        self.assertEqual(cfg["port"], 7893)
+        self.assertEqual(cfg["rules"][-1], "MATCH,PROXY")
+
     def test_dump_yaml_is_deterministic(self):
         cfg = build.build_platform("windows", ROOT)
         self.assertEqual(build.dump_yaml(cfg), build.dump_yaml(cfg))
