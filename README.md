@@ -17,6 +17,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - ENG-04 验收报告：[docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)
 - ENG-05 验收报告：[docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md)
 - ENG-06 验收报告：[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md)
+- 平台部署验收报告：[docs/PLATFORM-ACCEPTANCE.md](docs/PLATFORM-ACCEPTANCE.md)
 - 回滚手册：[docs/ROLLBACK.md](docs/ROLLBACK.md)
 - 本机 Verge 全局复用：[docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)
 - 安全策略：[docs/SECURITY.md](docs/SECURITY.md)
@@ -126,7 +127,7 @@ py -m venv .venv
 - Verge 全局扩展：Merge 只含 `profile.store-selected` 与两个 inline Provider；Script 生成
   13 组/33 规则/DNS/端口、过滤坏 `short-id`、空地区回退；预检逐节点 `-t`；备份与失败回滚；
   Node 执行真实 Script（无 Node 时跳过）。
-- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除、新 CIDR 集合、拒绝旧 `/24`、Windows 点分掩码匹配（11 项）；旧 `/24` 规则已在真实防火墙应用并通过回滚演练，A 决策后的新规则待管理员重新应用。
+- DNS 护栏：UDP/TCP 规则规格、幂等创建/跳过、删除、新 CIDR 集合、拒绝旧 `/24`、Windows 点分掩码匹配（11 项）；2026-11-13 已应用 8 条 CIDR 新规则并通过 `--check`、`.10:53` fake-IP 与 `.2.1:53` 超时验证；新规则的移除演练尚未重做。
 
 ## CI 与安全检查
 
@@ -178,16 +179,14 @@ MVP DNS；该能力不进入 dist/ 或 Release。
 - 固定组顺序、预检/剔除、备份/回滚与限制见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
 - 应用入口：管理员运行 verge-sync.cmd；失败自动恢复六个备份文件并重启。
 - 只写 Verge AppData 的全局文件与 current，不改订阅文件、订阅 URL、系统 DNS、hosts 或路由。
-- DNS 泄漏护栏是独立可选步骤，只增删两条出站防火墙规则；当前生产规则仍为旧 `192.168.2.0/24` 全阻断，新策略（放行 `192.168.2.10:53`）待管理员重新应用；仅在 Mihomo TUN 接管时使用，见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)。
+- DNS 泄漏护栏是独立可选步骤，只增删两条出站防火墙规则；2026-11-13 已应用 8 条 CIDR 新策略（放行 `192.168.2.10:53`），`--check` 通过；仅在 Mihomo TUN 接管时使用，见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)。
 - 旧本地 profile mvpClash0001 保留为回退，未自动删除。
 
-2026-11-12 已在本机 FIB 上重新部署并验证（历史记录，当时规则数为 27）：46 节点 / 13 组 /
-27 规则，7897 与 1053 监听，
-TUN 与 fake-ip 正常，百度/Google/YouTube 连通；显式查询 `192.168.2.1:53` 曾绕过
-TUN 返回真实地址，负责人选择方案 C 后已在管理员上下文应用两条出站阻断规则：
-路由器 DNS 已超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归与管理员 `check` 通过
-（`UDP: OK`、`TCP: OK`、`overall: OK`、`Exit code: 0`）；`--remove` 回滚演练已完成。
-A 决策后代码已改为放行 `192.168.2.10:53`；旧 `/24` 规则尚未替换，新的管理员应用与实测待执行。
+2026-11-13 已在本机 FIB 上重新部署：46 节点 / 13 组 / 33 规则，7897 与 1053 监听，
+TUN 与 fake-ip 正常；当前 verify 通过 gstatic 204、DNS fake-IP 与出口 HK（非 CN）。
+DNS 护栏已应用 A 决策的 8 条 CIDR 新策略，`dns_guard.py --check` 返回
+`UDP: OK`、`TCP: OK`、`overall: OK`；`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时。
+旧本地 profile mvpClash0001 保留为回退。
 
 ## 个人网络部署平台（Windows + OpenClash）
 
@@ -222,7 +221,7 @@ rollback.cmd windows "%LOCALAPPDATA%\ClashPlatform\backups\<run>"
 - 7893 启用代理认证时，部署前在当前 PowerShell 会话执行 `$env:CLASH_PROXY_AUTH = Read-Host "输入 7893 认证（user:pass）"`，避免凭据进入命令历史；平台只从环境变量读取并在内存使用，不落盘、不写日志、不放进命令参数；部署后执行 `Remove-Item Env:\CLASH_PROXY_AUTH`。平台不读取设备 UCI 认证。
 - 本地不保存含真实节点的完整 OpenClash 配置；备份只留在设备 root-only 目录，报告只含哈希与脱敏摘要。
 - 状态目录默认 `%LOCALAPPDATA%\ClashPlatform\`，报告保留最近 5 次；`.tmp_*` 与本地状态不进 Git。
-- 当前状态：代码与 349 项本地测试完成；Windows 本机已真实部署（46 节点 / 13 组 / 33 规则，详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)），OpenClash 真实部署尚未通过验收，不能据此宣称已在生产环境生效。
+- 当前状态：代码与 356 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过当前自动验收（Windows 46 节点 / 13 组 / 33 规则；OpenClash 46 个可用节点 / 13 组 / 33 规则），详见 [docs/PLATFORM-ACCEPTANCE.md](docs/PLATFORM-ACCEPTANCE.md)；选中节点地区比对、失败回滚实机演练与人工项仍未关闭。
 
 ## 占位内容说明
 
@@ -254,8 +253,8 @@ Provider Check 的 issue 创建路径也用临时分支实际验证（issue #6 �
 已知限制：Release 工作流在干净检出中构建，`CONFIG-DIFF.md` 会显示“未找到上一版本”，
 尚未实现从上一 GitHub Release 读取比较基线；详见
 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.14 与 §5。
-内嵌 Provider 后的新产物尚未在 iStoreOS 设备上重测，因此 ENG-06 标记为
-「本地完成、远端 Provider Check/Release 通过；设备待验证」。
+平台部署已将内嵌 Provider 的构建产物写入 iStoreOS 并通过 `mihomo -t`；Release zip 本身
+未单独在设备上重测，ENG-06 仍保留「设备待验证」的发布包级限制。
 PR #3（`c3436d3`）、PR #5（`d4a7a4a`）与 PR #10（`4cb9148`）已合并；
 PR CI、main CI（run 43003765690）与 Provider Check 均通过，发布记录见
 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.8、§3.13、§3.14。
@@ -265,11 +264,12 @@ PR CI、main CI（run 43003765690）与 Provider Check 均通过，发布记录�
 [docs/ENG-02-ACCEPTANCE.md](docs/ENG-02-ACCEPTANCE.md)、
 [docs/ENG-03-ACCEPTANCE.md](docs/ENG-03-ACCEPTANCE.md)、
 [docs/ENG-04-ACCEPTANCE.md](docs/ENG-04-ACCEPTANCE.md)、
-[docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md) 与
-[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md)。
+[docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md)、
+[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) 与
+[docs/PLATFORM-ACCEPTANCE.md](docs/PLATFORM-ACCEPTANCE.md)。
 
-本机 Clash Verge 全局复用已于 2026-11-12 在 FIB 订阅上重新部署并验证（历史记录，当时规则数为
-27）：46 节点 / 13 组 / 27 规则，7897 与 1053 监听，TUN 与 fake-ip 正常，关键站点连通；旧本地 profile
-mvpClash0001 保留作回退。该能力是部署辅助，不进入 Release；只验证 FIB 一个订阅，
-其他订阅、断网重连与 TUN 重启恢复未验证。DNS 泄漏护栏见 [docs/DNS-GUARD.md](docs/DNS-GUARD.md)，
-已应用，管理员 `check` 与 `--remove` 回滚演练均通过。详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)。
+本机 Clash Verge 全局复用已于 2026-11-13 在 FIB 订阅上重新部署：46 节点 / 13 组 / 33 规则，
+7897 与 1053 监听，TUN 与 fake-ip 正常；旧本地 profile mvpClash0001 保留作回退。该能力是部署辅助，
+不进入 Release；只验证 FIB 一个订阅，其他订阅、断网重连与 TUN 重启恢复未验证。DNS 护栏已应用
+8 条 CIDR 新策略，管理员 `check` 通过；`--remove` 回滚演练为 2026-11-12 旧策略记录。
+详见 [docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md) 与 [docs/PLATFORM-ACCEPTANCE.md](docs/PLATFORM-ACCEPTANCE.md)。

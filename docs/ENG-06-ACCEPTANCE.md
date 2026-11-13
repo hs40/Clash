@@ -14,8 +14,9 @@
   发布配置在本机 Mihomo 上 `-t` 通过。`v0.1.0` 的 `SHA256SUMS` 资产覆盖限制已在
   `v0.1.1` 修正为只覆盖两个 Release zip；远端资产下载、独立哈希校验、zip 结构与
   解出配置 `-t` 均通过，干净本地构建可复现远端 zip 哈希。Release 的 `CONFIG-DIFF.md`
-  在干净检出中仍显示“未找到上一版本”，作为已知遗留记录。iStoreOS 设备尚未用新产物
-  重测，因此 ENG-06 标记为“本地完成、远端 Provider Check/Release 通过；设备重测待完成”。**
+  在干净检出中仍显示“未找到上一版本”，作为已知遗留记录。平台部署已将内嵌 Provider 的
+  构建产物写入 iStoreOS 并通过 `mihomo -t`；Release zip 本身未单独在设备上重测，因此
+  ENG-06 保留“本地完成、远端 Provider Check/Release 通过；Release 包设备重测待完成”。**
 
 ---
 
@@ -401,8 +402,9 @@ main 未改动，当前无开放 issue。**清理通过。**
    （run 43003842864）改为清单只列两个 zip，发布目录其余文件仍做结构校验并由 zip
    内副本核对；远端 3 个资产下载后独立哈希、zip 结构、解出配置与 `-t` 均通过，
    本地 188 项测试与干净目录构建复现也通过。`v0.1.0` 保持原样，不重写。
-3. **iStoreOS 未重测。** 内嵌 Provider 后 OpenClash 配置为 2,282,408 字节；
-   设备 alpha-gbc76c13 尚未加载该新产物。旧产物 4,006 字节的 `-t` 结果不能代表新产物。
+3. **iStoreOS 的 Release 包未重测。** 内嵌 Provider 后 OpenClash 配置为 2,282,408 字节；
+   平台部署已将构建产物写入设备 `clash-platform.yaml` 并通过 `mihomo -t`，但 Release zip
+   本身未单独解包重测。旧产物 4,006 字节的 `-t` 结果不能代表新产物。
 4. **NAS/HAOS/Proxmox 仍环境阻塞。** 与 ENG-04 相同，未做端到端透明代理/DNS 验证。
 5. **GPL 许可证文件来源。** 固定 commit `458e716...` 的 `meta` 分支根目录没有
    LICENSE；`providers/LICENSE-metacubex.txt` 取自仓库 master 根目录（35,149 字节，

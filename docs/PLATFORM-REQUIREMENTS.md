@@ -1,6 +1,6 @@
 # 个人网络部署平台需求（v1.1）
 
-- 状态：**平台代码与 349 项本地测试完成；Windows 本机已真实部署并通过自动验证；OpenClash 真实部署尚未通过验收；PR #17 仍开放。**
+- 状态：**平台代码与 356 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 仍开放。**
 - 实现：`scripts/platform*.py`、`deploy-windows.cmd`、`deploy-openclash.cmd`、`rollback.cmd`；单元测试见 `tests/test_platform*.py`、`tests/test_dns_guard.py`。
 - 适用范围：本机 Windows（Clash Verge Rev + Mihomo）与 iStoreOS 192.168.2.10（OpenClash）。
 - 依据：`Clash 配置工程开发 Plan.md`、负责人 2026-11-11/12/13 的 Q13–Q32 回答、2026-11-12 iStoreOS 只读核查。
@@ -49,7 +49,7 @@
 | Q29 | 本地不存含真实节点的完整 OpenClash 配置；本地只保留备份清单/哈希/差异报告；完整备份只留 iStoreOS root-only 目录；本地报告保留最近 5 次。 |
 | Q30 | 先做 iStoreOS 只读核查，再实现平台。 |
 | Q31 | 2026-11-12 补充：Windows DNS 护栏放行受控解析器 192.168.2.10:53；仍阻断 192.168.2.0/24 内其余地址的 53，原因是 OpenClash 验收需要查询 192.168.2.10:53 的 fake-IP。 |
-| Q32 | 2026-11-13：OpenClash 7893 代理认证改用一次性环境变量 `CLASH_PROXY_AUTH`（`user:pass`）。平台只在内存读取，用于设备本机 curl 与 Windows 探针；不落盘、不写日志、不放进命令参数；不读取设备 UCI 中的认证。建议用 `Read-Host` 输入，避免凭据进入 PowerShell 命令历史。未设置时按匿名验证，若 407 则验收失败并按 Q28 自动回滚。 |
+| Q32 | 2026-11-13：OpenClash 7893 代理认证改用一次性环境变量 `CLASH_PROXY_AUTH`（`user:pass`）。平台只在内存读取，用于设备本机 curl 与 Windows 探针；不落盘、不写日志、不放进命令参数；不读取设备 UCI 中的认证。建议用 `Read-Host` 输入，避免凭据进入 PowerShell 命令历史。未设置时按匿名验证，若 407 则验收失败并按 Q28 自动回滚。2026-11-13 验收时经负责人单独授权，由 PowerShell 一次性读取设备 UCI 认证并仅在当前进程注入环境变量；平台代码未改变，不构成 Q32 的常规路径。 |
 
 ## 3. 环境与固定参数
 
@@ -59,7 +59,7 @@
 | Windows 默认网关/DNS | 192.168.2.1（平台不改） |
 | iStoreOS | 192.168.2.10；iStoreOS 25.12.6；OpenClash；Mihomo alpha-gbc76c13 |
 | OpenClash 节点入口 | 7893（HTTP port）；LAN 允许；bind-address `*` |
-| OpenClash 配置目录 | `/etc/openclash/config/`；当前生产 `FIB.yaml`；UCI `config_path` |
+| OpenClash 配置目录 | `/etc/openclash/config/`；部署前生产 `FIB.yaml`，2026-11-13 起 UCI `config_path` 指向 `clash-platform.yaml`；旧 `FIB.yaml` 保留 |
 | OpenClash DNS | 生产实际监听 7874；dnsmasq 在 53 接收并转发；nftables 将 LAN 53 重定向到 dnsmasq |
 | iStoreOS 网络 | br-lan 192.168.2.10/24；默认网关 192.168.2.1；dnsmasq 不做 DHCP（主路由负责） |
 | Tailscale | Windows 100.66.234.80；CGNAT 100.64.0.0/10 已直连 |
@@ -213,13 +213,13 @@ DNS 的 Tailscale MagicDNS（`*.ts.net` → 100.100.100.100）先不写 `nameser
 
 ## 9. 下一步
 
-1. 负责人以管理员身份重新应用 DNS 护栏：`.venv\Scripts\python.exe scripts\dns_guard.py --apply`，再验证 `--check`、`192.168.2.10:53` 与 `192.168.2.1:53`。
-2. Windows 已完成真实部署（run `20261113-000005-652752`）；如需重跑，负责人运行 `deploy-windows.cmd`（普通 PowerShell 自提权），按摘要确认，失败时保留配置等待负责人决定。
-3. OpenClash 重跑只读 plan（负责人普通 PowerShell；DSH 的 ssh-agent 不可达），审阅差异；如 7893 需要认证，在当前会话用 `Read-Host` 临时设置 `$env:CLASH_PROXY_AUTH` 后再 deploy，完成后立即移除。
-4. 完成真实 Windows/OpenClash 验收后，写 `docs/PLATFORM-ACCEPTANCE.md`，更新 `README.md` 与 `docs/REQUIREMENTS.md`。
+1. DNS 护栏已应用 A 决策的 8 条 CIDR 新策略；`dns_guard.py --check` 返回 UDP/TCP/overall OK，`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时。
+2. Windows 已完成真实部署（run `20261113-000005-652752`）；当前 verify 通过，节点地区比对因未取得选中节点而降级。
+3. OpenClash 已完成真实部署（run `20261113-151617-826379`）；当前带一次性认证的 verify 通过，节点地区比对同样降级。
+4. 已写 `docs/PLATFORM-ACCEPTANCE.md`；待补：节点地区比对、失败回滚实机演练、浏览器 DoH/WebRTC 与 LAN/重启人工项。
 5. 提交 PR，等待 CI 与负责人审查合并。
 6. ENG-04 的 NAS/HAOS/Proxmox 仍为环境阻塞，设备就绪后回补。
 
 ---
 
-平台代码已实现并通过 349 项本地测试；**Windows 本机部署完成，OpenClash 真实部署与验收尚未完成，未提交真实凭据或节点**。OpenClash 代理认证按 Q32 只使用一次性环境变量。
+平台代码已实现并通过 356 项本地测试；**Windows 与 OpenClash 均已完成真实部署和当前自动验收，未提交真实凭据或节点**。OpenClash 代理认证按 Q32 只使用一次性环境变量；本次验收读取 UCI 的一次性例外已在 `docs/PLATFORM-ACCEPTANCE.md` 记录。
