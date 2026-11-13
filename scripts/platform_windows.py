@@ -481,7 +481,7 @@ def verify_windows(appdir, expected_proxies, expected_rules, runner=None,
         group = None
     country = platform_verify.exit_country(info, group)
     passed = bool(ipv6["passed"] and dns["passed"] and http["passed"]
-                  and country["passed"] is not False)
+                  and country["passed"] is True)
     return {
         "passed": passed,
         "config": {"proxies": expected_proxies, "rules": expected_rules},

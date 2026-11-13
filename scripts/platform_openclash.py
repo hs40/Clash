@@ -419,7 +419,7 @@ def verify_openclash(ssh, http_check=None, dns_query=None, ip_info=None,
         info = {"error": str(exc)}
     country = platform_verify.exit_country(info, None)
     passed = bool(port and device_http["passed"] and http["passed"]
-                  and dns["passed"] and country["passed"] is not False)
+                  and dns["passed"] and country["passed"] is True)
     return {
         "passed": passed,
         "port": port,

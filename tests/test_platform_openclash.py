@@ -292,6 +292,16 @@ class VerifyTest(unittest.TestCase):
         self.assertTrue(result["dns"]["fake_ip"]["passed"])
         self.assertNotIn("lan", result["dns"])
 
+    def test_missing_exit_country_fails(self):
+        result = platform_openclash.verify_openclash(
+            FakeSsh(),
+            http_check={"status": 204, "expected": 204, "passed": True},
+            dns_query=lambda name, server: {"answers": ["198.18.0.85"]},
+            ip_info=lambda: {"error": "出口 IP 查询失败"},
+        )
+        self.assertFalse(result["passed"])
+        self.assertIsNone(result["exit"]["passed"])
+
 
 class VerifyAuthTest(unittest.TestCase):
     def test_verify_uses_environment_auth_for_http_and_exit_ip(self):
