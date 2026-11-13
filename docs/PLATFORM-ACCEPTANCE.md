@@ -17,7 +17,10 @@
 
 - Windows：46 个节点、13 个策略组、33 条规则；mixed-port 7897；TUN gvisor；IPv6 关闭；DNS 1053 fake-IP。
 - OpenClash：55 个候选节点中 46 个可用、9 个静态坏节点被过滤；13 个策略组、33 条规则；HTTP port 7893；配置 SHA-256 `9cc3ac9981deb47ad11e972de16a378b97423572e302892923f90ba36280b150`。
-- 全部自动化测试：**356 项通过，0 失败**（`Ran 356 tests in 237.406s` / `OK`）。
+- 全部自动化测试：**357 项通过，0 失败**（2026-11-13 复跑：`Ran 357 tests in 191.721s` / `OK`）。
+- 2026-11-13 补丁：`dns.fallback` 加 `#PROXY`，修复境外 DoH 直连超时导致 `DIRECT` 域名解析失败；
+  已应用到 Windows Verge，`api.trycloudflare.com` 405、`www.workbuddy.ai` 200、gstatic 204。
+  PR #17 已 squash 合并为 `de4d5be`。
 
 ---
 

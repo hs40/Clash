@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.26
+**版本：** v1.27
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -423,8 +423,9 @@ Release 并上传两个 zip 与 `SHA256SUMS`；资产下载校验与 Mihomo `-t`
 
 2026-11-12 起另按负责人 Q13–Q32 实现个人网络部署平台（Windows Clash Verge +
 iStoreOS OpenClash 的计划/部署/验证/回滚）；需求与边界见
-`docs/PLATFORM-REQUIREMENTS.md`。平台代码与 356 项本地测试已完成；Windows 与 OpenClash 均已
-真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 仍开放。
+`docs/PLATFORM-REQUIREMENTS.md`。平台代码与 357 项本地测试已完成；Windows 与 OpenClash 均已
+真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 已于
+2026-11-13 squash 合并（`de4d5be`）。
 代理认证按 Q32 只使用一次性环境变量；2026-11-13 验收读取设备 UCI 的一次性例外见
 `docs/PLATFORM-ACCEPTANCE.md`。
 
@@ -480,8 +481,12 @@ iStoreOS OpenClash 的计划/部署/验证/回滚）；需求与边界见
 | `dns.default-nameserver` | `223.5.5.5`、`119.29.29.29` | |
 | `dns.nameserver` | `https://dns.alidns.com/dns-query`、`https://doh.pub/dns-query` | 国内 |
 | `dns.proxy-server-nameserver` | `https://doh.pub/dns-query`、`https://dns.alidns.com/dns-query` | 节点域名独立解析路径 |
-| `dns.fallback` | `https://1.1.1.1/dns-query`、`https://dns.google/dns-query` | 国外 |
+| `dns.fallback` | `https://1.1.1.1/dns-query#PROXY`、`https://dns.google/dns-query#PROXY` | 国外；必须经代理查询 |
 | `dns.fallback-filter` | `{geoip: true, geoip-code: CN}` | |
+
+> **2026-11-13 修复：** 境外 DoH 若直连，在中国大陆会被阻断；Mihomo 对非 CN 解析结果
+> 走 `fallback` 时会出现 `context deadline exceeded`，导致 `DIRECT` 域名解析失败。
+> `#PROXY` 后缀强制经代理查询，已由真实 Windows 环境验证。`validate_dns` 不剥离该后缀。
 
 ### 13.4 占位节点
 
@@ -603,3 +608,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-12 | v1.24 | 记录平台 PR #17（run 43233835411）CI 通过、本地 329 项测试通过；真实 Windows/OpenClash 部署仍未执行 | 项目负责人（事实记录） |
 | 2026-11-13 | v1.25 | 记录 Windows 真实部署完成、OpenClash 代理认证改为一次性 `CLASH_PROXY_AUTH`（Q32）、349 项本地测试通过；OpenClash 验收仍未完成 | 项目负责人（事实记录） |
 | 2026-11-13 | v1.26 | 记录 Windows/OpenClash 双平台真实部署与当前自动验收通过、356 项本地测试通过、A 决策 DNS 护栏已应用；Q32 一次性 UCI 读取例外；节点地区比对、回滚实机与人工项仍未关闭 | 项目负责人（事实记录） |
+| 2026-11-13 | v1.27 | §13.3 `dns.fallback` 增加 `#PROXY`，修复中国大陆直连境外 DoH 超时导致 `DIRECT` 域名解析失败；已应用到真实 Windows Verge 并实测 | 项目负责人（缺陷修复） |
