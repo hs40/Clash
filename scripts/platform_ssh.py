@@ -62,9 +62,12 @@ class SshRunner:
             result.stderr.decode("utf-8", "replace"),
         )
 
-    def args(self, command):
-        return [
-            "ssh",
+    def args(self, command, input_text=None):
+        args = ["ssh"]
+        if input_text is None:
+            # 无输入的命令不继承本地 stdin，避免 ssh 在自动化终端里等待输入。
+            args.append("-n")
+        args.extend([
             "-o", "BatchMode=yes",
             "-o", "StrictHostKeyChecking=yes",
             "-o", "UserKnownHostsFile=%s" % self.known_hosts,
@@ -72,13 +75,14 @@ class SshRunner:
             "-p", str(self.port),
             "%s@%s" % (self.user, self.host),
             command,
-        ]
+        ])
+        return args
 
     def run(self, command, input_text=None, timeout=None):
         if not isinstance(command, str) or not command.strip():
             raise SshError("远端命令不能为空")
         limit = timeout if timeout is not None else self.timeout
-        result = self._runner(self.args(command), input_text, limit)
+        result = self._runner(self.args(command, input_text), input_text, limit)
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "").strip()
             raise SshError("远端命令失败（exit %d）：%s" % (result.returncode, detail))

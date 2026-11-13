@@ -35,6 +35,11 @@ class SshRunnerTest(unittest.TestCase):
         self.assertEqual(args[-2], "root@192.168.2.10")
         self.assertNotIn("-i", args)
 
+    def test_no_input_uses_noninteractive_stdin(self):
+        runner = platform_ssh.SshRunner()
+        self.assertIn("-n", runner.args("true"))
+        self.assertNotIn("-n", runner.args("true", input_text="x"))
+
     def test_run_returns_stdout_and_passes_timeout(self):
         fake = FakeRunner(["ok\n"])
         runner = platform_ssh.SshRunner(runner=fake)
