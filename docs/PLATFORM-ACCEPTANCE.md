@@ -2,7 +2,7 @@
 
 - 日期：2026-11-13
 - 分支：`main`
-- 代码基线：`e377fcc`（本报告提交前）
+- 代码基线：`3cf7774`（PR #18 合并后；本报告 OpenClash 重部署所用本地 main）
 - 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）
 - 结论：**Windows 与 OpenClash 均已完成真实部署，当前自动验收通过；但“选中节点地区比对”“失败回滚实机演练”和浏览器 DoH/WebRTC 等人工项尚未关闭，因此不能表述为“全部验收项已关闭”。**
 
@@ -12,15 +12,18 @@
 
 | 平台 | 部署 | 当前自动验收 | 结论 |
 | --- | --- | --- | --- |
-| Windows 本机（Clash Verge Rev 2.5.10 + Mihomo v1.19.33） | 2026-11-13，run `20261113-000005-652752` | `passed: true` | 通过（出口非 CN；节点地区未比对） |
-| iStoreOS 192.168.2.10（OpenClash，Mihomo alpha-gbc76c13） | 2026-11-13，run `20261113-151617-826379` | `passed: true` | 通过（出口非 CN；节点地区未比对） |
+| Windows 本机（Clash Verge Rev 2.5.10 + Mihomo v1.19.33） | 2026-11-13，run `20261113-000005-652752`；DNS 补丁另经 `verge_apply.py --apply` 应用 | `passed: true` | 通过（出口非 CN；节点地区未比对） |
+| iStoreOS 192.168.2.10（OpenClash，Mihomo alpha-gbc76c13） | 2026-11-13，run `20261113-151617-826379`；DNS 补丁重部署 run `20261113-195320-018656` | `passed: true` | 通过（出口非 CN；节点地区未比对） |
 
 - Windows：46 个节点、13 个策略组、33 条规则；mixed-port 7897；TUN gvisor；IPv6 关闭；DNS 1053 fake-IP。
-- OpenClash：55 个候选节点中 46 个可用、9 个静态坏节点被过滤；13 个策略组、33 条规则；HTTP port 7893；配置 SHA-256 `9cc3ac9981deb47ad11e972de16a378b97423572e302892923f90ba36280b150`。
-- 全部自动化测试：**357 项通过，0 失败**（2026-11-13 复跑：`Ran 357 tests in 191.721s` / `OK`）。
+- OpenClash：55 个候选节点中 46 个可用、9 个静态坏节点被过滤；13 个策略组、33 条规则；HTTP port 7893。
+  首次部署配置 SHA-256 `9cc3ac9981deb47ad11e972de16a378b97423572e302892923f90ba36280b150`；
+  DNS 补丁重部署后当前设备 SHA-256 `2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`。
+- 全部自动化测试：**357 项通过，0 失败**（2026-11-13 `3cf7774` 上复跑：`Ran 357 tests in 163.271s` / `OK`）。
 - 2026-11-13 补丁：`dns.fallback` 加 `#PROXY`，修复境外 DoH 直连超时导致 `DIRECT` 域名解析失败；
-  已应用到 Windows Verge，`api.trycloudflare.com` 405、`www.workbuddy.ai` 200、gstatic 204。
-  PR #17 已 squash 合并为 `de4d5be`。
+  已应用到 Windows Verge（`api.trycloudflare.com` 405、`www.workbuddy.ai` 200、gstatic 204），
+  并已于 run `20261113-195320-018656` 重部署到 OpenClash 设备（见 §4.4）。
+  PR #17 已 squash 合并为 `de4d5be`；PR #18 已 squash 合并为 `3cf7774`。
 
 ---
 
@@ -31,8 +34,9 @@
 | Windows 本机 | 192.168.2.8；Clash Verge Rev 2.5.10；Mihomo v1.19.33 |
 | iStoreOS | 192.168.2.10；iStoreOS 25.12.6；OpenClash；Mihomo alpha-gbc76c13 |
 | Windows 部署报告 | `%LOCALAPPDATA%\ClashPlatform\windows\runs\20261113-000005-652752\report.json` |
-| OpenClash 部署报告 | `%LOCALAPPDATA%\ClashPlatform\openclash\runs\20261113-151617-826379\report.json` |
-| OpenClash 远端备份 | `/etc/openclash/platform-backups/20261113-151617-826379`（目录 700、文件 600，root:root） |
+| OpenClash 部署报告（首次） | `%LOCALAPPDATA%\ClashPlatform\openclash\runs\20261113-151617-826379\report.json` |
+| OpenClash 部署报告（DNS 补丁重部署） | `%LOCALAPPDATA%\ClashPlatform\openclash\runs\20261113-195320-018656\report.json` |
+| OpenClash 远端备份 | `/etc/openclash/platform-backups/20261113-151617-826379`、`/etc/openclash/platform-backups/20261113-195320-018656`（目录 700、文件 600，root:root） |
 | OpenClash 当前配置 | `/etc/openclash/config/clash-platform.yaml`；旧 `FIB.yaml` 仍在 |
 
 本地 `ClashPlatform\openclash` 只保留 `report.json`、`config.diff` 与备份清单 `openclash.json`；未保存含真实节点的完整配置。
@@ -90,7 +94,7 @@
 - 端口：HTTP `port: 7893`（非 mixed-port）；`allow-lan: true`、`bind-address: "*"`。
 - DNS：`127.0.0.1:7874`、`fake-ip`、`198.18.0.1/16`。
 - 节点：55 个候选、46 个可用、9 个静态坏节点被过滤；13 个策略组、33 条规则。
-- 配置 SHA-256：`9cc3ac9981deb47ad11e972de16a378b97423572e302892923f90ba36280b150`。
+- 首次部署配置 SHA-256：`9cc3ac9981deb47ad11e972de16a378b97423572e302892923f90ba36280b150`（DNS 补丁重部署后的当前值见 §4.4）。
 - 远端备份：`/etc/openclash/platform-backups/20261113-151617-826379`（root-only）。
 
 ### 4.2 当前复验
@@ -122,13 +126,25 @@
 - 未在真实设备上制造部署失败来演练自动回滚；`tests/test_platform_openclash.py` 覆盖失败回滚命令序列。
 - 真实 LAN 客户端、WebRTC、重启后长期观察未在本轮执行。
 
+### 4.4 DNS fallback `#PROXY` 补丁重部署（负责人 m14382 授权）
+
+PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配置（旧 SHA `9cc3ac99…`、fallback 无 `#PROXY`）。负责人 m14382 指令「PR #18 合并，OpenClash 部署新配置」。
+
+- 部署前只读计划：`scripts/platform.py plan --platform openclash --node-source <FIB profile> --diff`；差异仅 `dns.fallback` 两行由 `https://1.1.1.1/dns-query` / `https://dns.google/dns-query` 变为 `…#PROXY`；节点 46→46、组 13→13、规则 33→33（规则 SHA-256 `e19135c7bbc2e23a32b3292b7d12b96b10d4dd58fe7af9d88af566ecdc48b5db`）。
+- 部署命令（非交互、负责人已批准）：`scripts/platform.py deploy --platform openclash --apply --yes --node-source <FIB profile>`。7893 认证按 m13690 一次性授权从设备 UCI 读取，仅注入当前进程 `CLASH_PROXY_AUTH`，不打印、不落盘、不进日志或命令行；平台代码未改变。
+- run `20261113-195320-018656`：`applied.ok = true`、`rolled_back: false`；远端备份 `/etc/openclash/platform-backups/20261113-195320-018656`（含 `current.yaml`、`previous-platform.yaml`）。
+- 新配置 SHA-256：`2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`；设备端 `mihomo -t -f /etc/openclash/config/clash-platform.yaml` 返回 `test is successful`；UCI `config_path` 仍指向独立文件，旧 `FIB.yaml` 保留。
+- 设备端实测：`7893` 监听（`netstat` 显示 `clash` 进程）；`sed -n '28,29p'` 显示两条 fallback 均带 `#PROXY`；DNS `127.0.0.1:7874`、fake-IP `198.18.0.1/16` 不变。
+- 部署内自动 `verify`：`passed: true`——端口 true、设备本机 curl `204`、Windows 经 `192.168.2.10:7893` gstatic `204`、`192.168.2.10:53` 返回 fake-IP `198.18.0.4`、出口国家 `MY`（非 CN，`exit.verified: false` 因未取得选中节点按 Q25 降级）。
+- 合并后回归：`scripts/build.py --platform all` 退出 0；`scripts/security_scan.py` 退出 0；`git diff --check` 退出 0；`.venv\Scripts\python.exe -m unittest discover -s tests -v` → `Ran 357 tests in 163.271s` / `OK`。
+
 ---
 
 ## 5. 安全与凭据
 
 - 仓库与部署报告中未写入真实代理认证、订阅 URL 或完整真实节点配置。
 - OpenClash 完整备份只在设备 root-only 目录；本地只有哈希、差异与脱敏摘要。
-- 本次 7893 认证读取是一次性验收例外，已获负责人授权；使用后立即从进程环境移除。
+- 本次与 DNS 补丁重部署的 7893 认证读取均为一次性验收例外，已获负责人授权（m13690 / m14382）；只注入当前进程环境，脚本结束即消失，未写入磁盘、报告或日志。
 - `scripts/security_scan.py`：`敏感信息扫描通过`，退出 0。
 - 未提交任何真实凭据；未修改主路由、NAS、HAOS、Proxmox 或其他设备。
 
@@ -138,7 +154,7 @@
 
 | 检查 | 命令 | 结果 |
 | --- | --- | --- |
-| 全量测试 | `.venv\Scripts\python.exe -m unittest discover -s tests -v` | `Ran 356 tests in 237.406s` / `OK` |
+| 全量测试 | `.venv\Scripts\python.exe -m unittest discover -s tests -v` | `Ran 357 tests in 163.271s` / `OK`（`3cf7774` 合并后复跑） |
 | 双平台构建 | `.venv\Scripts\python.exe scripts\build.py --platform all` | 退出 0，生成两份配置 |
 | 敏感扫描 | `.venv\Scripts\python.exe scripts\security_scan.py` | `敏感信息扫描通过`，退出 0 |
 | DNS 护栏 | `.venv\Scripts\python.exe scripts\dns_guard.py --check` | `UDP: OK` / `TCP: OK` / `overall: OK`，退出 0 |
@@ -176,7 +192,7 @@
 | --- | --- | --- |
 | 1. DNS 不泄漏自动三项 | 通过 | 默认 fake-IP；路由器 DNS 阻断；公共 DNS 无真实 A |
 | 2. dsh-pocket/Tailscale 人工项 | 未复验 | 本轮未重新验证 LAN 数据面、Cloudflare 隧道与 MagicDNS |
-| 3. 全量测试、构建、敏感扫描 | 通过 | 356 项测试；构建/扫描退出 0 |
+| 3. 全量测试、构建、敏感扫描 | 通过 | 357 项测试（`3cf7774` 复跑）；构建/扫描/`git diff --check` 退出 0 |
 | 4. 不提交真实凭据/节点 | 通过 | 敏感扫描通过；报告只含计数/哈希 |
 | 5. 高风险变更部署前确认 | 通过 | 负责人已批准部署；Q32 一次性例外已单独授权 |
 
@@ -185,10 +201,11 @@
 ## 8. 遗留问题
 
 1. **选中节点地区比对未完成**：Windows 与 OpenClash 均只确认“出口非 CN”，未证明当前选中节点与出口地区一致；需控制接口可用后补测（Q25）。
-2. **失败回滚未实机演练**：自动回滚只有单元测试覆盖；未在真实设备制造部署失败。
+2. **失败回滚未实机演练**：自动回滚只有单元测试覆盖；未在真实设备制造部署失败。DNS 补丁重部署 `20261113-195320-018656` 成功，未触发回滚路径。
 3. **人工项未复验**：浏览器 DoH/DoT/WebRTC、真实 LAN 客户端、重启后长期观察、dsh-pocket/Tailscale 链路。
 4. **ENG-04 范围限制仍在**：NAS 显式代理、HAOS 透明代理、Proxmox 默认网关未验证；本报告不改变 ENG-04 的“部分通过”结论。
-5. **PR #17 尚未审查合并**：本报告与相关文档更新需提交 PR，等待 CI 与负责人审查。
+
+已关闭（不再计入遗留问题）：PR #17 → `de4d5be`、PR #18 → `3cf7774` 均已由负责人审查合并；OpenClash 新配置已按 m14382 部署到设备并验收通过（§4.4）。
 
 ---
 
