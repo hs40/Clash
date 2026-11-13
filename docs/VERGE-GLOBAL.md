@@ -1,7 +1,7 @@
 # Clash Verge 全局 MVP 复用（本机部署辅助）
 
 状态：2026-11-13 已在本机 Clash Verge Rev 2.5.10 + FIB 订阅上重新部署并验证 33 条规则
-（46 节点 / 13 组）；当前 verify 通过，节点地区比对因未取得选中节点而降级。
+（46 节点 / 13 组）；当前 verify 通过，节点地区比对已通过 Mihomo 命名管道控制接口取得选中叶子节点并验证一致（见 docs/PLATFORM-ACCEPTANCE.md §3.4）。
 该能力是**本机部署辅助**，不进入 dist/、GitHub Release 或 OpenClash 配置；
 仓库的正式构建契约仍以 [REQUIREMENTS.md](REQUIREMENTS.md) §11 为准。
 
@@ -218,7 +218,7 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | 端口 | 7897（mixed-port）与 1053（DNS）监听 |
 | TUN | 启用；DNS fake-IP `198.18.0.9` |
 | 当前 verify | `passed:true`；gstatic HTTP 204；出口 HK（非 CN） |
-| 节点地区比对 | `exit.verified:false`、`selected:null`，未取得选中节点，已降级 |
+| 节点地区比对 | `exit.verified:true`、`selected:香港 IX2 2倍|超高速|原生家宽`，出口 HK 与地区一致 |
 | DNS 护栏 | 8 条 CIDR 新规则已应用；`192.168.2.1:53` 超时，`192.168.2.10:53` 返回 fake-IP |
 | 备份 | `%LOCALAPPDATA%\ClashPlatform\windows\backups\20261113-000005-652752` |
 
@@ -245,7 +245,7 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 - 只验证了 FIB 一个订阅；其他订阅的 inline 节点格式、脚本执行与组生成尚未实测。
 - 2026-11-12 发现 `192.168.2.1:53` 直连绕过 TUN；负责人选择方案 C，随后选择 A。
   2026-11-13 已应用放行 `.10` 的 8 条 CIDR 新规则，管理员 `check` 与路径实测通过；
-  新规则的 `--remove` 回滚演练尚未重做。
+  8 条 CIDR 新规则的 `--remove` 回滚演练已于 2026-11-13 完成并恢复（见 docs/DNS-GUARD.md §5）。
 - 未做断网重连、重启后 TUN 自动恢复与 Verge 应用回滚演练。
 - 未删除旧本地 mvpClash0001；它仍是回退路径。
 - 重命名订阅后，MVP_EXCLUDED 的 profileName 键不会自动迁移；需重新运行 verge-sync.cmd（静态 short-id 过滤仍生效）。

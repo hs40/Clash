@@ -4,6 +4,7 @@
 """
 
 import platform_probe as probe
+import regions
 
 
 def dns_no_leak(dns_query, fake_server="198.18.0.2",
@@ -72,6 +73,23 @@ def exit_country(ip_info, selected_group):
         "expected": sorted(expected),
         "detail": "出口国家码与节点地区%s" % ("一致" if matched else "不一致"),
     }
+
+
+def exit_country_for_node(ip_info, selected_node):
+    """Q25：用选中叶子节点名识别地区，再与出口国家码比对。
+
+    selected_node 为 Mihomo 控制接口返回的当前选中叶子节点名；为空时按 Q25
+    降级为「出口非 CN」。地区沿用 ENG-01 的 regions.classify_node 关键词表，
+    不另建映射。返回 exit_country 的结果并附上原始节点名。
+    """
+    if not selected_node:
+        result = exit_country(ip_info, None)
+        result["node"] = selected_node
+        return result
+    group = regions.classify_node(selected_node)
+    result = exit_country(ip_info, group)
+    result["node"] = selected_node
+    return result
 
 
 def http_ok(status, expected=204):
