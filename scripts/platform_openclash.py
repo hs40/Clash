@@ -5,6 +5,7 @@
 """
 
 import json
+import os
 import shlex
 import time
 from datetime import datetime
@@ -28,6 +29,7 @@ TEST_DIR = "/tmp/clash-platform-test"
 TEMP_CONFIG = "/etc/openclash/config/.clash-platform.yaml.tmp"
 PORT = 7893
 PROXY = "http://192.168.2.10:%d" % PORT
+PROXY_AUTH_ENV = "CLASH_PROXY_AUTH"
 
 
 class OpenClashError(Exception):
@@ -234,37 +236,15 @@ def _wait_config_process(ssh, timeout=60, sleep=time.sleep):
         sleep(1)
 
 
-def _uci_get(ssh, key):
-    try:
-        return _run(ssh, "uci -q get %s" % _quote(key)).strip()
-    except OpenClashError:
-        return ""
+def _proxy_auth(environ=None):
+    """只读一次性环境变量；仅在内存中使用，绝不写入磁盘或报告。
 
-
-def _auth_sections(ssh):
-    """OpenClash 的认证是若干 `config authentication` 段，不是 config 选项。"""
-    try:
-        output = _run(ssh, "uci -q show openclash 2>/dev/null || true")
-    except OpenClashError:
-        return []
-    sections = []
-    for line in output.splitlines():
-        name, sep, kind = line.partition("=")
-        if sep and name.startswith("openclash.") and kind.strip() == "authentication":
-            sections.append(name.strip())
-    return sections
-
-
-def _proxy_auth(ssh):
-    """读取第一个启用的 OpenClash 认证段；仅在内存中使用，绝不写入报告。"""
-    for section in _auth_sections(ssh):
-        if _uci_get(ssh, section + ".enabled") == "0":
-            continue
-        user = _uci_get(ssh, section + ".username")
-        pass_value = _uci_get(ssh, section + ".password")
-        if user and pass_value:
-            return "%s:%s" % (user, pass_value)
-    return None
+    环境变量由负责人在部署终端临时设置，平台不读取设备 UCI 中的认证，
+    也不把凭据拼进 SSH 命令、命令行参数或日志。
+    """
+    source = os.environ if environ is None else environ
+    value = source.get(PROXY_AUTH_ENV, "")
+    return value or None
 
 
 def _test_config(ssh):
@@ -392,7 +372,7 @@ def _local_http_command():
 def verify_openclash(ssh, http_check=None, dns_query=None, ip_info=None,
                      dns_attempts=3, dns_sleep=time.sleep):
     """Q24 可自动观测项；真实 LAN 客户端/WebRTC/重启观察仍为人工项。"""
-    auth = _proxy_auth(ssh)
+    auth = _proxy_auth()
     port = _port_open(ssh, PORT)
     try:
         local_status = _run(

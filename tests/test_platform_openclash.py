@@ -1,6 +1,7 @@
 """OpenClash 适配器测试（S3）：命令顺序、失败回滚和脱敏。"""
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -247,25 +248,21 @@ class ConfigProcessTest(unittest.TestCase):
 
 
 class ProxyAuthTest(unittest.TestCase):
-    def test_reads_first_enabled_authentication_section(self):
-        ssh = FakeSsh(responses={
-            "uci -q show openclash": (
-                "openclash.@authentication[0]=authentication\n"
-                "openclash.@authentication[0].enabled='0'\n"
-                "openclash.@authentication[1]=authentication\n"
-                "openclash.@authentication[1].enabled='1'\n"
-            ),
-            "openclash.@authentication[0].enabled": "0",
-            "openclash.@authentication[1].enabled": "1",
-            "openclash.@authentication[1].username": "alice",
-            "openclash.@authentication[1].password": "s3cr3t",
-        })
-        self.assertEqual(platform_openclash._proxy_auth(ssh), "alice:s3cr3t")
+    def test_reads_only_one_time_environment_variable(self):
+        with mock.patch.dict(os.environ, {"CLASH_PROXY_AUTH": "alice:s3cr3t"}, clear=True):
+            self.assertEqual(platform_openclash._proxy_auth(), "alice:s3cr3t")
 
-    def test_missing_authentication_is_none(self):
-        self.assertIsNone(platform_openclash._proxy_auth(FakeSsh(responses={
-            "uci -q show openclash": "openclash.main=openclash\n",
-        })))
+    def test_missing_environment_variable_is_none(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertIsNone(platform_openclash._proxy_auth())
+
+    def test_does_not_read_authentication_from_device_uci(self):
+        guard = mock.patch.object(
+            platform_openclash, "_run",
+            side_effect=AssertionError("不得通过 SSH 读取设备认证"),
+        )
+        with guard, mock.patch.dict(os.environ, {}, clear=True):
+            self.assertIsNone(platform_openclash._proxy_auth())
 
     def test_local_curl_reads_auth_from_stdin(self):
         command = platform_openclash._local_http_command()
@@ -297,10 +294,9 @@ class VerifyTest(unittest.TestCase):
 
 
 class VerifyAuthTest(unittest.TestCase):
-    def test_verify_uses_uci_auth_for_http_and_exit_ip(self):
+    def test_verify_uses_environment_auth_for_http_and_exit_ip(self):
         ssh = FakeSsh()
-        with mock.patch.object(platform_openclash, "_proxy_auth",
-                               return_value="alice:s3cr3t"), \
+        with mock.patch.dict(os.environ, {"CLASH_PROXY_AUTH": "alice:s3cr3t"}, clear=True), \
              mock.patch.object(platform_openclash.platform_probe, "http_status",
                                return_value=204) as http_status, \
              mock.patch.object(platform_openclash.platform_probe, "public_ip_info",
@@ -315,6 +311,7 @@ class VerifyAuthTest(unittest.TestCase):
         self.assertEqual(ip_info.call_args.kwargs["proxy_auth"], "alice:s3cr3t")
         self.assertIn("alice:s3cr3t\n", ssh.inputs)
         self.assertNotIn("alice:s3cr3t", "".join(ssh.calls))
+        self.assertNotIn("uci -q show openclash", "".join(ssh.calls))
         self.assertNotIn("alice:s3cr3t", json.dumps(result, ensure_ascii=False))
 
 
