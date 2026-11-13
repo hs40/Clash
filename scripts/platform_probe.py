@@ -3,6 +3,7 @@
 真实部署只使用这些函数；unittest 用 fake opener/socket，不访问真实网络。
 """
 
+import base64
 import ipaddress
 import json
 import socket
@@ -103,13 +104,32 @@ def dns_query(name, server, port=53, timeout=2.0, query=None):
     return result
 
 
-def http_status(url, proxy=None, timeout=5.0, opener=None):
-    request = urllib.request.Request(url, method="GET")
+def _proxy_headers(proxy_auth):
+    if not proxy_auth:
+        return {}
+    encoded = base64.b64encode(proxy_auth.encode("utf-8")).decode("ascii")
+    return {"Proxy-Authorization": "Basic " + encoded}
+
+
+def _build_opener(proxy, proxy_auth):
+    handlers = []
+    if proxy:
+        handlers.append(urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+    if proxy_auth:
+        user, sep, pass_value = proxy_auth.partition(":")
+        if sep:
+            manager = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+            manager.add_password(None, proxy, user, pass_value)
+            handlers.append(urllib.request.ProxyBasicAuthHandler(manager))
+    return urllib.request.build_opener(*handlers).open
+
+
+def http_status(url, proxy=None, timeout=5.0, opener=None, proxy_auth=None):
+    request = urllib.request.Request(
+        url, headers=_proxy_headers(proxy_auth), method="GET"
+    )
     if opener is None:
-        handlers = []
-        if proxy:
-            handlers.append(urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
-        opener = urllib.request.build_opener(*handlers).open
+        opener = _build_opener(proxy, proxy_auth)
     try:
         response = opener(request, timeout=timeout)
         try:
@@ -122,13 +142,13 @@ def http_status(url, proxy=None, timeout=5.0, opener=None):
         raise ProbeError("HTTP 请求失败 %s：%s" % (url, exc)) from exc
 
 
-def public_ip_info(url=IPINFO_URL, proxy=None, timeout=5.0, opener=None):
-    request = urllib.request.Request(url, method="GET")
+def public_ip_info(url=IPINFO_URL, proxy=None, timeout=5.0, opener=None,
+                    proxy_auth=None):
+    request = urllib.request.Request(
+        url, headers=_proxy_headers(proxy_auth), method="GET"
+    )
     if opener is None:
-        handlers = []
-        if proxy:
-            handlers.append(urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
-        opener = urllib.request.build_opener(*handlers).open
+        opener = _build_opener(proxy, proxy_auth)
     try:
         response = opener(request, timeout=timeout)
         try:

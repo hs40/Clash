@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -29,12 +30,15 @@ def node_source(path):
 
 
 class FakeSsh:
-    def __init__(self, state_text="", fail=None, files=None, proc_net=None):
+    def __init__(self, state_text="", fail=None, files=None, proc_net=None,
+                 responses=None):
         self.calls = []
+        self.inputs = []
         self.puts = []
         self.fail = fail or (lambda command: False)
         self.state_text = state_text
         self.files = files or {}
+        self.responses = responses or {}
         self.proc_net = proc_net if proc_net is not None else (
             "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
             "   0: 0100007F:1ED5 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 1\n"
@@ -42,8 +46,12 @@ class FakeSsh:
 
     def run(self, command, input_text=None, timeout=None):
         self.calls.append(command)
+        self.inputs.append(input_text)
         if self.fail(command):
             raise SshError("boom")
+        for key, value in self.responses.items():
+            if key in command:
+                return value
         if "uci -q get openclash.config.config_path" in command:
             return self.state_text
         if "sha256sum" in command:
@@ -180,6 +188,7 @@ class ApplyTest(unittest.TestCase):
         self.assertIn("clash_meta -t -f", commands)
         self.assertLess(commands.index("-t -f"), commands.index("mv "))
         self.assertLess(commands.index("mv "), commands.index("uci set openclash.config.config_path"))
+        self.assertLess(commands.index("ps w"), commands.index("cat /proc/net/tcp"))
         self.assertEqual(ssh.puts[0][0], platform_openclash.TEMP_CONFIG)
         self.assertEqual(manifest["old_config_path"], "/etc/openclash/config/FIB.yaml")
         self.assertEqual(result["port"], 7893)
@@ -225,6 +234,46 @@ class ApplyTest(unittest.TestCase):
         self.assertFalse(manifest["new_exists"])
 
 
+class ConfigProcessTest(unittest.TestCase):
+    def test_detects_process_with_target_config(self):
+        ssh = FakeSsh(responses={
+            "ps w": "123 root 1234 S /etc/openclash/core/clash_meta -f /etc/openclash/config/clash-platform.yaml\n"
+        })
+        self.assertTrue(platform_openclash._config_process(ssh))
+
+    def test_absent_process_is_false(self):
+        ssh = FakeSsh(responses={"ps w": ""})
+        self.assertFalse(platform_openclash._config_process(ssh))
+
+
+class ProxyAuthTest(unittest.TestCase):
+    def test_reads_first_enabled_authentication_section(self):
+        ssh = FakeSsh(responses={
+            "uci -q show openclash": (
+                "openclash.@authentication[0]=authentication\n"
+                "openclash.@authentication[0].enabled='0'\n"
+                "openclash.@authentication[1]=authentication\n"
+                "openclash.@authentication[1].enabled='1'\n"
+            ),
+            "openclash.@authentication[0].enabled": "0",
+            "openclash.@authentication[1].enabled": "1",
+            "openclash.@authentication[1].username": "alice",
+            "openclash.@authentication[1].password": "s3cr3t",
+        })
+        self.assertEqual(platform_openclash._proxy_auth(ssh), "alice:s3cr3t")
+
+    def test_missing_authentication_is_none(self):
+        self.assertIsNone(platform_openclash._proxy_auth(FakeSsh(responses={
+            "uci -q show openclash": "openclash.main=openclash\n",
+        })))
+
+    def test_local_curl_reads_auth_from_stdin(self):
+        command = platform_openclash._local_http_command()
+        self.assertIn("read -r auth", command)
+        self.assertIn('--proxy-user "$auth"', command)
+        self.assertNotIn("alice:s3cr3t", command)
+
+
 class VerifyTest(unittest.TestCase):
     def test_checks_proxy_dns_http_and_device_curl(self):
         queried = []
@@ -245,6 +294,50 @@ class VerifyTest(unittest.TestCase):
         self.assertTrue(result["http"]["passed"])
         self.assertTrue(result["dns"]["fake_ip"]["passed"])
         self.assertNotIn("lan", result["dns"])
+
+
+class VerifyAuthTest(unittest.TestCase):
+    def test_verify_uses_uci_auth_for_http_and_exit_ip(self):
+        ssh = FakeSsh()
+        with mock.patch.object(platform_openclash, "_proxy_auth",
+                               return_value="alice:s3cr3t"), \
+             mock.patch.object(platform_openclash.platform_probe, "http_status",
+                               return_value=204) as http_status, \
+             mock.patch.object(platform_openclash.platform_probe, "public_ip_info",
+                               return_value={"ip": "203.0.113.9", "country": "US"}) as ip_info:
+            result = platform_openclash.verify_openclash(
+                ssh,
+                dns_query=lambda name, server: {"answers": ["198.18.0.85"]},
+                dns_attempts=1,
+            )
+        self.assertTrue(result["passed"])
+        self.assertEqual(http_status.call_args.kwargs["proxy_auth"], "alice:s3cr3t")
+        self.assertEqual(ip_info.call_args.kwargs["proxy_auth"], "alice:s3cr3t")
+        self.assertIn("alice:s3cr3t\n", ssh.inputs)
+        self.assertNotIn("alice:s3cr3t", "".join(ssh.calls))
+        self.assertNotIn("alice:s3cr3t", json.dumps(result, ensure_ascii=False))
+
+
+class DnsRetryTest(unittest.TestCase):
+    def test_dns_is_retried_until_fake_ip(self):
+        calls = []
+
+        def dns(name, server):
+            calls.append(server)
+            if len(calls) == 1:
+                return {"answers": ["104.20.23.154"]}
+            return {"answers": ["198.18.0.85"]}
+
+        result = platform_openclash.verify_openclash(
+            FakeSsh(),
+            http_check={"status": 204, "expected": 204, "passed": True},
+            dns_query=dns,
+            ip_info=lambda: {"ip": "203.0.113.9", "country": "US"},
+            dns_attempts=3,
+            dns_sleep=lambda seconds: None,
+        )
+        self.assertTrue(result["passed"])
+        self.assertEqual(len(calls), 2)
 
 
 class RollbackTest(unittest.TestCase):

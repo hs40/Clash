@@ -1,5 +1,6 @@
 """平台探针纯函数测试（S2）；不访问真实网络。"""
 
+import base64
 import json
 import struct
 import sys
@@ -82,6 +83,22 @@ class HttpTest(unittest.TestCase):
             platform_probe.http_status("https://example.test", timeout=1.5, opener=opener),
             204,
         )
+
+    def test_http_status_sends_proxy_authorization(self):
+        seen = {}
+
+        def opener(request, timeout):
+            seen["auth"] = request.get_header("Proxy-authorization")
+            return self.Response(status=204)
+
+        platform_probe.http_status(
+            "https://example.test",
+            proxy="http://127.0.0.1:7893",
+            proxy_auth="alice:s3cr3t",
+            opener=opener,
+        )
+        expected = "Basic " + base64.b64encode(b"alice:s3cr3t").decode("ascii")
+        self.assertEqual(seen["auth"], expected)
 
     def test_public_ip_info_parses_json(self):
         def opener(request, timeout):

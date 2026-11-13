@@ -38,9 +38,9 @@ class OpenClashError(Exception):
         self.restored = restored
 
 
-def _run(ssh, command, timeout=None):
+def _run(ssh, command, timeout=None, input_text=None):
     try:
-        return ssh.run(command, timeout=timeout)
+        return ssh.run(command, timeout=timeout, input_text=input_text)
     except SshError as exc:
         raise OpenClashError(str(exc)) from exc
 
@@ -216,6 +216,57 @@ def _wait_port(ssh, port=PORT, timeout=60, sleep=time.sleep):
         sleep(1)
 
 
+def _config_process(ssh):
+    """确认新配置对应的 mihomo 进程已启动，避免旧进程仍占用端口造成假就绪。"""
+    name = NEW_CONFIG.rsplit("/", 1)[-1]
+    pattern = "[%s]%s" % (name[0], name[1:])
+    command = "ps w 2>/dev/null | grep %s || true" % _quote(pattern)
+    return bool(_run(ssh, command).strip())
+
+
+def _wait_config_process(ssh, timeout=60, sleep=time.sleep):
+    deadline = time.monotonic() + timeout
+    while True:
+        if _config_process(ssh):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        sleep(1)
+
+
+def _uci_get(ssh, key):
+    try:
+        return _run(ssh, "uci -q get %s" % _quote(key)).strip()
+    except OpenClashError:
+        return ""
+
+
+def _auth_sections(ssh):
+    """OpenClash 的认证是若干 `config authentication` 段，不是 config 选项。"""
+    try:
+        output = _run(ssh, "uci -q show openclash 2>/dev/null || true")
+    except OpenClashError:
+        return []
+    sections = []
+    for line in output.splitlines():
+        name, sep, kind = line.partition("=")
+        if sep and name.startswith("openclash.") and kind.strip() == "authentication":
+            sections.append(name.strip())
+    return sections
+
+
+def _proxy_auth(ssh):
+    """读取第一个启用的 OpenClash 认证段；仅在内存中使用，绝不写入报告。"""
+    for section in _auth_sections(ssh):
+        if _uci_get(ssh, section + ".enabled") == "0":
+            continue
+        user = _uci_get(ssh, section + ".username")
+        pass_value = _uci_get(ssh, section + ".password")
+        if user and pass_value:
+            return "%s:%s" % (user, pass_value)
+    return None
+
+
 def _test_config(ssh):
     command = (
         "mkdir -p %s; cp -f %s %s/Country.mmdb 2>/dev/null || true; "
@@ -271,6 +322,8 @@ def apply_openclash(ssh, plan, backup_dir, verify_timeout=60, sleep=time.sleep):
         _run(ssh, "uci set openclash.config.config_path=%s" % _quote(NEW_CONFIG))
         _run(ssh, "uci commit openclash")
         _restart(ssh)
+        if not _wait_config_process(ssh, verify_timeout, sleep):
+            raise OpenClashError("OpenClash 重启后未加载目标配置")
         if not _wait_port(ssh, PORT, verify_timeout, sleep):
             raise OpenClashError("OpenClash 重启后 %d 端口未监听" % PORT)
     except Exception as exc:
@@ -319,15 +372,32 @@ def status_openclash(ssh):
     return state
 
 
-def verify_openclash(ssh, http_check=None, dns_query=None, ip_info=None):
+def _local_http_command():
+    """设备本机 curl；认证经 stdin 传入，不出现在命令行参数或进程列表里。"""
+    return (
+        'IFS= read -r auth; '
+        'if command -v curl >/dev/null 2>&1; then '
+        'if [ -n "$auth" ]; then '
+        f'curl -s -o /dev/null -w "%{{http_code}}" --max-time 8 '
+        f'-x http://127.0.0.1:{PORT} --proxy-user "$auth" '
+        'https://www.gstatic.com/generate_204; '
+        'else '
+        f'curl -s -o /dev/null -w "%{{http_code}}" --max-time 8 '
+        f'-x http://127.0.0.1:{PORT} '
+        'https://www.gstatic.com/generate_204; '
+        'fi; else echo NO_CURL; fi'
+    )
+
+
+def verify_openclash(ssh, http_check=None, dns_query=None, ip_info=None,
+                     dns_attempts=3, dns_sleep=time.sleep):
     """Q24 可自动观测项；真实 LAN 客户端/WebRTC/重启观察仍为人工项。"""
+    auth = _proxy_auth(ssh)
     port = _port_open(ssh, PORT)
     try:
         local_status = _run(
-            ssh,
-            f"curl -s -o /dev/null -w '%{{http_code}}' --max-time 8 "
-            f"-x http://127.0.0.1:{PORT} https://www.gstatic.com/generate_204",
-            timeout=20,
+            ssh, _local_http_command(), timeout=20,
+            input_text=(auth or "") + "\n",
         ).strip()
     except OpenClashError:
         local_status = ""
@@ -337,7 +407,8 @@ def verify_openclash(ssh, http_check=None, dns_query=None, ip_info=None):
     if http_check is None:
         try:
             code = platform_probe.http_status(
-                "https://www.gstatic.com/generate_204", proxy=PROXY
+                "https://www.gstatic.com/generate_204", proxy=PROXY,
+                proxy_auth=auth,
             )
         except Exception as exc:
             http = {"status": None, "expected": 204, "passed": False, "detail": str(exc)}
@@ -345,16 +416,25 @@ def verify_openclash(ssh, http_check=None, dns_query=None, ip_info=None):
             http = platform_verify.http_ok(code)
     else:
         http = http_check
-    dns = platform_verify.dns_no_leak(
-        dns_query or (lambda name, server: platform_probe.dns_query(
-            name, "192.168.2.10", 53
-        )),
-        fake_server="192.168.2.10",
-        lan_server=None,
-        public_server=None,
-    )
+    query = dns_query or (lambda name, server: platform_probe.dns_query(
+        name, "192.168.2.10", 53
+    ))
+    dns = None
+    for attempt in range(max(1, dns_attempts)):
+        dns = platform_verify.dns_no_leak(
+            query,
+            fake_server="192.168.2.10",
+            lan_server=None,
+            public_server=None,
+        )
+        if dns.get("fake_ip", {}).get("passed"):
+            break
+        if attempt + 1 < dns_attempts:
+            dns_sleep(1)
     try:
-        info = ip_info() if ip_info is not None else platform_probe.public_ip_info(proxy=PROXY)
+        info = ip_info() if ip_info is not None else platform_probe.public_ip_info(
+            proxy=PROXY, proxy_auth=auth
+        )
     except Exception as exc:
         info = {"error": str(exc)}
     country = platform_verify.exit_country(info, None)
