@@ -142,7 +142,7 @@ def http_status(url, proxy=None, timeout=5.0, opener=None, proxy_auth=None):
         raise ProbeError("HTTP 请求失败 %s：%s" % (url, exc)) from exc
 
 
-def public_ip_info(url=IPINFO_URL, proxy=None, timeout=5.0, opener=None,
+def public_ip_info(url=IPINFO_URL, proxy=None, timeout=15.0, opener=None,
                     proxy_auth=None):
     request = urllib.request.Request(
         url, headers=_proxy_headers(proxy_auth), method="GET"

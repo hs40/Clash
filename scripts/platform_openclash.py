@@ -418,9 +418,6 @@ def verify_openclash(ssh, http_check=None, dns_query=None, ip_info=None,
     except Exception as exc:
         info = {"error": str(exc)}
     country = platform_verify.exit_country(info, None)
-    if country.get("country") and country.get("passed") is None:
-        country["passed"] = country["country"] != "CN"
-        country["detail"] = "未取得选中节点，仅确认出口非 CN"
     passed = bool(port and device_http["passed"] and http["passed"]
                   and dns["passed"] and country["passed"] is not False)
     return {

@@ -77,11 +77,27 @@ class ExitCountryTest(unittest.TestCase):
         result = platform_verify.exit_country({"country": "US"}, "日本节点")
         self.assertFalse(result["passed"])
 
-    def test_other_region_degrades(self):
+    def test_other_region_non_cn_passes_unverified(self):
         result = platform_verify.exit_country({"country": "US"}, "其他节点")
-        self.assertIsNone(result["passed"])
+        self.assertTrue(result["passed"])
         self.assertFalse(result["verified"])
         self.assertIn("非 CN", result["detail"])
+
+    def test_other_region_cn_fails(self):
+        result = platform_verify.exit_country({"country": "CN"}, "其他节点")
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["verified"])
+
+    def test_no_selected_node_non_cn_passes_unverified(self):
+        result = platform_verify.exit_country({"country": "HK"}, None)
+        self.assertTrue(result["passed"])
+        self.assertFalse(result["verified"])
+        self.assertIn("未取得选中节点", result["detail"])
+
+    def test_no_selected_node_cn_fails(self):
+        result = platform_verify.exit_country({"country": "CN"}, None)
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["verified"])
 
     def test_missing_country_degrades(self):
         result = platform_verify.exit_country({}, "美国节点")

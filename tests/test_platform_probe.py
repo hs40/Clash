@@ -100,6 +100,16 @@ class HttpTest(unittest.TestCase):
         expected = "Basic " + base64.b64encode(b"alice:s3cr3t").decode("ascii")
         self.assertEqual(seen["auth"], expected)
 
+    def test_public_ip_info_allows_slow_proxy_handshake(self):
+        seen = {}
+
+        def opener(request, timeout):
+            seen["timeout"] = timeout
+            return self.Response(json.dumps({"ip": "203.0.113.9", "country": "HK"}).encode())
+
+        platform_probe.public_ip_info(opener=opener)
+        self.assertEqual(seen["timeout"], 15.0)
+
     def test_public_ip_info_parses_json(self):
         def opener(request, timeout):
             return self.Response(json.dumps({"ip": "203.0.113.9", "country": "jp"}).encode())

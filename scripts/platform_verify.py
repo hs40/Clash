@@ -59,9 +59,10 @@ def exit_country(ip_info, selected_group):
         return {"passed": None, "verified": False, "country": "", "group": selected_group,
                 "detail": "出口 IP 查询未返回国家码"}
     if expected is None:
-        return {"passed": None, "verified": False, "country": country,
-                "group": selected_group,
-                "detail": "节点地区无国家码映射；仅确认出口非 CN"}
+        detail = ("未取得选中节点，仅确认出口非 CN" if selected_group is None
+                  else "节点地区无国家码映射；仅确认出口非 CN")
+        return {"passed": country != "CN", "verified": False, "country": country,
+                "group": selected_group, "detail": detail}
     matched = country in expected
     return {
         "passed": matched,
