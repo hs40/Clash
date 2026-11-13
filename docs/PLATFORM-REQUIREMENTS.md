@@ -1,6 +1,6 @@
 # 个人网络部署平台需求（v1.1）
 
-- 状态：**平台代码与 357 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 已于 2026-11-13 squash 合并（`de4d5be`）。**
+- 状态：**平台代码与 357 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 已合并（`de4d5be`），PR #18（DNS `#PROXY` 修复）已合并（`3cf7774`）并已重部署到 OpenClash 设备（run `20261113-195320-018656`）。**
 - 实现：`scripts/platform*.py`、`deploy-windows.cmd`、`deploy-openclash.cmd`、`rollback.cmd`；单元测试见 `tests/test_platform*.py`、`tests/test_dns_guard.py`。
 - 适用范围：本机 Windows（Clash Verge Rev + Mihomo）与 iStoreOS 192.168.2.10（OpenClash）。
 - 依据：`Clash 配置工程开发 Plan.md`、负责人 2026-11-11/12/13 的 Q13–Q32 回答、2026-11-12 iStoreOS 只读核查。
@@ -215,11 +215,11 @@ DNS 的 Tailscale MagicDNS（`*.ts.net` → 100.100.100.100）先不写 `nameser
 
 1. DNS 护栏已应用 A 决策的 8 条 CIDR 新策略；`dns_guard.py --check` 返回 UDP/TCP/overall OK，`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时。
 2. Windows 已完成真实部署（run `20261113-000005-652752`）；当前 verify 通过，节点地区比对因未取得选中节点而降级。
-3. OpenClash 已完成真实部署（run `20261113-151617-826379`）；当前带一次性认证的 verify 通过，节点地区比对同样降级。
+3. OpenClash 已完成真实部署（run `20261113-151617-826379`）；PR #18 的 DNS `#PROXY` 补丁已重部署（run `20261113-195320-018656`，设备当前 SHA-256 `2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`），带一次性认证的 verify 通过，节点地区比对同样降级。
 4. 已写 `docs/PLATFORM-ACCEPTANCE.md`；待补：节点地区比对、失败回滚实机演练、浏览器 DoH/WebRTC 与 LAN/重启人工项。
-5. 提交 PR，等待 CI 与负责人审查合并。
+5. PR #17（`de4d5be`）与 PR #18（`3cf7774`）已由负责人审查合并；OpenClash 新配置已部署。
 6. ENG-04 的 NAS/HAOS/Proxmox 仍为环境阻塞，设备就绪后回补。
 
 ---
 
-平台代码已实现并通过 357 项本地测试；**Windows 与 OpenClash 均已完成真实部署和当前自动验收，未提交真实凭据或节点**；PR #17 已于 2026-11-13 squash 合并（`de4d5be`）。OpenClash 代理认证按 Q32 只使用一次性环境变量；本次验收读取 UCI 的一次性例外已在 `docs/PLATFORM-ACCEPTANCE.md` 记录。
+平台代码已实现并通过 357 项本地测试；**Windows 与 OpenClash 均已完成真实部署和当前自动验收，未提交真实凭据或节点**；PR #17 已 squash 合并为 `de4d5be`，PR #18 已 squash 合并为 `3cf7774` 并完成 OpenClash 重部署（见 `docs/PLATFORM-ACCEPTANCE.md` §4.4）。OpenClash 代理认证按 Q32 只使用一次性环境变量；验收读取 UCI 的一次性例外已在 `docs/PLATFORM-ACCEPTANCE.md` 记录。
