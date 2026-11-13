@@ -68,9 +68,10 @@
 
 ### 3.3 国内外 DNS 分流与节点域名解析路径
 
-`nameserver` 固定为阿里 DoH 与腾讯 DoH；`fallback` 固定为 Cloudflare 与 Google DoH；
-两者无交集。`proxy-server-nameserver` 独立配置为腾讯 DoH、阿里 DoH，未与
-`fallback` 混用。`fallback-filter` 为 `{geoip: true, geoip-code: CN}`。**通过（静态）。**
+`nameserver` 固定为阿里 DoH 与腾讯 DoH；`fallback` 固定为 Cloudflare 与 Google DoH，
+且均带 `#PROXY`（2026-11-13 修复：直连境外 DoH 在中国大陆会被阻断）；两者无交集。
+`proxy-server-nameserver` 独立配置为腾讯 DoH、阿里 DoH，未与 `fallback` 混用。
+`fallback-filter` 为 `{geoip: true, geoip-code: CN}`。**通过（静态）。**
 
 ### 3.4 无 DNS 循环与无明显泄漏路径
 

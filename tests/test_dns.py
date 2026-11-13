@@ -58,10 +58,18 @@ class ProductionDnsTest(unittest.TestCase):
         )
         self.assertEqual(
             self.dns["fallback"],
-            ["https://1.1.1.1/dns-query", "https://dns.google/dns-query"],
+            [
+                "https://1.1.1.1/dns-query#PROXY",
+                "https://dns.google/dns-query#PROXY",
+            ],
         )
         self.assertFalse(set(self.dns["nameserver"]) & set(self.dns["fallback"]))
         self.assertEqual(self.dns["fallback-filter"], {"geoip": True, "geoip-code": "CN"})
+
+    def test_foreign_fallback_uses_proxy_to_avoid_blocking(self):
+        # 境外 DoH 直连在中国大陆会被阻断；必须经 PROXY 组查询。
+        for server in self.dns["fallback"]:
+            self.assertTrue(server.endswith("#PROXY"), server)
 
     def test_no_known_forwarding_loop(self):
         host, port = self.dns["listen"].rsplit(":", 1)

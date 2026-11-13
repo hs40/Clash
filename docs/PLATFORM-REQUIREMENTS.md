@@ -1,6 +1,6 @@
 # 个人网络部署平台需求（v1.1）
 
-- 状态：**平台代码与 356 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 仍开放。**
+- 状态：**平台代码与 357 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 已于 2026-11-13 squash 合并（`de4d5be`）。**
 - 实现：`scripts/platform*.py`、`deploy-windows.cmd`、`deploy-openclash.cmd`、`rollback.cmd`；单元测试见 `tests/test_platform*.py`、`tests/test_dns_guard.py`。
 - 适用范围：本机 Windows（Clash Verge Rev + Mihomo）与 iStoreOS 192.168.2.10（OpenClash）。
 - 依据：`Clash 配置工程开发 Plan.md`、负责人 2026-11-11/12/13 的 Q13–Q32 回答、2026-11-12 iStoreOS 只读核查。
@@ -222,4 +222,4 @@ DNS 的 Tailscale MagicDNS（`*.ts.net` → 100.100.100.100）先不写 `nameser
 
 ---
 
-平台代码已实现并通过 356 项本地测试；**Windows 与 OpenClash 均已完成真实部署和当前自动验收，未提交真实凭据或节点**。OpenClash 代理认证按 Q32 只使用一次性环境变量；本次验收读取 UCI 的一次性例外已在 `docs/PLATFORM-ACCEPTANCE.md` 记录。
+平台代码已实现并通过 357 项本地测试；**Windows 与 OpenClash 均已完成真实部署和当前自动验收，未提交真实凭据或节点**；PR #17 已于 2026-11-13 squash 合并（`de4d5be`）。OpenClash 代理认证按 Q32 只使用一次性环境变量；本次验收读取 UCI 的一次性例外已在 `docs/PLATFORM-ACCEPTANCE.md` 记录。
