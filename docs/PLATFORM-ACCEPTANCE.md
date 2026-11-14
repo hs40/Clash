@@ -317,9 +317,8 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 2. **重启后长期观察**：Windows Verge 与 OpenClash 设备重启后的 TUN / DNS 护栏 / 自动恢复尚未做跨重启长期观察。
 3. **浏览器人工项**：可见「使用安全 DNS」开关、手动 DoH 模板、真实用户配置、WebRTC srflx 候选、第三方 DNS 泄漏站点未人工确认；本轮只完成只读策略/netlog 评估，不据其宣称通过。
 4. **ENG-04 未部署项**：HAOS 透明代理、Proxmox 默认网关仍未验证；NAS 显式代理端到端已通过（§7.4），ENG-04 不再是全范围“部分通过”。
-5. **`docs/VERGE-GLOBAL.md` 组类型表过期**：负责人 m17048 要求把 5 个被外部工具格式化的文档回退，回退后该文件 §61-67 仍写「OpenAI select、七个地区组 select」，与 v1.31 起实现及 §3.6 实测不一致；本次未擅自改写，待负责人决定是否单独修正。
 
-**本轮已关闭（不再计入遗留问题）**：Q25 Windows 选中节点地区比对（§3.4）、Windows 失败自动回滚 + 六步重部署（§3.5）、OpenClash 受控失败自动回滚 16 项（§4.5）、8 条 CIDR DNS 护栏 `--remove` 演练（§7.4 / DNS-GUARD.md）、NAS 显式代理端到端（§7.4）、dsh-pocket cloudflared 隧道与 WorkBuddy status/UI 复验结论（§7.4）。
+**本轮已关闭（不再计入遗留问题）**：Q25 Windows 选中节点地区比对（§3.4）、Windows 失败自动回滚 + 六步重部署（§3.5）、OpenClash 受控失败自动回滚 16 项（§4.5）、8 条 CIDR DNS 护栏 `--remove` 演练（§7.4 / DNS-GUARD.md）、NAS 显式代理端到端（§7.4）、dsh-pocket cloudflared 隧道与 WorkBuddy status/UI 复验结论（§7.4）、`docs/VERGE-GLOBAL.md` 组类型表过期（本轮按实现修正：`OpenAI` → `fallback`、七个地区组 → `url-test`，纯文档，无代码/配置改动）。
 
 **历史已关闭**：PR #17 → `de4d5be`、PR #18 → `3cf7774`、PR #19 → `c680be0`、PR #20 → `0fc58ca`、PR #21 → `5091485`、PR #22 → `953bcde`、PR #23 → `08cba52`（当前 main 代码基线）均已合并；OpenClash 新配置按 m14382 部署并验收通过（§4.4）；DNS fallback `#PROXY` 修复已应用到双平台；Windows 策略组改型与 PNG 图标按 m17048 重部署并复验通过（§3.6）。
 
