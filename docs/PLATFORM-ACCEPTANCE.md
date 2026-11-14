@@ -2,8 +2,8 @@
 
 - 日期：2026-11-13
 - 分支：`main`
-- 代码基线：`c680be0`（PR #19 合并后本地 main）；本轮新增验收基于分支 `feat/q25-selected-region`
-- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）、[REQUIREMENTS.md](REQUIREMENTS.md) v1.29
+- 代码基线：`0fc58ca`（PR #20 合并后的 main，当前基线）；2026-11-13 本轮新增验收先在分支 `feat/q25-selected-region` 完成，随后随 PR #20 squash 合并
+- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）、[REQUIREMENTS.md](REQUIREMENTS.md) v1.30（代码基线同步版，条款未变）
 - 结论：**Windows 与 OpenClash 均已完成真实部署与自动验收。**
   本轮（2026-11-13）已关闭：Q25 选中节点地区比对、双平台失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端、dsh-pocket UI 重试与 WorkBuddy UI 重启复验；浏览器 DoH/DoT/WebRTC 完成只读策略/netlog 评估。
   仍未关闭的人工项仅剩：真实 LAN 客户端、重启后长期观察、可见浏览器安全 DNS 开关/手动 DoH 模板/WebRTC srflx 候选/第三方泄漏站点、HAOS/Proxmox（未部署）。
@@ -26,7 +26,7 @@
 - 2026-11-13 补丁：`dns.fallback` 加 `#PROXY`，修复境外 DoH 直连超时导致 `DIRECT` 域名解析失败；
   已应用到 Windows Verge（`api.trycloudflare.com` 405、`www.workbuddy.ai` 200、gstatic 204），
   并已于 run `20261113-195320-018656` 重部署到 OpenClash 设备（见 §4.4）。
-  PR #17 已 squash 合并为 `de4d5be`；PR #18 已 squash 合并为 `3cf7774`；PR #19 已 squash 合并为 `c680be0`。
+  PR #17 已 squash 合并为 `de4d5be`；PR #18 已 squash 合并为 `3cf7774`；PR #19 已 squash 合并为 `c680be0`；PR #20（本轮验收文档）已 squash 合并为 `0fc58ca`，即当前 main 代码基线。
 
 ---
 
@@ -246,7 +246,7 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 
 **本轮已关闭（不再计入遗留问题）**：Q25 Windows 选中节点地区比对（§3.4）、Windows 失败自动回滚 + 六步重部署（§3.5）、OpenClash 受控失败自动回滚 16 项（§4.5）、8 条 CIDR DNS 护栏 `--remove` 演练（§7.4 / DNS-GUARD.md）、NAS 显式代理端到端（§7.4）、dsh-pocket cloudflared 隧道与 WorkBuddy status/UI 复验结论（§7.4）。
 
-**历史已关闭**：PR #17 → `de4d5be`、PR #18 → `3cf7774`、PR #19 → `c680be0` 均已合并；OpenClash 新配置按 m14382 部署并验收通过（§4.4）；DNS fallback `#PROXY` 修复已应用到双平台。
+**历史已关闭**：PR #17 → `de4d5be`、PR #18 → `3cf7774`、PR #19 → `c680be0`、PR #20 → `0fc58ca`（当前 main 代码基线）均已合并；OpenClash 新配置按 m14382 部署并验收通过（§4.4）；DNS fallback `#PROXY` 修复已应用到双平台。
 
 ---
 

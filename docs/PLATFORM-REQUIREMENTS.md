@@ -1,6 +1,7 @@
 # 个人网络部署平台需求（v1.1）
 
-- 状态：**平台代码与 371 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过自动验收；Q25 选中节点地区比对、Windows/OpenClash 失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端均已关闭；dsh-pocket UI 重试与 WorkBuddy UI 重启复验由负责人确认关闭。浏览器 DoH/DoT/WebRTC 只读评估完成，真实 LAN 客户端、重启后长期观察等仍为人工开放项。PR #17 已合并（`de4d5be`），PR #18 已合并（`3cf7774`），PR #19 已合并（`c680be0`）。**
+- 状态：**平台代码与 371 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过自动验收；Q25 选中节点地区比对、Windows/OpenClash 失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端均已关闭；dsh-pocket UI 重试与 WorkBuddy UI 重启复验由负责人确认关闭。浏览器 DoH/DoT/WebRTC 只读评估完成，真实 LAN 客户端、重启后长期观察等仍为人工开放项。**
+- 代码基线：`0fc58ca`（PR #20 合并后的 main，2026-11-14 同步；需求条款未变）。PR #17 已合并（`de4d5be`），PR #18 已合并（`3cf7774`），PR #19 已合并（`c680be0`），PR #20 已合并（`0fc58ca`）。
 - 实现：`scripts/platform*.py`、`deploy-windows.cmd`、`deploy-openclash.cmd`、`rollback.cmd`；单元测试见 `tests/test_platform*.py`、`tests/test_dns_guard.py`。
 - 适用范围：本机 Windows（Clash Verge Rev + Mihomo）与 iStoreOS 192.168.2.10（OpenClash）。
 - 依据：`Clash 配置工程开发 Plan.md`、负责人 2026-11-11/12/13 的 Q13–Q32 回答、2026-11-12 iStoreOS 只读核查。

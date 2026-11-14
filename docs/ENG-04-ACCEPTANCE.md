@@ -1,9 +1,9 @@
 # ENG-04 验收报告：双平台完整配置
 
 - 日期：2026-11-10（ENG-04 原始报告）；2026-11-13 补充 NAS 显式代理端到端验证
-- 分支：main（原始报告，未推送远端）；补充验证基于 `c680be0` + `feat/q25-selected-region`
+- 分支：main（原始报告，未推送远端）；补充验证基于 `c680be0` + `feat/q25-selected-region`，该分支随后经 PR #20 squash 合并为 `0fc58ca`（当前 main 代码基线）
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.8（原始）；补充验证对应 v1.29
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.8（原始）；补充验证对应 v1.30（代码基线同步版，条款未变）
 - 结论：**双平台产物均通过对应内核加载验证；NAS 显式代理端到端已于 2026-11-13 通过（经 192.168.2.10:7893 一次性验证，认证仅注入当前进程、不落盘）；HAOS 透明代理路径、Proxmox 默认网关仍未部署/未验证，因此 ENG-04 仍标记为部分通过（范围已缩小为 HAOS/Proxmox 两项）。**
 
 ---
@@ -139,7 +139,7 @@ tests/test_build.py 的键集合断言仍然通过：
 - NAS 192.168.2.2 默认网关保持 `192.168.2.1`，未修改 NAS 网络设置或真实设备配置；
 - 经 `192.168.2.10:7893` HTTP 显式代理完成连通性验证，返回 `204`；
 - 出口国家码非 `CN`（与双平台 verify 的出口判据一致）；
-- 因此本项由「端到端未验证」更新为**通过**，与 [REQUIREMENTS.md](REQUIREMENTS.md) v1.29 变更记录、[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) §9 第 6 项一致。
+- 因此本项由「端到端未验证」更新为**通过**，与 [REQUIREMENTS.md](REQUIREMENTS.md) v1.30 变更记录、[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) §9 第 6 项一致。
 
 HAOS 透明代理与 Proxmox 默认网关仍按 §3.5 保持「未部署/未验证」。
 
