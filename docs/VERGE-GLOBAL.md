@@ -60,15 +60,17 @@ main(config, profileName) 对当前订阅执行：
 | --- | --- | --- | --- |
 | 1 | PROXY | select | 自动选择、香港节点、台湾节点、日本节点、韩国节点、狮城节点、美国节点、其他节点、DIRECT |
 | 2 | Google | fallback | 美国节点 -> 狮城节点 -> 日本节点 -> 香港节点 |
-| 3 | OpenAI | select | 自动选择、七个地区组 |
+| 3 | OpenAI | fallback | 美国节点 -> 狮城节点 -> 日本节点 -> 韩国节点 |
 | 4 | Claude | select | 自动选择、七个地区组 |
 | 5 | Cursor | select | 自动选择、七个地区组 |
 | 6 | 自动选择 | url-test | 全部可用节点 |
-| 7-13 | 香港/台湾/日本/韩国/狮城/美国/其他节点 | select | 按 scripts/regions.py 识别 |
+| 7-13 | 香港/台湾/日本/韩国/狮城/美国/其他节点 | url-test | 按 scripts/regions.py 识别 |
 
-自动选择使用 https://www.gstatic.com/generate_204，interval: 300，
-tolerance: 50。地区关键词与构建器共用同一个 scripts/regions.py；空地区回退到
-自动选择。
+`自动选择` 与七个地区入口均为 `url-test`，使用 https://www.gstatic.com/generate_204，
+interval: 300，tolerance: 50（2026-11-14 负责人确认，见
+[REQUIREMENTS.md](REQUIREMENTS.md) §4.2 第 3 条）；地区组在组内自动测速，不再手选
+单个节点。`Claude`、`Cursor` 保持 `select`，默认 `自动选择`。地区关键词与构建器共用
+同一个 scripts/regions.py；空地区回退到 `自动选择`。
 
 规则共 33 条：特殊 8 条、业务 20 条、基础 4 条、兜底 1 条，最后一条唯一为
 MATCH,PROXY。特殊层含 Tailscale CGNAT/域名与 dsh-pocket 的 Cloudflare 隧道域名/网段直连。
@@ -164,9 +166,11 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | FIB 原文件 | 未修改；SHA-256 f35dd65a... |
 | 备份 | .tmp_verge_apply_backup_20261111-2247b，6/6 文件哈希与大小匹配 |
 
-上表是 2026-11-11 的运行记录（当时源规则 26 条）。2026-11-12 增加 Tailscale
-`100.64.0.0/10` 直连规则并重新部署后，运行时为 27 条（§6.1）；2026-11-13 再次部署，
-运行时为 33 条，见 §6.3。
+上表是 2026-11-11 的运行记录（当时源规则 26 条，`OpenAI` 与七个地区组均为 `select`）。
+2026-11-12 增加 Tailscale `100.64.0.0/10` 直连规则并重新部署后，运行时为 27 条（§6.1）；
+2026-11-13 再次部署，运行时为 33 条，见 §6.3。2026-11-14 起 `OpenAI` 改 `fallback`、
+七个地区组改 `url-test`（§3 表格已是当前契约），上述 2026-11-11 记录保留为历史事实，
+不再代表当前组类型。
 
 验证时 enable_tun_mode: true、enable_system_proxy: false、verge_mixed_port: 7897。
 网络测试使用 Python OpenSSL 绕过系统代理，避免本机 PowerShell/schannel 的 TLS 问题干扰。
