@@ -139,6 +139,57 @@ class PlanTest(unittest.TestCase):
         self.assertNotIn("REAL-SECRET", plan["diff"])
         self.assertEqual(plan["summary"]["files"], [platform_openclash.NEW_CONFIG])
 
+    def test_plan_detects_group_property_changes_with_same_names(self):
+        """回归：节点名与组名都不变、只有组类型/测速参数/图标变化时不能判为无变更。"""
+
+        def region_builder(*args, **kwargs):
+            proxies = kwargs.get("proxies") or []
+            return {
+                "port": 7893,
+                "allow-lan": True,
+                "bind-address": "*",
+                "dns": {"listen": kwargs.get("dns_listen")},
+                "proxies": proxies,
+                "proxy-groups": [{
+                    "name": "香港节点", "type": "url-test", "proxies": ["香港 01"],
+                    "url": "https://www.gstatic.com/generate_204",
+                    "interval": 300, "tolerance": 50,
+                    "icon": "data:image/png;base64,AAAA",
+                }],
+                "rules": ["MATCH,PROXY"],
+            }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "FIB.yaml"
+            node_source(source)
+            ssh = FakeSsh(
+                self.state_text(),
+                files={"/etc/openclash/config/FIB.yaml": yaml.safe_dump({
+                    "port": 7893,
+                    "allow-lan": True,
+                    "bind-address": "*",
+                    "dns": {"listen": "127.0.0.1:7874"},
+                    "proxies": [{"name": "香港 01", "type": "ss",
+                                 "password": "OLD-SECRET", "server": "203.0.113.8"}],
+                    "proxy-groups": [{"name": "香港节点", "type": "select",
+                                      "proxies": ["香港 01"]}],
+                    "rules": ["MATCH,PROXY"],
+                }, allow_unicode=True)},
+            )
+            plan = platform_openclash.plan_openclash(
+                ROOT, source, ssh, builder=region_builder
+            )
+        summary = plan["summary"]
+        self.assertEqual(summary["proxies"]["added"], [])
+        self.assertEqual(summary["proxies"]["removed"], [])
+        self.assertEqual(summary["groups"]["added"], [])
+        self.assertEqual(summary["groups"]["removed"], [])
+        self.assertTrue(summary["has_changes"])
+        self.assertEqual(summary["groups"]["changed"], [{
+            "name": "香港节点",
+            "fields": ["icon", "interval", "tolerance", "type", "url"],
+        }])
+
 
 class PortTest(unittest.TestCase):
     def test_detects_listening_port_from_proc_net(self):

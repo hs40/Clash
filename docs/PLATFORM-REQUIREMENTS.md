@@ -1,7 +1,7 @@
 # 个人网络部署平台需求（v1.1）
 
-- 状态：**平台代码与 371 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过自动验收；Q25 选中节点地区比对、Windows/OpenClash 失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端均已关闭；dsh-pocket UI 重试与 WorkBuddy UI 重启复验由负责人确认关闭。浏览器 DoH/DoT/WebRTC 只读评估完成，真实 LAN 客户端、重启后长期观察等仍为人工开放项。**
-- 代码基线：`0fc58ca`（PR #20 合并后的 main，2026-11-14 同步；需求条款未变）。PR #17 已合并（`de4d5be`），PR #18 已合并（`3cf7774`），PR #19 已合并（`c680be0`），PR #20 已合并（`0fc58ca`）。
+- 状态：**平台代码与 389 项本地测试完成；Windows 与 OpenClash 均已真实部署并通过自动验收；Q25 选中节点地区比对、Windows/OpenClash 失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端均已关闭；dsh-pocket UI 重试与 WorkBuddy UI 重启复验由负责人确认关闭。浏览器 DoH/DoT/WebRTC 只读评估完成，真实 LAN 客户端、重启后长期观察等仍为人工开放项。**
+- 代码基线：`08cba52`（PR #23 合并后的 main，2026-11-14 同步；需求条款未变）。PR #17 已合并（`de4d5be`），PR #18 已合并（`3cf7774`），PR #19 已合并（`c680be0`），PR #20 已合并（`0fc58ca`），PR #21 已合并（`5091485`），PR #22 已合并（`953bcde`），PR #23 已合并（`08cba52`）。
 - 实现：`scripts/platform*.py`、`deploy-windows.cmd`、`deploy-openclash.cmd`、`rollback.cmd`；单元测试见 `tests/test_platform*.py`、`tests/test_dns_guard.py`。
 - 适用范围：本机 Windows（Clash Verge Rev + Mihomo）与 iStoreOS 192.168.2.10（OpenClash）。
 - 依据：`Clash 配置工程开发 Plan.md`、负责人 2026-11-11/12/13 的 Q13–Q32 回答、2026-11-12 iStoreOS 只读核查。
@@ -81,7 +81,7 @@ scripts/platform.py rollback --platform windows|openclash --backup-dir PATH [--y
 - 默认命令是 `plan`；`deploy` 不带 `--apply` 不写任何文件并退出 4。
 - `--apply` 必须交互确认；`--yes` 只用于非交互/测试，仍打印摘要。
 - `--node-source` 优先于 `CLASH_NODE_SOURCE`；Windows 不传时读取 Verge 当前 profile，可用 `--profile` 指定 UID；OpenClash 必须显式指定。
-- 无差异时 `deploy` 打印摘要后结束，不创建状态目录，也不要求确认。
+- 无差异时 `deploy` 打印摘要后结束，不创建状态目录，也不要求确认。「差异」按整份配置判定：除节点增删、策略组增删、端口、DNS 关键值、规则、rule-providers 外，**同名策略组的 type/url/interval/tolerance/proxies/icon 等属性变化也计入差异**（2026-11-14 修复漏判缺陷）。
 - 退出码：0 成功；1 执行/验证失败；2 参数或配置错误；4 未确认/用户取消。
 
 ### 4.2 模块划分（避免过度抽象）
@@ -195,7 +195,7 @@ DNS 的 Tailscale MagicDNS（`*.ts.net` → 100.100.100.100）先不写 `nameser
 ## 7. 测试接缝与测试计划
 
 - S1：`tests/test_platform_cli.py` 子进程；`--help`、未知平台、默认 plan 不写、`--apply` 无确认退出 4、`--yes` 进入、错误退出码。
-- S2：`tests/test_platform_diff.py`、`tests/test_platform_state.py`、`tests/test_platform_probe.py`、`tests/test_platform_verify.py`；纯函数/临时目录；断言节点增删/组/端口/DNS/规则哈希、脱敏、状态保留、fake-IP/出口国家码。
+- S2：`tests/test_platform_diff.py`、`tests/test_platform_state.py`、`tests/test_platform_probe.py`、`tests/test_platform_verify.py`；纯函数/临时目录；断言节点增删/组增删/组属性变化/端口/DNS/规则哈希、脱敏、状态保留、fake-IP/出口国家码。
 - S3：`tests/test_platform_windows.py`、`tests/test_platform_openclash.py`、`tests/test_platform_ssh.py`；fake runner 记录命令；断言顺序、超时、回滚、未执行危险命令、无真实网络。
 - 规则与护栏：`tests/test_platform_rules.py`、`tests/test_dns_guard.py`；dsh-pocket/Tailscale DIRECT、顺序、唯一性、MATCH 最后；LAN 53 排除 192.168.2.10。
 - 真实设备：只做人工验收，不在 unittest 中执行 SSH/写配置。
@@ -216,11 +216,11 @@ DNS 的 Tailscale MagicDNS（`*.ts.net` → 100.100.100.100）先不写 `nameser
 
 1. DNS 护栏已应用 A 决策的 8 条 CIDR 新策略；`dns_guard.py --check` 返回 UDP/TCP/overall OK，`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时。
 2. Windows 已完成真实部署（run `20261113-000005-652752`）；当前 verify 通过，Q25 选中节点地区比对已通过命名管道控制接口取得叶子节点并验证出口 HK 一致（见 `docs/PLATFORM-ACCEPTANCE.md` §3.4）；失败→自动回滚→重部署实机演练已完成（§3.5）。
-3. OpenClash 已完成真实部署；PR #18 的 DNS `#PROXY` 补丁已重部署（run `20261113-195320-018656`，设备当前 SHA-256 `2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`）；受控失败→自动回滚→设备恢复实机演练已完成且 16 项检查全过（§4.5）；OpenClash 端 Q25 按契约仍降级为「出口非 CN」（设备控制接口需认证，按 Q3 决定不新增凭据读取）。
+3. OpenClash 已完成真实部署；PR #18 的 DNS `#PROXY` 补丁已重部署（run `20261113-195320-018656`）；2026-11-14 按 v1.33 再次重部署（run `20261114-162319-318535`，设备当前 SHA-256 `b6c385148c53c54ac10f855701f2c45a4377ddbbb0edecdd2906e1a36f2499e0`，13 组 PNG 图标 + url-test/fallback 契约逐项复核）；受控失败→自动回滚→设备恢复实机演练已完成且 16 项检查全过（§4.5）；OpenClash 端 Q25 按契约仍降级为「出口非 CN」（设备控制接口需认证，按 Q3 决定不新增凭据读取）。
 4. 已写 `docs/PLATFORM-ACCEPTANCE.md`；本轮已关闭 Q25、双平台失败回滚实机演练、DNS 护栏 `--remove`、NAS 显式代理端到端、dsh-pocket/WorkBuddy UI 复验；浏览器 DoH/DoT/WebRTC 完成只读策略/netlog 评估，真实 LAN 客户端/重启后长期观察/可见浏览器开关/第三方泄漏站点仍为人工开放项。
 5. PR #17（`de4d5be`）与 PR #18（`3cf7774`）已由负责人审查合并；OpenClash 新配置已部署。
 6. ENG-04：NAS 显式代理端到端已验证（网关仍 192.168.2.1、经 192.168.2.10:7893 带一次性认证 204、出口非 CN）；HAOS/Proxmox 仍未部署，设备就绪后回补。
 
 ---
 
-平台代码已实现并通过 371 项本地测试；**Windows 与 OpenClash 均已完成真实部署、自动验收与失败回滚实机演练，未提交真实凭据或节点**；PR #17 已 squash 合并为 `de4d5be`，PR #18 已 squash 合并为 `3cf7774` 并完成 OpenClash 重部署（见 `docs/PLATFORM-ACCEPTANCE.md` §4.4）。OpenClash 代理认证按 Q32 只使用一次性环境变量；验收读取 UCI 的一次性例外已在 `docs/PLATFORM-ACCEPTANCE.md` 记录。
+平台代码已实现并通过 389 项本地测试；**Windows 与 OpenClash 均已完成真实部署、自动验收与失败回滚实机演练，未提交真实凭据或节点**；PR #17 已 squash 合并为 `de4d5be`，PR #18 已 squash 合并为 `3cf7774` 并完成 OpenClash 重部署（见 `docs/PLATFORM-ACCEPTANCE.md` §4.4）。OpenClash 代理认证按 Q32 只使用一次性环境变量；验收读取 UCI 的一次性例外已在 `docs/PLATFORM-ACCEPTANCE.md` 记录。

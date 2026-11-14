@@ -5,6 +5,7 @@
 
 import difflib
 import hashlib
+import json
 
 import yaml
 
@@ -93,6 +94,35 @@ def _rules_digest(rules):
     return sha256_text("\n".join(str(rule) for rule in rules or []))
 
 
+def _canonical(value):
+    """稳定序列化，用于与字典键顺序无关的相等比较。"""
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+
+
+def _group_changes(before, after):
+    """按名称比对策略组除 name 以外的字段，返回真正变化的组。"""
+    old = {}
+    for item in before or []:
+        if isinstance(item, dict) and item.get("name"):
+            old[item["name"]] = item
+    result = []
+    for item in after or []:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        previous = old.get(name)
+        if not isinstance(previous, dict):
+            continue
+        fields = sorted(
+            key for key in set(previous) | set(item)
+            if key != "name"
+            and _canonical(previous.get(key)) != _canonical(item.get(key))
+        )
+        if fields:
+            result.append({"name": name, "fields": fields})
+    return result
+
+
 def summarize_config(before, after, files=None):
     """返回可审计的配置摘要；不包含节点凭据。"""
     before = before or {}
@@ -117,6 +147,9 @@ def summarize_config(before, after, files=None):
             "after": new_groups,
             "added": [name for name in new_groups if name not in old_groups],
             "removed": [name for name in old_groups if name not in new_groups],
+            "changed": _group_changes(
+                before.get("proxy-groups"), after.get("proxy-groups")
+            ),
         },
         "ports": {
             key: {"before": before.get(key), "after": after.get(key)}
@@ -142,6 +175,7 @@ def summarize_config(before, after, files=None):
         or summary["proxies"]["removed"]
         or summary["groups"]["added"]
         or summary["groups"]["removed"]
+        or summary["groups"]["changed"]
         or any(v["before"] != v["after"] for v in summary["ports"].values())
         or any(v["before"] != v["after"] for v in summary["dns"].values())
         or old_rules != new_rules
@@ -175,6 +209,12 @@ def render_summary(summary, platform=""):
             _short_list(groups["added"]), _short_list(groups["removed"]),
         )
     )
+    changed = summary["groups"].get("changed") or []
+    if changed:
+        lines.append("策略组内容变更：%s" % _short_list(
+            ["%s（%s）" % (item["name"], "/".join(item["fields"])) for item in changed],
+            limit=3,
+        ))
     for key, value in summary["ports"].items():
         if value["before"] != value["after"]:
             lines.append("%s：%r -> %r" % (key, value["before"], value["after"]))

@@ -1,8 +1,8 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.33
+**版本：** v1.34
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13、2026-11-14 的确认记录
-**代码基线：** `5091485`（PR #21 合并后的 main）；v1.31 的策略组测速与图标条款在后续 PR 中实现
+**代码基线：** `08cba52`（PR #23 合并后的 main）；v1.31 的策略组测速与图标条款已由 PR #22 实现并部署
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
 
@@ -476,11 +476,12 @@ Release 并上传两个 zip 与 `SHA256SUMS`；资产下载校验与 Mihomo `-t`
 
 2026-11-12 起另按负责人 Q13–Q32 实现个人网络部署平台（Windows Clash Verge +
 iStoreOS OpenClash 的计划/部署/验证/回滚）；需求与边界见
-`docs/PLATFORM-REQUIREMENTS.md`。平台代码与 371 项本地测试已完成（含 Q25 新增 14 项）；Windows 与 OpenClash 均已
+`docs/PLATFORM-REQUIREMENTS.md`。平台代码与 389 项本地测试已完成（含 Q25 新增 14 项、变更判定回归 4 项）；Windows 与 OpenClash 均已
 真实部署并通过自动验收；**Q25 选中节点地区比对、Windows/OpenClash 失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端** 均已于 2026-11-13 完成并关闭；浏览器 DoH/DoT/WebRTC 只做只读策略/netlog 评估，真实 LAN 客户端、重启后长期观察、可见浏览器开关与第三方泄漏站点仍为人工开放项。PR #17 已于
 2026-11-13 squash 合并（`de4d5be`）；PR #18（`dns.fallback` 加 `#PROXY`）已合并为
-`3cf7774` 并已重部署到 OpenClash 设备（run `20261113-195320-018656`，当前配置 SHA-256
-`2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`）；PR #19 已合并为 `c680be0`，PR #20（Q25 与双平台回滚演练验收）已合并为 `0fc58ca`，即当前 main 代码基线。
+`3cf7774` 并已重部署到 OpenClash 设备（run `20261113-195320-018656`）；PR #19 已合并为 `c680be0`，PR #20（Q25 与双平台回滚演练验收）已合并为 `0fc58ca`，PR #21 为 `5091485`，PR #22（地区组 url-test、OpenAI fallback、13 组 PNG 图标）为 `953bcde`，PR #23 为 `08cba52`，即当前 main 代码基线。
+2026-11-14 按 v1.33 重部署 OpenClash（run `20261114-162319-318535`，设备当前配置 SHA-256
+`b6c385148c53c54ac10f855701f2c45a4377ddbbb0edecdd2906e1a36f2499e0`）；同轮修复部署 CLI 的变更漏判缺陷（同名策略组属性变化未被计入差异），详见 `docs/PLATFORM-ACCEPTANCE.md` §4.6 与 `docs/PLATFORM-REQUIREMENTS.md` §4.1。
 代理认证按 Q32 只使用一次性环境变量；2026-11-13 验收读取设备 UCI 的一次性例外见
 `docs/PLATFORM-ACCEPTANCE.md`。dsh-pocket UI 重试已完成、WorkBuddy UI 重启复验已成功（负责人 m14574 确认关闭）。
 
@@ -671,3 +672,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-14 | v1.31 | §4.2 第 3 条：七个地区入口与 `自动选择` 改 `url-test`（gstatic/300/50）；§4.3 `OpenAI` 改 `fallback`（美国→狮城→日本→韩国），`Claude`/`Cursor` 保持 `select`；新增 §4.4 策略组图标与 §4.2 第 7/8 条构建期校验；代码基线前移 `5091485` | 项目负责人（2026-11-14 确认） |
 | 2026-11-14 | v1.32 | §4.4 改写：图标**改用 PNG**（Qure 图标集 `icon/qure/color`），源文件 `assets/icons/*.png`，构建期内联为 `data:image/png;base64,…`；校验改为 PNG 签名 + ≤16 KiB；新增 Qure 来源与许可声明、AI 三组映射（Bot/Magic/Lab）；§4.2 第 7 条「不是 SVG」改「不是 PNG」 | 项目负责人（2026-11-14 确认） |
 | 2026-11-14 | v1.33 | §4.4 六个地区组图标**由字母徽标改为国家/地区旗帜**：`hk/tw/jp/kr/sg/us` 改取 Qure 的 `Hong_Kong/Taiwan/Japan/Korea/Singapore/United_States.png`；风格约定同步改写；组名、成员、类型、分流行为均不变 | 项目负责人（2026-11-14 指示「六地区→使用国家旗帜」） |
+| 2026-11-14 | v1.34 | 仅同步代码基线为 `08cba52`（PR #23 合并后 main）并记录同轮平台变更判定缺陷修复（同名策略组属性变化计入差异）；**本文件需求条款零变更**，v1.31 的组测速/图标条款由 PR #22 实现并已双平台部署 | 项目负责人（m17215 部署指令，基线随 main 推进） |
