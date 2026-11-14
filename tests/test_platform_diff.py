@@ -39,6 +39,45 @@ class SummaryTest(unittest.TestCase):
         self.assertFalse(summary["has_changes"])
         self.assertIn("变更：否", platform_diff.render_summary(summary))
 
+    def test_group_field_changes_are_detected_without_name_changes(self):
+        before = config(["a"], ["PROXY", "香港节点"])
+        after = config(["a"], ["PROXY", "香港节点"])
+        after["proxy-groups"][1] = {
+            "name": "香港节点", "type": "url-test",
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300, "tolerance": 50, "icon": "data:image/png;base64,AAAA",
+        }
+        summary = platform_diff.summarize_config(before, after)
+        self.assertTrue(summary["has_changes"])
+        self.assertEqual(summary["groups"]["added"], [])
+        self.assertEqual(summary["groups"]["removed"], [])
+        self.assertEqual(summary["groups"]["changed"], [{
+            "name": "香港节点",
+            "fields": ["icon", "interval", "tolerance", "type", "url"],
+        }])
+        text = platform_diff.render_summary(summary)
+        self.assertIn("策略组内容变更", text)
+        self.assertIn("香港节点", text)
+
+    def test_identical_groups_are_not_a_change(self):
+        before = {"proxy-groups": [{"name": "PROXY", "type": "select",
+                                    "proxies": ["香港节点", "美国节点"]}]}
+        after = {"proxy-groups": [{"name": "PROXY", "type": "select",
+                                   "proxies": ["香港节点", "美国节点"]}]}
+        summary = platform_diff.summarize_config(before, after)
+        self.assertEqual(summary["groups"]["changed"], [])
+        self.assertFalse(summary["has_changes"])
+
+    def test_group_member_change_is_detected(self):
+        before = {"proxy-groups": [{"name": "OpenAI", "type": "select",
+                                    "proxies": ["美国节点"]}]}
+        after = {"proxy-groups": [{"name": "OpenAI", "type": "fallback",
+                                   "proxies": ["美国节点", "狮城节点"]}]}
+        summary = platform_diff.summarize_config(before, after)
+        self.assertTrue(summary["has_changes"])
+        self.assertEqual(summary["groups"]["changed"][0]["name"], "OpenAI")
+        self.assertEqual(summary["groups"]["changed"][0]["fields"], ["proxies", "type"])
+
     def test_dns_and_rule_hash_are_reported(self):
         before = config(["a"], ["PROXY"], ["MATCH,PROXY"], dns={"listen": "0.0.0.0:1053"})
         after = config(["a"], ["PROXY"], ["DOMAIN-SUFFIX,local,DIRECT", "MATCH,PROXY"],
