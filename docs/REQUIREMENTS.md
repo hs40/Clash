@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.31
+**版本：** v1.32
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13、2026-11-14 的确认记录
 **代码基线：** `5091485`（PR #21 合并后的 main）；v1.31 的策略组测速与图标条款在后续 PR 中实现
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
@@ -127,7 +127,7 @@ GitHub 以外的灾难恢复备份系统。
    策略组循环引用，均使构建失败。
 6. ENG-01 只做构建期识别；§4 第 3 条的「本地缓存」在 ENG-06 由 Provider 快照实现（规则数据），节点识别结果本身不缓存（2026-11-10 负责人确认从 ENG-05 推迟到 ENG-06）。
 7. 每个策略组必须声明 `icon`，构建期内联为 base64 data URI（见 §4.4）；图标缺失、
-   名称非法或内容不是 SVG 均使构建失败。
+   名称非法或内容不是 PNG 均使构建失败。
 8. 测速型组（`url-test`/`fallback`）必须声明 http(s) `url`；`select` 组不得声明 `url`；
    `interval` 必须是正整数，`tolerance` 必须是非负整数且只用于 `url-test`。
    违反上述任一条使构建失败。
@@ -152,37 +152,44 @@ GitHub 以外的灾难恢复备份系统。
 
 ### 4.4 策略组图标【确定，2026-11-14 负责人确认】
 
-**机制**：SVG 源文件存放在仓库 `assets/icons/`，构建期读取并内联为
-`data:image/svg+xml;base64,…` 写入策略组 `icon` 字段。产物不依赖网络，可离线部署、
+**机制**：**PNG** 源文件存放在仓库 `assets/icons/`，构建期读取并内联为
+`data:image/png;base64,…` 写入策略组 `icon` 字段。产物不依赖网络，可离线部署、
 可复现；图标只影响展示，不参与分流。
+
+**图标集（2026-11-14 负责人确认）**：使用 Qure 图标集，取
+`https://github.com/blackmatrix7/ios_rule_script/tree/master/icon/qure/color`
+（上游 <https://github.com/Koolson/Qure>，144×144 彩色 PNG）。**不使用 SVG 文件。**
 
 **约束**：
 
 - 文件名即 `icon` 字段取值，必须匹配 `^[a-z0-9][a-z0-9-]*$`。
-- 源文件必须是 UTF-8 文本、以 `<svg` 开头、不超过 16 KiB。
-- 图标缺失、名称非法、内容不是 SVG，均使构建失败（§4.2 第 7 条）。
+- 源文件必须是 PNG（签名 `\x89PNG\r\n\x1a\n`）、不超过 16 KiB。
+- 图标缺失、名称非法、内容不是 PNG、超限，均使构建失败（§4.2 第 7 条）。
 - 新增或替换图标必须在 `assets/icons/README.md` 登记来源与许可。
 
-| 策略组 | 图标名 | 来源 | 许可 |
+| 策略组 | 图标名 | 上游文件 | 许可 |
 | --- | --- | --- | --- |
-| PROXY | `proxy` | Material Symbols `alt_route` | Apache-2.0 |
-| Google | `google` | simple-icons | CC0-1.0 |
-| OpenAI | `openai` | simple-icons 13.0.0 | CC0-1.0 |
-| Claude | `claude` | simple-icons（anthropic） | CC0-1.0 |
-| Cursor | `cursor` | simple-icons | CC0-1.0 |
-| 自动选择 | `auto` | Material Symbols `bolt` | Apache-2.0 |
-| 香港节点 | `hk` | flag-icons 4x3 | MIT |
-| 台湾节点 | `tw` | flag-icons 4x3 | MIT |
-| 日本节点 | `jp` | flag-icons 4x3 | MIT |
-| 韩国节点 | `kr` | flag-icons 4x3 | MIT |
-| 狮城节点 | `sg` | flag-icons 4x3 | MIT |
-| 美国节点 | `us` | flag-icons 4x3 | MIT |
-| 其他节点 | `other` | Material Symbols `public` | Apache-2.0 |
+| PROXY | `proxy` | `Proxy.png` | Qure（见许可声明） |
+| Google | `google` | `Google.png` | Qure 备份，商标归 Google |
+| OpenAI | `openai` | `Bot.png` | Qure |
+| Claude | `claude` | `Magic.png` | Qure |
+| Cursor | `cursor` | `Lab.png` | Qure |
+| 自动选择 | `auto` | `Auto.png` | Qure |
+| 香港节点 | `hk` | `HK.png` | Qure |
+| 台湾节点 | `tw` | `TW.png` | Qure |
+| 日本节点 | `jp` | `JP.png` | Qure |
+| 韩国节点 | `kr` | `KR.png` | Qure |
+| 狮城节点 | `sg` | `SG.png` | Qure |
+| 美国节点 | `us` | `US.png` | Qure |
+| 其他节点 | `other` | `Area.png` | Qure |
 
-- 风格约定：地区组用国旗，功能组用中性图形，Google/OpenAI/Claude/Cursor 用品牌标志。
-- 配色（2026-11-14 负责人确认）：单色图标在 `<svg>` 根元素写 `fill`——Google `#4285F4`、
-  OpenAI `#10A37F`、Claude `#D97757`；Cursor 与功能组（PROXY/自动选择/其他节点）用中性灰
-  `#6E7681`；六个国旗保留上游原色。
+- 风格约定：地区组用地区字母徽标，功能组用中性图形；Google 用其彩色字标。
+- **AI 三组映射（负责人确认）**：Qure 无 OpenAI/Claude/Cursor 品牌图标，三组改用
+  可区分的中性图形——OpenAI → `Bot`、Claude → `Magic`、Cursor → `Lab`，不冒充品牌标志。
+- **许可声明**：Qure 无开源许可证，README 声明图标/LOGO 版权归原作者及商标方所有，
+  仅限资源共享与学习参考、禁止商用、转载请注明出处；blackmatrix7 的 `icon/qure` 是
+  上游单向备份。本项目为个人非商业自用，仅在仓库内保存副本并内联进自建配置；
+  权利人可通过 Issue 要求删除。负责人 2026-11-14 已接受该前提。
 
 ---
 
@@ -660,4 +667,5 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-13 | v1.28 | PR #18 合并为 `3cf7774`；OpenClash 设备重部署 `#PROXY` 新配置（run `20261113-195320-018656`，设备 `mihomo -t` 与部署内 verify 均通过，357 项测试复跑通过）；双平台遗留人工项未关闭 | 项目负责人（事实记录） |
 | 2026-11-13 | v1.29 | Q25 选中节点地区比对（命名管道控制接口 + regions 关键词，Windows 真实验证 HK 一致）；Windows 与 OpenClash 失败→自动回滚→重部署/恢复实机演练；8 条 CIDR DNS 护栏 `--remove` 回滚演练；NAS 显式代理端到端（网关 192.168.2.1 未改、经 192.168.2.10:7893 带认证 204、出口非 CN）；dsh-pocket UI 重试与 WorkBuddy UI 重启复验由负责人确认关闭；浏览器 DoH/DoT/WebRTC 只读评估完成；371 项测试通过 | 项目负责人（事实记录） |
 | 2026-11-14 | v1.30 | 同步代码基线为 `0fc58ca`（PR #20 合并后的 main）；PR #20 已合并并删除源分支，main push CI 通过；仅更新基线指针与合并记录，**需求条款未变** | 项目负责人（基线指针同步） |
-| 2026-11-14 | v1.31 | §4.2 第 3 条：七个地区入口与 `自动选择` 改 `url-test`（gstatic/300/50）；§4.3 `OpenAI` 改 `fallback`（美国→狮城→日本→韩国），`Claude`/`Cursor` 保持 `select`；新增 §4.4 策略组图标（SVG 源文件 + 构建期内联）与 §4.2 第 7/8 条构建期校验；代码基线前移 `5091485` | 项目负责人（2026-11-14 确认） |
+| 2026-11-14 | v1.31 | §4.2 第 3 条：七个地区入口与 `自动选择` 改 `url-test`（gstatic/300/50）；§4.3 `OpenAI` 改 `fallback`（美国→狮城→日本→韩国），`Claude`/`Cursor` 保持 `select`；新增 §4.4 策略组图标与 §4.2 第 7/8 条构建期校验；代码基线前移 `5091485` | 项目负责人（2026-11-14 确认） |
+| 2026-11-14 | v1.32 | §4.4 改写：图标**改用 PNG**（Qure 图标集 `icon/qure/color`），源文件 `assets/icons/*.png`，构建期内联为 `data:image/png;base64,…`；校验改为 PNG 签名 + ≤16 KiB；新增 Qure 来源与许可声明、AI 三组映射（Bot/Magic/Lab）；§4.2 第 7 条「不是 SVG」改「不是 PNG」 | 项目负责人（2026-11-14 确认） |

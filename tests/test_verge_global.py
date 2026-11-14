@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -101,14 +102,22 @@ def sample_config():
 
 
 def run_script(script, config, profile_name="FIB"):
+    """把脚本写入临时 .js 再执行。
+
+    PNG 图标内联后脚本约 180 KB，超过 Windows 命令行长度上限（约 32 KB），
+    因此不能再用 node -e 传参。
+    """
     if NODE is None:
         raise unittest.SkipTest("node 不可用")
     code = script + "\nconst __cfg = " + json.dumps(config, ensure_ascii=False)
     code += "; const __out = main(__cfg, " + json.dumps(profile_name, ensure_ascii=False)
     code += "); process.stdout.write(JSON.stringify(__out));"
-    proc = subprocess.run(
-        [NODE, "-e", code], capture_output=True, text=True, encoding="utf-8"
-    )
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "run_script.js"
+        path.write_text(code, encoding="utf-8")
+        proc = subprocess.run(
+            [NODE, str(path)], capture_output=True, text=True, encoding="utf-8"
+        )
     if proc.returncode != 0:
         raise AssertionError("node 执行失败：%s\n%s" % (proc.stdout, proc.stderr))
     return json.loads(proc.stdout)
@@ -171,7 +180,7 @@ class ScriptStructureTest(unittest.TestCase):
     def test_script_embeds_group_icons(self):
         self.assertIn("const MVP_GROUP_ICONS = ", self.script)
         self.assertEqual(
-            self.script.count("data:image/svg+xml;base64,"),
+            self.script.count("data:image/png;base64,"),
             len(verge_global.GROUP_ICONS),
         )
         self.assertEqual(
@@ -256,14 +265,14 @@ class ScriptBehaviorTest(unittest.TestCase):
                 self.assertEqual(group["interval"], 300)
                 self.assertEqual(group["tolerance"], 50)
 
-    def test_every_group_carries_inline_svg_icon(self):
+    def test_every_group_carries_inline_png_icon(self):
         self.assertEqual(
             [group["name"] for group in self.result["proxy-groups"]],
             list(verge_global.GROUP_ORDER),
         )
         for group in self.result["proxy-groups"]:
             with self.subTest(group=group["name"]):
-                self.assertTrue(group["icon"].startswith("data:image/svg+xml;base64,"))
+                self.assertTrue(group["icon"].startswith("data:image/png;base64,"))
 
     def test_auto_select_contains_only_good_nodes(self):
         self.assertEqual(

@@ -1,7 +1,7 @@
 # 策略组：ENG-01 起成员由构建期生成，不再手写节点名单。
 # include: all            → 全部节点，按 proxies.yaml 顺序
 # include: region:<组名>  → 该地区的全部节点；该地区没有节点时填入「自动选择」
-# icon: <名称>            → 构建期内联 assets/icons/<名称>.svg 为 base64 data URI
+# icon: <名称>            → 构建期内联 assets/icons/<名称>.png 为 base64 data URI（Qure 图标集）
 # 七个地区入口名称由负责人确认，不得改写（docs/REQUIREMENTS.md §4.1）。
 # 地区入口与自动选择改为 url-test 自动测速（2026-11-14 负责人确认，§4.2）。
 proxy-groups:

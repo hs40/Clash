@@ -4,6 +4,7 @@ S2：proxy-groups.yaml 的 include 指令由 build_platform 解析成真实成�
 S3：未知指令、无效引用、循环引用必须让构建失败。
 """
 
+import base64
 import shutil
 import sys
 import tempfile
@@ -109,13 +110,27 @@ class GeneratedGroupsTest(unittest.TestCase):
             with self.subTest(group=group["name"]):
                 self.assertNotIn("include", group)
 
-    def test_every_group_carries_inline_svg_icon(self):
+    def test_every_group_carries_inline_png_icon(self):
         self.assertEqual(len(self.cfg["proxy-groups"]), 13)
         for group in self.cfg["proxy-groups"]:
             with self.subTest(group=group["name"]):
-                self.assertTrue(
-                    group["icon"].startswith("data:image/svg+xml;base64,")
-                )
+                icon = group["icon"]
+                self.assertTrue(icon.startswith("data:image/png;base64,"))
+                raw = base64.b64decode(icon.split(",", 1)[1])
+                self.assertTrue(raw.startswith(b"\x89PNG\r\n\x1a\n"))
+                self.assertLessEqual(len(raw), 16 * 1024)
+
+    def test_icons_are_png_sources_on_disk(self):
+        files = sorted((ROOT / "assets" / "icons").glob("*.png"))
+        self.assertEqual(len(files), 13)
+        for path in files:
+            with self.subTest(file=path.name):
+                self.assertTrue(path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+        self.assertEqual(
+            list((ROOT / "assets" / "icons").glob("*.svg")),
+            [],
+            "负责人已确认改用 PNG，仓库内不应再有 SVG 图标源文件",
+        )
 
 
 class GroupFixtureTest(unittest.TestCase):
@@ -270,6 +285,22 @@ class GroupFixtureTest(unittest.TestCase):
         with self.assertRaises(build.ConfigError) as ctx:
             self.build()
         self.assertIn("图标", str(ctx.exception))
+
+    def test_non_png_icon_is_rejected(self):
+        (self.root / "assets" / "icons" / "proxy.png").write_bytes(
+            b"<svg xmlns='http://www.w3.org/2000/svg'/>"
+        )
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("不是 PNG", str(ctx.exception))
+
+    def test_oversized_icon_is_rejected(self):
+        (self.root / "assets" / "icons" / "proxy.png").write_bytes(
+            b"\x89PNG\r\n\x1a\n" + b"\x00" * (16 * 1024)
+        )
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("超过", str(ctx.exception))
 
     def test_url_test_group_without_url_is_rejected(self):
         self.edit_groups(lambda gs: gs[0].update({"type": "url-test"}))

@@ -1,3 +1,5 @@
 # 统一换行符为 LF：Windows 与 Linux/CI 构建结果才能字节一致
 * text=auto eol=lf
 *.cmd text eol=crlf
+# 图标是二进制 PNG，禁止任何换行/文本转换（构建期会校验 PNG 签名）
+*.png binary

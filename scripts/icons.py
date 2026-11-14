@@ -1,8 +1,9 @@
-"""策略组图标：把 assets/icons/*.svg 内联为 base64 data URI。
+"""策略组图标：把 assets/icons/*.png 内联为 base64 data URI。
 
 设计约束（2026-11-14 负责人确认）：
-- 仓库存 SVG 源文件，构建期内联；产物不依赖网络，可离线部署、可复现。
-- 图标只影响展示，不参与分流；文件名由 proxy-groups.yaml 的 icon 字段引用。
+- 图标使用 Qure 图标集（PNG），不再使用 SVG；仓库存 PNG 源文件，构建期内联。
+- 产物不依赖网络，可离线部署、可复现；图标只影响展示，不参与分流。
+- 文件名由 proxy-groups.yaml 的 icon 字段引用。
 """
 
 import base64
@@ -10,14 +11,15 @@ import re
 from pathlib import Path
 
 ICON_DIR = Path("assets") / "icons"
-ICON_SUFFIX = ".svg"
+ICON_SUFFIX = ".png"
 MAX_ICON_BYTES = 16 * 1024
 ICON_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-DATA_URI_PREFIX = "data:image/svg+xml;base64,"
+DATA_URI_PREFIX = "data:image/png;base64,"
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 
 class IconError(Exception):
-    """图标缺失、命名非法或内容不是 SVG。"""
+    """图标缺失、命名非法或内容不是 PNG。"""
 
 
 def icon_path(name, root):
@@ -28,7 +30,7 @@ def icon_path(name, root):
 
 
 def load_icon(name, root):
-    """读取 SVG 源文件并返回可直接写入配置的 data URI。"""
+    """读取 PNG 源文件并返回可直接写入配置的 data URI。"""
     path = icon_path(name, root)
     try:
         data = path.read_bytes()
@@ -40,12 +42,8 @@ def load_icon(name, root):
         raise IconError(
             "图标超过 %d 字节：%s（%d 字节）" % (MAX_ICON_BYTES, path, len(data))
         )
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise IconError("图标不是 UTF-8 文本：%s" % path) from exc
-    if not text.lstrip().startswith("<svg"):
-        raise IconError("图标不是 SVG：%s" % path)
+    if not data.startswith(PNG_SIGNATURE):
+        raise IconError("图标不是 PNG：%s" % path)
     return DATA_URI_PREFIX + base64.b64encode(data).decode("ascii")
 
 
