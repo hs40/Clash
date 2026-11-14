@@ -168,6 +168,23 @@ class ScriptStructureTest(unittest.TestCase):
         self.assertIn("geosite-private", self.script)
         self.assertIn("geosite-cn", self.script)
 
+    def test_script_embeds_group_icons(self):
+        self.assertIn("const MVP_GROUP_ICONS = ", self.script)
+        self.assertEqual(
+            self.script.count("data:image/svg+xml;base64,"),
+            len(verge_global.GROUP_ICONS),
+        )
+        self.assertEqual(
+            sorted(verge_global.GROUP_ICONS),
+            sorted(
+                [
+                    "PROXY", "Google", "OpenAI", "Claude", "Cursor", "自动选择",
+                    "香港节点", "台湾节点", "日本节点", "韩国节点",
+                    "狮城节点", "美国节点", "其他节点",
+                ]
+            ),
+        )
+
     def test_script_writes_no_tun_controller_or_secret(self):
         for word in ("external-controller", "secret", "tun"):
             with self.subTest(word=word):
@@ -195,10 +212,15 @@ class ScriptBehaviorTest(unittest.TestCase):
             verge_global.GROUP_ORDER,
         )
         self.assertEqual(self.groups["PROXY"]["type"], "select")
-        self.assertEqual(self.groups["Google"]["type"], "fallback")
-        self.assertEqual(self.groups["自动选择"]["type"], "url-test")
-        for name in ("OpenAI", "Claude", "Cursor") + tuple(verge_global.REGION_GROUPS):
-            self.assertEqual(self.groups[name]["type"], "select")
+        for name in ("Google", "OpenAI"):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["type"], "fallback")
+        for name in ("自动选择",) + tuple(verge_global.REGION_GROUPS):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["type"], "url-test")
+        for name in ("Claude", "Cursor"):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["type"], "select")
 
     def test_proxy_and_google_members(self):
         self.assertEqual(
@@ -210,10 +232,38 @@ class ScriptBehaviorTest(unittest.TestCase):
             ["美国节点", "狮城节点", "日本节点", "香港节点"],
         )
 
-    def test_ai_groups_include_auto_and_all_regions(self):
+    def test_openai_falls_back_across_regions_in_fixed_order(self):
+        self.assertEqual(
+            self.groups["OpenAI"]["proxies"],
+            list(verge_global.OPENAI_FALLBACK),
+        )
+        self.assertEqual(
+            list(verge_global.OPENAI_FALLBACK),
+            ["美国节点", "狮城节点", "日本节点", "韩国节点"],
+        )
+
+    def test_claude_and_cursor_stay_selectable(self):
         expected = ["自动选择"] + list(verge_global.REGION_GROUPS)
-        for name in ("OpenAI", "Claude", "Cursor"):
-            self.assertEqual(self.groups[name]["proxies"], expected)
+        for name in ("Claude", "Cursor"):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["proxies"], expected)
+
+    def test_region_groups_health_check_is_gstatic_300_50(self):
+        for name in verge_global.REGION_GROUPS:
+            group = self.groups[name]
+            with self.subTest(group=name):
+                self.assertEqual(group["url"], verge_global.URL_TEST)
+                self.assertEqual(group["interval"], 300)
+                self.assertEqual(group["tolerance"], 50)
+
+    def test_every_group_carries_inline_svg_icon(self):
+        self.assertEqual(
+            [group["name"] for group in self.result["proxy-groups"]],
+            list(verge_global.GROUP_ORDER),
+        )
+        for group in self.result["proxy-groups"]:
+            with self.subTest(group=group["name"]):
+                self.assertTrue(group["icon"].startswith("data:image/svg+xml;base64,"))
 
     def test_auto_select_contains_only_good_nodes(self):
         self.assertEqual(

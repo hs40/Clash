@@ -491,14 +491,20 @@ class Q25VerifyIntegrationTest(unittest.TestCase):
         names = ["node-%d" % i for i in range(46)]
         groups = [
             {"name": "PROXY", "type": "select", "proxies": ["自动选择"] + regions + ["DIRECT"]},
-            {"name": "Google", "type": "fallback", "proxies": ["美国节点", "狮城节点", "日本节点", "香港节点"]},
-            {"name": "OpenAI", "type": "select", "proxies": ["自动选择"] + regions},
+            {"name": "Google", "type": "fallback",
+             "url": "https://www.gstatic.com/generate_204", "interval": 300,
+             "proxies": ["美国节点", "狮城节点", "日本节点", "香港节点"]},
+            {"name": "OpenAI", "type": "fallback",
+             "url": "https://www.gstatic.com/generate_204", "interval": 300,
+             "proxies": ["美国节点", "狮城节点", "日本节点", "韩国节点"]},
             {"name": "Claude", "type": "select", "proxies": ["自动选择"] + regions},
             {"name": "Cursor", "type": "select", "proxies": ["自动选择"] + regions},
             {"name": "自动选择", "type": "url-test",
              "url": "https://www.gstatic.com/generate_204", "interval": 300,
              "tolerance": 50, "proxies": names},
-        ] + [{"name": r, "type": "select", "proxies": ["node-0"]} for r in regions]
+        ] + [{"name": r, "type": "url-test",
+              "url": "https://www.gstatic.com/generate_204", "interval": 300,
+              "tolerance": 50, "proxies": ["node-0"]} for r in regions]
         config = {
             "mixed-port": 7897, "mode": "rule", "ipv6": False, "allow-lan": False,
             "tun": {"enable": True, "stack": "gvisor", "auto-route": True},

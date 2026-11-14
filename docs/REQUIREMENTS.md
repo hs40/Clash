@@ -1,8 +1,8 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.30
-**来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13 的确认记录
-**代码基线：** `0fc58ca`（PR #20 合并后的 main，2026-11-14 同步；本次仅同步代码基线指针，需求条款未变）
+**版本：** v1.31
+**来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13、2026-11-14 的确认记录
+**代码基线：** `5091485`（PR #21 合并后的 main）；v1.31 的策略组测速与图标条款在后续 PR 中实现
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
 
@@ -119,26 +119,70 @@ GitHub 以外的灾难恢复备份系统。
    `proxy-groups.yaml` 通过 `include: all` 或 `include: region:<入口名>` 声明成员来源，
    该指令不进入产物。
 2. 某地区没有节点时，该地区组填入 `自动选择`（不留空）。
-3. `自动选择` 为 `url-test`，成员为全部节点。
+3. `自动选择` 与七个地区入口均为 `url-test`（2026-11-14 负责人确认）：
+   测速地址 `https://www.gstatic.com/generate_204`、`interval: 300`、`tolerance: 50`。
+   `自动选择` 成员为全部节点；地区组只含本地区节点，组内自动测速，**不再手选单个节点**。
 4. Google 组为 `fallback`，顺序固定：美国节点 → 狮城节点 → 日本节点 → 香港节点。
 5. 七个地区入口必须全部存在；缺失入口、未知 `include`、引用不存在的节点或策略组、
    策略组循环引用，均使构建失败。
 6. ENG-01 只做构建期识别；§4 第 3 条的「本地缓存」在 ENG-06 由 Provider 快照实现（规则数据），节点识别结果本身不缓存（2026-11-10 负责人确认从 ENG-05 推迟到 ENG-06）。
+7. 每个策略组必须声明 `icon`，构建期内联为 base64 data URI（见 §4.4）；图标缺失、
+   名称非法或内容不是 SVG 均使构建失败。
+8. 测速型组（`url-test`/`fallback`）必须声明 http(s) `url`；`select` 组不得声明 `url`；
+   `interval` 必须是正整数，`tolerance` 必须是非负整数且只用于 `url-test`。
+   违反上述任一条使构建失败。
 
 ### 4.3 业务策略组与路由目标【确定，2026-11-10 负责人确认】
 
 | 业务 | 规则目标 | 说明 |
 | --- | --- | --- |
 | Google | `Google` 组 | `fallback`，顺序：美国节点 → 狮城节点 → 日本节点 → 香港节点 |
-| AI | `OpenAI`、`Claude`、`Cursor` 三个独立组 | `select`，成员固定为「自动选择 + 七个地区入口」，默认选中「自动选择」 |
+| AI | `OpenAI`、`Claude`、`Cursor` 三个独立组 | `OpenAI` 为 `fallback`（美国→狮城→日本→韩国）；`Claude`/`Cursor` 为 `select`（自动选择 + 七个地区入口，默认选中「自动选择」） |
 | Apple | `DIRECT` | |
 | 国内金融 | `DIRECT` | |
 | BT | `DIRECT` | |
 
 - AI 范围仅限 OpenAI、Claude、Cursor；不纳入 Gemini、Perplexity 等（负责人确认）。
-- 三个 AI 组必须存在，且成员顺序固定：自动选择、香港节点、台湾节点、日本节点、
-  韩国节点、狮城节点、美国节点、其他节点。
+- `OpenAI` 组为 `fallback`（2026-11-14 负责人确认），成员顺序固定：
+  美国节点、狮城节点、日本节点、韩国节点；测速地址 `https://www.gstatic.com/generate_204`、
+  `interval: 300`。
+- `Claude`、`Cursor` 保持 `select`，两个组必须存在，且成员顺序固定：自动选择、香港节点、
+  台湾节点、日本节点、韩国节点、狮城节点、美国节点、其他节点。
 - 规则引用的策略组必须存在；引用不存在的组使构建失败（§5.2）。
+
+### 4.4 策略组图标【确定，2026-11-14 负责人确认】
+
+**机制**：SVG 源文件存放在仓库 `assets/icons/`，构建期读取并内联为
+`data:image/svg+xml;base64,…` 写入策略组 `icon` 字段。产物不依赖网络，可离线部署、
+可复现；图标只影响展示，不参与分流。
+
+**约束**：
+
+- 文件名即 `icon` 字段取值，必须匹配 `^[a-z0-9][a-z0-9-]*$`。
+- 源文件必须是 UTF-8 文本、以 `<svg` 开头、不超过 16 KiB。
+- 图标缺失、名称非法、内容不是 SVG，均使构建失败（§4.2 第 7 条）。
+- 新增或替换图标必须在 `assets/icons/README.md` 登记来源与许可。
+
+| 策略组 | 图标名 | 来源 | 许可 |
+| --- | --- | --- | --- |
+| PROXY | `proxy` | Material Symbols `alt_route` | Apache-2.0 |
+| Google | `google` | simple-icons | CC0-1.0 |
+| OpenAI | `openai` | simple-icons 13.0.0 | CC0-1.0 |
+| Claude | `claude` | simple-icons（anthropic） | CC0-1.0 |
+| Cursor | `cursor` | simple-icons | CC0-1.0 |
+| 自动选择 | `auto` | Material Symbols `bolt` | Apache-2.0 |
+| 香港节点 | `hk` | flag-icons 4x3 | MIT |
+| 台湾节点 | `tw` | flag-icons 4x3 | MIT |
+| 日本节点 | `jp` | flag-icons 4x3 | MIT |
+| 韩国节点 | `kr` | flag-icons 4x3 | MIT |
+| 狮城节点 | `sg` | flag-icons 4x3 | MIT |
+| 美国节点 | `us` | flag-icons 4x3 | MIT |
+| 其他节点 | `other` | Material Symbols `public` | Apache-2.0 |
+
+- 风格约定：地区组用国旗，功能组用中性图形，Google/OpenAI/Claude/Cursor 用品牌标志。
+- 配色（2026-11-14 负责人确认）：单色图标在 `<svg>` 根元素写 `fill`——Google `#4285F4`、
+  OpenAI `#10A37F`、Claude `#D97757`；Cursor 与功能组（PROXY/自动选择/其他节点）用中性灰
+  `#6E7681`；六个国旗保留上游原色。
 
 ---
 
@@ -512,8 +556,9 @@ MVP 的 `configs/common/proxies.yaml` 使用占位节点：`type: ss`、
 
 固定组顺序（负责人 2026-11-11 确认，顺序不可调整）：
 `PROXY`（select：自动选择、七个地区组、DIRECT）、`Google`（fallback：美国→狮城→日本→香港）、
-`OpenAI`、`Claude`、`Cursor`（select：自动选择 + 七个地区组）、`自动选择`（url-test：全部可用节点）、
-七个地区组（select）。地区识别复用 `scripts/regions.py`，空地区回退 `自动选择`。
+`OpenAI`（fallback：美国→狮城→日本→韩国）、`Claude`、`Cursor`（select：自动选择 + 七个地区组）、
+`自动选择` 与七个地区组（url-test：gstatic、300 秒、容差 50，2026-11-14 起）。
+地区识别复用 `scripts/regions.py`，空地区回退 `自动选择`；13 个组均带构建期内联图标（§4.4）。
 
 规则共 33 条（特殊 8、业务 20、基础 4、兜底 1），最后一条唯一为 `MATCH,PROXY`。
 特殊层含 `IP-CIDR,100.64.0.0/10,DIRECT,no-resolve`，覆盖 Tailscale CGNAT
@@ -615,3 +660,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-13 | v1.28 | PR #18 合并为 `3cf7774`；OpenClash 设备重部署 `#PROXY` 新配置（run `20261113-195320-018656`，设备 `mihomo -t` 与部署内 verify 均通过，357 项测试复跑通过）；双平台遗留人工项未关闭 | 项目负责人（事实记录） |
 | 2026-11-13 | v1.29 | Q25 选中节点地区比对（命名管道控制接口 + regions 关键词，Windows 真实验证 HK 一致）；Windows 与 OpenClash 失败→自动回滚→重部署/恢复实机演练；8 条 CIDR DNS 护栏 `--remove` 回滚演练；NAS 显式代理端到端（网关 192.168.2.1 未改、经 192.168.2.10:7893 带认证 204、出口非 CN）；dsh-pocket UI 重试与 WorkBuddy UI 重启复验由负责人确认关闭；浏览器 DoH/DoT/WebRTC 只读评估完成；371 项测试通过 | 项目负责人（事实记录） |
 | 2026-11-14 | v1.30 | 同步代码基线为 `0fc58ca`（PR #20 合并后的 main）；PR #20 已合并并删除源分支，main push CI 通过；仅更新基线指针与合并记录，**需求条款未变** | 项目负责人（基线指针同步） |
+| 2026-11-14 | v1.31 | §4.2 第 3 条：七个地区入口与 `自动选择` 改 `url-test`（gstatic/300/50）；§4.3 `OpenAI` 改 `fallback`（美国→狮城→日本→韩国），`Claude`/`Cursor` 保持 `select`；新增 §4.4 策略组图标（SVG 源文件 + 构建期内联）与 §4.2 第 7/8 条构建期校验；代码基线前移 `5091485` | 项目负责人（2026-11-14 确认） |

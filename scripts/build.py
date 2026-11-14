@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 
+from icons import IconError, load_icon
 from providers import (
     ProviderError,
     load_provider_lock,
@@ -67,7 +68,7 @@ KEY_ORDER = (
     "rules",
 )
 
-# 策略组源文件允许的键；include 是构建期指令，不会进入最终产物（ENG-01）。
+# 策略组源文件允许的键；include 与 icon 是构建期指令，不会原样进入最终产物（ENG-01）。
 GROUP_SOURCE_KEYS = (
     "name",
     "type",
@@ -76,7 +77,12 @@ GROUP_SOURCE_KEYS = (
     "tolerance",
     "proxies",
     "include",
+    "icon",
 )
+
+# 支持的策略组类型：需要测速的组必须声明 url（构建期校验）。
+GROUP_TYPES = ("select", "url-test", "fallback", "load-balance")
+URL_TEST_TYPES = ("url-test", "fallback", "load-balance")
 
 # 策略组输出键的固定顺序。
 GROUP_OUTPUT_KEYS = ("name", "type", "url", "interval", "tolerance")
@@ -199,6 +205,45 @@ def _proxy_names(proxies, path):
     return names
 
 
+def _validate_group_health_check(group, name, path):
+    """测速型策略组必须声明 url；select 组不得携带 url；tolerance 只用于 url-test。"""
+    group_type = group["type"]
+    url = group.get("url")
+    if group_type in URL_TEST_TYPES:
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            raise ConfigError(
+                "%s：策略组 %r 类型为 %s，必须声明 http(s) url"
+                % (path, name, group_type)
+            )
+    elif url is not None:
+        raise ConfigError(
+            "%s：策略组 %r 为 %s，不应声明 url" % (path, name, group_type)
+        )
+    interval = group.get("interval")
+    if interval is not None and (
+        isinstance(interval, bool) or not isinstance(interval, int) or interval <= 0
+    ):
+        raise ConfigError("%s：策略组 %r 的 interval 必须是正整数" % (path, name))
+    tolerance = group.get("tolerance")
+    if tolerance is not None:
+        if isinstance(tolerance, bool) or not isinstance(tolerance, int) or tolerance < 0:
+            raise ConfigError("%s：策略组 %r 的 tolerance 必须是非负整数" % (path, name))
+        if group_type != "url-test":
+            raise ConfigError(
+                "%s：策略组 %r 的 tolerance 只用于 url-test" % (path, name)
+            )
+
+
+def _resolve_icon(icon, group_name, path, root):
+    """把 icon 字段解析为内联 data URI；缺失或非法即构建失败。"""
+    try:
+        return load_icon(icon, root)
+    except IconError as exc:
+        raise ConfigError(
+            "%s：策略组 %r 的图标无效：%s" % (path, group_name, exc)
+        ) from exc
+
+
 def _validate_groups(groups, proxy_names, path):
     """校验策略组外壳：名称唯一、键已登记、不与节点重名。"""
     if not isinstance(groups, list) or not groups:
@@ -214,8 +259,15 @@ def _validate_groups(groups, proxy_names, path):
             raise ConfigError("%s：策略组名称重复：%r" % (path, name))
         if name in proxy_names:
             raise ConfigError("%s：策略组与节点重名：%r" % (path, name))
-        if not isinstance(group.get("type"), str) or not group["type"]:
+        group_type = group.get("type")
+        if not isinstance(group_type, str) or not group_type:
             raise ConfigError("%s：策略组 %r 缺少 type" % (path, name))
+        if group_type not in GROUP_TYPES:
+            raise ConfigError(
+                "%s：策略组 %r 的类型不受支持：%r（可用：%s）"
+                % (path, name, group_type, ", ".join(GROUP_TYPES))
+            )
+        _validate_group_health_check(group, name, path)
         unknown = sorted(set(group) - set(GROUP_SOURCE_KEYS))
         if unknown:
             raise ConfigError(
@@ -278,7 +330,7 @@ def _check_cycles(groups, path):
             visit(name)
 
 
-def _resolve_proxy_groups(groups, proxies, path):
+def _resolve_proxy_groups(groups, proxies, path, root):
     """解析 include 并校验所有引用，返回可直接输出的策略组列表。"""
     proxy_names = _proxy_names(proxies, path)
     group_names = _validate_groups(groups, proxy_names, path)
@@ -316,6 +368,8 @@ def _resolve_proxy_groups(groups, proxies, path):
                 raise ConfigError("%s：策略组 %r 含重复成员：%r" % (path, name, member))
             seen.add(member)
         output = {key: group[key] for key in GROUP_OUTPUT_KEYS if key in group}
+        if "icon" in group:
+            output["icon"] = _resolve_icon(group["icon"], name, path, root)
         output["proxies"] = list(members)
         resolved.append(output)
     _check_cycles(resolved, path)
@@ -578,7 +632,7 @@ def build_platform(platform, root=REPO_ROOT, proxies=None, dns_listen=None):
             raise ConfigError("tun.dns-hijack：Windows 必须包含 any:53")
 
     merged["proxy-groups"] = _resolve_proxy_groups(
-        merged["proxy-groups"], merged["proxies"], owners["proxy-groups"]
+        merged["proxy-groups"], merged["proxies"], owners["proxy-groups"], root
     )
     merged["rules"] = compile_rules(
         merged["rules"],
