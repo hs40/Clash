@@ -159,6 +159,133 @@ class ApplyUpdateTest(unittest.TestCase):
         )
 
 
+class ResolveCommitTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.lock = write_fixture(self.root)
+        self.new_payload = PAYLOAD + b"+.new\n"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def changed_results(self, payload=None):
+        return update_providers.check_upstream(
+            self.lock, lambda _url: payload or self.new_payload
+        )
+
+    def test_resolves_tracked_ref_to_commit_sha(self):
+        urls = []
+        sha = "b" * 40
+
+        def fetch(url):
+            urls.append(url)
+            return json.dumps({"sha": sha}).encode("utf-8")
+
+        commit = update_providers.resolve_commit(self.lock, self.changed_results(), fetch)
+        self.assertEqual(commit, sha)
+        self.assertEqual(
+            urls,
+            ["https://api.github.com/repos/MetaCubeX/meta-rules-dat/commits/meta"],
+        )
+
+    def test_rejects_non_commit_sha(self):
+        def fetch(_url):
+            return json.dumps({"sha": "abc"}).encode("utf-8")
+
+        with self.assertRaises(update_providers.UpdateError) as ctx:
+            update_providers.resolve_commit(self.lock, self.changed_results(), fetch)
+        self.assertIn("40 位", str(ctx.exception))
+
+    def test_rejects_unparseable_response(self):
+        with self.assertRaises(update_providers.UpdateError):
+            update_providers.resolve_commit(
+                self.lock, self.changed_results(), lambda _url: b"not json"
+            )
+
+    def test_rejects_when_nothing_changed(self):
+        results = update_providers.check_upstream(self.lock, lambda _url: PAYLOAD)
+        with self.assertRaises(update_providers.UpdateError):
+            update_providers.resolve_commit(self.lock, results, lambda _url: b"{}")
+
+    def test_rejects_multiple_changed_sources(self):
+        second = dict(self.lock["providers"]["geosite-private"])
+        second["source"] = "other"
+        self.lock["sources"]["other"] = dict(self.lock["sources"]["metacubex"])
+        self.lock["providers"]["geosite-cn"] = second
+        results = update_providers.check_upstream(
+            self.lock, lambda _url: self.new_payload
+        )
+        with self.assertRaises(update_providers.UpdateError) as ctx:
+            update_providers.resolve_commit(self.lock, results, lambda _url: b"{}")
+        self.assertIn("多个来源", str(ctx.exception))
+
+
+class ApplyCommandTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.lock = write_fixture(self.root)
+        self.new_payload = PAYLOAD + b"+.new\n"
+        self.sha = "c" * 40
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_apply(self, argv, payload=None):
+        payload = payload or self.new_payload
+        stdout = io.StringIO()
+
+        def fetch(url):
+            if "api.github.com" in url:
+                return json.dumps({"sha": self.sha}).encode("utf-8")
+            return payload
+
+        with mock.patch.object(update_providers, "fetch_url", side_effect=fetch):
+            with contextlib.redirect_stdout(stdout):
+                code = update_providers.main(
+                    ["--apply", "--root", str(self.root)] + argv
+                )
+        return code, stdout.getvalue()
+
+    def test_apply_resolves_commit_and_writes_branch_report(self):
+        output = self.root / "report.json"
+        code, text = self.run_apply(["--json", str(output)])
+        self.assertEqual(code, 0)
+        reloaded = update_providers.load_provider_lock(self.root)
+        entry = reloaded["providers"]["geosite-private"]
+        self.assertEqual(entry["commit"], self.sha)
+        self.assertEqual(entry["bytes"], len(self.new_payload))
+        report = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(report["commit"], self.sha)
+        self.assertEqual(report["branch"], "provider/update-" + self.sha[:12])
+        self.assertTrue(report["changed"])
+        self.assertIn("provider/update-" + self.sha[:12], text)
+
+    def test_apply_keeps_explicit_commit(self):
+        explicit = "d" * 40
+        code, _text = self.run_apply(["--commit", explicit])
+        self.assertEqual(code, 0)
+        reloaded = update_providers.load_provider_lock(self.root)
+        self.assertEqual(reloaded["providers"]["geosite-private"]["commit"], explicit)
+
+    def test_apply_reports_error_when_commit_unresolvable(self):
+        stderr = io.StringIO()
+
+        def fetch(url):
+            if "api.github.com" in url:
+                return json.dumps({"sha": "bad"}).encode("utf-8")
+            return self.new_payload
+
+        with mock.patch.object(update_providers, "fetch_url", side_effect=fetch):
+            with contextlib.redirect_stderr(stderr):
+                code = update_providers.main(["--apply", "--root", str(self.root)])
+        self.assertEqual(code, 2)
+        self.assertIn("Provider 检查失败", stderr.getvalue())
+        reloaded = update_providers.load_provider_lock(self.root)
+        self.assertEqual(reloaded["providers"]["geosite-private"]["commit"], COMMIT)
+
+
 class CheckCommandTest(unittest.TestCase):
     def test_check_with_fixture_writes_json_without_network(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -9,6 +9,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 FULL_SHA_RE = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 SECRETS_RE = re.compile(r"\$\{\{\s*secrets\.", re.IGNORECASE)
+PUSH_MAIN_RE = re.compile(r"git\s+push\s+(?:[^\n]*\s)?(?:origin\s+)?(?:HEAD:)?main\b")
 REQUIRED_CODEOWNER_PATTERNS = (
     "*",
     "/.github/",
@@ -102,8 +103,11 @@ def check_workflow(text):
     return errors
 
 
+PROVIDER_PERMISSIONS = {"contents": "write", "pull-requests": "write"}
+
+
 def check_provider_workflow(text):
-    """检查每周 Provider 检查工作流：只读代码，仅允许写 issue。"""
+    """检查每周 Provider 检查工作流：只允许建分支与 PR，不得推送 main。"""
     data, errors = _load_yaml(text)
     if data is None:
         return errors
@@ -112,9 +116,10 @@ def check_provider_workflow(text):
     if SECRETS_RE.search(text):
         errors.append("工作流不得引用 Secrets 上下文")
     permissions = data.get("permissions")
-    expected = {"contents": "read", "issues": "write"}
-    if permissions != expected:
-        errors.append("Provider 工作流 permissions 必须为 contents: read、issues: write")
+    if permissions != PROVIDER_PERMISSIONS:
+        errors.append(
+            "Provider 工作流 permissions 必须为 contents: write、pull-requests: write"
+        )
     event = data.get("on")
     if isinstance(event, str):
         event = {event: None}
@@ -153,6 +158,14 @@ def check_provider_workflow(text):
                     )
     if "update_providers.py --check" not in text:
         errors.append("Provider 工作流必须运行 update_providers.py --check")
+    if "gh pr create" not in text:
+        errors.append("Provider 工作流必须创建 PR，不得只开 issue")
+    if "gh issue create" in text:
+        errors.append("Provider 工作流不得再创建 issue")
+    if "gh pr merge" in text:
+        errors.append("Provider 工作流不得自动合并 PR")
+    if PUSH_MAIN_RE.search(text):
+        errors.append("Provider 工作流不得推送 main")
     return errors
 
 

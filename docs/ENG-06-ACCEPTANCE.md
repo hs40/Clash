@@ -381,7 +381,7 @@ main 未改动，当前无开放 issue。**清理通过。**
 | --- | --- | --- |
 | Release 改为 tag 触发，不是 main 合并自动发布 | `release.yml` 只响应 `v*` tag；负责人合并后显式推 tag | 负责人 2026-11-11 选择方案 A；偏离 Plan §10.1，已记录 |
 | GPL-3.0 数据内嵌再分发 | 发布包附 `THIRD_PARTY_NOTICES.md` 与完整 `LICENSE-metacubex.txt` | 负责人 2026-11-11 批准方案 A |
-| Provider 更新不自动建 PR | 每周检查只开 issue；`--apply` 本地写文件并打印建分支/PR 命令 | 负责人选择“Release 自动；Provider 检查开 issue，更新用本地脚本建分支/PR” |
+| Provider 更新自动建 PR（2026-11-15 变更） | 每周检查推送 `provider/update-*` 分支并创建待审 PR，不自动合并；`--apply` 可通过 GitHub API 解析 commit | 负责人 2026-11-15 指示“Provider 更新自动创建分支和 PR”；此前方案（只开 issue）已废止 |
 | 使用 MetaCubeX 而非其他规则源 | 仅 private/cn 两个 domain 集合 | 负责人 2026-11-11 选择“MetaCubeX：private + cn” |
 | 配置体积增大约 2.28 MB | 接受 inline 自包含，换取无运行时下载 | 负责人 2026-11-11 选择“inline 内嵌” |
 | 节点识别无持久化缓存 | 项目不拉取节点订阅，节点在仓库内；Provider 快照承担规则数据缓存 | REQUIREMENTS §4.2 第 6 条；如负责人要求节点级缓存需另立项 |
@@ -415,8 +415,12 @@ main 未改动，当前无开放 issue。**清理通过。**
 7. **未做失败 PR 的运行时复现。** 分支保护与必需检查仍是配置级保证。
 8. **未演练真实回滚。** 只有文档与包结构校验，没有在 Windows/OpenClash 上执行
    备份、恢复和回滚后验证。
-9. **每周 issue 可能重复。** 当前每次变化都创建新 issue，没有按 Provider/commit 去重；
-   这是可用性限制，不影响安全性。
+9. **每周自动 PR 已实现，但尚未在真实运行中验证。** 2026-11-15 起 `provider-check.yml`
+   改为推送 `provider/update-<commit 前 12 位>` 分支并创建待审 PR，并用
+   `gh pr list --state open` 检查是否已存在 `provider/update-*` PR 以避免重复堆积。
+   本地已用 fixture 覆盖 commit 解析、分支命名、错误分支与重复跳过逻辑的静态部分，
+   但**该工作流的实际运行（含 `gh auth setup-git`、分支推送与 PR 创建）尚未在 GitHub
+   Actions 上触发过**，因为需要上游真实变化才会进入该路径。这是未验证项，不是已验证结论。
 10. **远端 `CONFIG-DIFF.md` 缺少上一版本基线。** Release 工作流在干净检出中构建，
     `dist/release` 没有更早的 SemVer 目录，因此 `v0.1.0` 与 `v0.1.1` 的发布包都写
     “未找到上一版本”。本地构建只有在 `dist/release` 预先存在旧版本时才会比较。

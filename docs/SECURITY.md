@@ -21,9 +21,10 @@
 
 - `ci.yml` 只响应 pull_request 与 push 到 main，不使用 pull_request_target；顶层权限为
   contents: read，不引用 Secrets。
-- `provider-check.yml` 每周一 03:00 UTC 与手动触发；顶层 contents: read，job 级
-  issues: write 只用于创建 Provider 更新 issue；job 级 `PYTHONUTF8: "1"` 确保中文输出
-  在 Windows runner 正常编码；不检出不可信 PR，不执行上游代码。
+- `provider-check.yml` 每周一 03:00 UTC 与手动触发；顶层 contents: write 与
+  pull-requests: write 只用于推送 `provider/update-*` 分支并创建待审 PR，不推送 main、
+  不自动合并；job 级 `PYTHONUTF8: "1"` 确保中文输出在 Windows runner 正常编码；
+  不检出不可信 PR，不执行上游代码。
 - `release.yml` 只在推送 `v*` tag 时触发；顶层 contents: write 只用于创建 GitHub Release；
   不使用 pull_request_target，不引用 Secrets。
 - 不可信 PR 不获得额外权限；工作流固定 Action 完整 SHA 并设置 persist-credentials: false。

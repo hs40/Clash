@@ -146,8 +146,9 @@ v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mih
 
 远端 main push CI、PR CI 与 main 分支保护策略 A 已通过/启用；CODEOWNERS 强制未启用（负责人 @hs40 已明确批准该 bypass，属单人仓库限制）；`ci-report.md` 为生成物，不提交。
 
-`.github/workflows/provider-check.yml` 每周检查上游 Provider 并创建 issue，不自动修改
-`main`。`.github/workflows/release.yml` 只在推送 `v*` tag 时运行，执行测试、构建、
+`.github/workflows/provider-check.yml` 每周检查上游 Provider，发现变化时自动推送
+`provider/update-*` 分支并创建待审 PR，不自动修改或合并 `main`。
+`.github/workflows/release.yml` 只在推送 `v*` tag 时运行，执行测试、构建、
 `release.py --verify` 并创建 GitHub Release。tag 触发是负责人 2026-11-11 批准的取舍，
 与 Plan §10.1 的「main 合并后自动发布」不同，详见 REQUIREMENTS §10.1。
 
@@ -157,7 +158,8 @@ v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mih
 # 只检查，不写文件
 .venv\Scripts\python.exe scripts\update_providers.py --check
 
-# 负责人本地应用某个已审查的上游 commit（写快照与锁文件）
+# 负责人本地应用更新（写快照与锁文件）；省略 --commit 时通过 GitHub API 解析跟踪 ref
+.venv\Scripts\python.exe scripts\update_providers.py --apply
 .venv\Scripts\python.exe scripts\update_providers.py --apply --commit <40位commit>
 
 # 构建并校验发布包

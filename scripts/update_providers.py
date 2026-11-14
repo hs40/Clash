@@ -18,6 +18,8 @@ from providers import (
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW_URL = "https://raw.githubusercontent.com/{owner}/{repository}/{ref}/{path}"
+COMMIT_API = "https://api.github.com/repos/{owner}/{repository}/commits/{ref}"
+BRANCH_PREFIX = "provider/update-"
 LOCK_HEADER = """# ENG-06 Provider 锁（构建期校验，不参与运行时下载）
 #
 # 来源白名单硬编码在 scripts/providers.py；本文件只记录已批准来源的固定版本。
@@ -42,6 +44,40 @@ def upstream_url(source, entry):
         ref=source["ref"],
         path=entry["upstream_path"],
     )
+
+
+def commit_url(source, ref):
+    return COMMIT_API.format(
+        owner=source["owner"], repository=source["repository"], ref=ref
+    )
+
+
+def resolve_commit(lock, results, fetch=None):
+    """把发生变化来源的跟踪 ref 解析为 40 位 commit；多来源同时变化需人工处理。"""
+    if fetch is None:
+        fetch = fetch_url
+    names = sorted({item["provider"] for item in results if item["changed"]})
+    if not names:
+        raise UpdateError("没有需要更新的 Provider")
+    sources = sorted({lock["providers"][name]["source"] for name in names})
+    if len(sources) > 1:
+        raise UpdateError(
+            "多个来源同时变化（%s），请分别提供 --commit 人工处理" % "、".join(sources)
+        )
+    source = lock["sources"][sources[0]]
+    url = commit_url(source, source["ref"])
+    try:
+        payload = fetch(url)
+    except Exception as exc:
+        raise UpdateError("无法解析上游 commit：%s" % exc)
+    try:
+        data = json.loads(bytes(payload).decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise UpdateError("上游 commit 接口返回无法解析：%s" % exc)
+    sha = data.get("sha") if isinstance(data, dict) else None
+    if not isinstance(sha, str) or not COMMIT_RE.match(sha):
+        raise UpdateError("上游 commit 接口未返回 40 位小写 commit")
+    return sha
 
 
 def check_upstream(lock, fetch=None):
@@ -137,7 +173,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="检查或应用 ENG-06 Provider 上游更新")
     parser.add_argument("--check", action="store_true", help="检查上游是否存在更新")
     parser.add_argument("--apply", action="store_true", help="把上游更新写入快照与锁文件")
-    parser.add_argument("--commit", help="上游 meta 分支的 40 位 commit（--apply 必填）")
+    parser.add_argument(
+        "--commit",
+        help="上游 40 位 commit；省略时由 --apply 通过 GitHub API 解析跟踪 ref",
+    )
     parser.add_argument("--root", type=Path, default=ROOT, help="仓库根目录")
     parser.add_argument("--json", type=Path, help="把检查结果写入 JSON 文件")
     args = parser.parse_args(argv)
@@ -147,16 +186,18 @@ def main(argv=None):
         lock = load_provider_lock(args.root)
         results = check_upstream(lock)
         changed = any(item["changed"] for item in results)
+        branch = None
+        commit = None
         if args.apply and changed:
-            if not args.commit:
-                raise UpdateError("--apply 发现更新时必须提供 --commit")
-            updated = apply_updates(lock, results, args.commit, args.root)
+            commit = args.commit or resolve_commit(lock, results)
+            updated = apply_updates(lock, results, commit, args.root)
+            branch = BRANCH_PREFIX + commit[:12]
             print("已更新 Provider：%s" % "、".join(updated))
-            branch = "provider/update-%s" % args.commit[:12]
+            print("上游 commit：%s" % commit)
             print("下一步（请人工审查后执行）：")
             print("  git switch -c %s" % branch)
             print("  git add providers/lock.yaml providers/snapshots")
-            print("  git commit -m \"chore(provider): 更新至 %s\"" % args.commit)
+            print("  git commit -m \"chore(provider): 更新至 %s\"" % commit)
             print("  git push -u origin HEAD")
             print("  gh pr create --fill")
         elif args.apply:
@@ -168,8 +209,11 @@ def main(argv=None):
         status = "需要更新" if item["changed"] else "已是最新"
         print("%s：%s（上游 %d 字节）" % (item["provider"], status, item["upstream_bytes"]))
     if args.json:
-        _write_json(args.json, {"changed": changed,
-                                "providers": public_results(results)})
+        report = {"changed": changed, "providers": public_results(results)}
+        if commit:
+            report["commit"] = commit
+            report["branch"] = branch
+        _write_json(args.json, report)
     return 0
 
 
