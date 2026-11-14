@@ -2,8 +2,8 @@
 
 - 日期：2026-11-13（首轮）；2026-11-14（策略组改型与 PNG 图标重部署）；2026-11-14（OpenClash 按 v1.33 重部署）
 - 分支：`main`
-- 代码基线：`08cba52`（PR #23 合并后的 main）；上一基线 `953bcde`（PR #22）、`0fc58ca`（PR #20）
-- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）、[REQUIREMENTS.md](REQUIREMENTS.md) v1.35（v1.31–v1.33 的 §4.2 地区组 url-test、§4.3 OpenAI fallback、§4.4 策略组图标条款；v1.34 仅同步代码基线；v1.35 仅清理临时路径引用，条款未变）
+- 代码基线：`b6dca29`（PR #26 合并后的 main，2026-11-14 同步）；上一基线 `1204062`（PR #25）、`b25ecc8`（PR #24）、`08cba52`（PR #23）、`953bcde`（PR #22）、`0fc58ca`（PR #20）
+- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）、[REQUIREMENTS.md](REQUIREMENTS.md) v1.36（v1.31–v1.33 的 §4.2 地区组 url-test、§4.3 OpenAI fallback、§4.4 策略组图标条款；v1.34 仅同步代码基线；v1.35 仅清理临时路径引用；v1.36 仅同步代码基线为 `b6dca29`，条款均未变）
 - 结论：**Windows 与 OpenClash 均已完成真实部署与自动验收。**
   本轮（2026-11-13）已关闭：Q25 选中节点地区比对、双平台失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端、dsh-pocket UI 重试与 WorkBuddy UI 重启复验；浏览器 DoH/DoT/WebRTC 完成只读策略/netlog 评估。
   仍未关闭的人工项仅剩：真实 LAN 客户端、重启后长期观察、可见浏览器安全 DNS 开关/手动 DoH 模板/WebRTC srflx 候选/第三方泄漏站点、HAOS/Proxmox（未部署）。
@@ -27,7 +27,7 @@
 - 2026-11-13 补丁：`dns.fallback` 加 `#PROXY`，修复境外 DoH 直连超时导致 `DIRECT` 域名解析失败；
   已应用到 Windows Verge（`api.trycloudflare.com` 405、`www.workbuddy.ai` 200、gstatic 204），
   并已于 run `20261113-195320-018656` 重部署到 OpenClash 设备（见 §4.4）。
-  PR #17 已 squash 合并为 `de4d5be`；PR #18 已 squash 合并为 `3cf7774`；PR #19 已 squash 合并为 `c680be0`；PR #20（本轮验收文档）已 squash 合并为 `0fc58ca`，即当前 main 代码基线。
+  PR #17 已 squash 合并为 `de4d5be`；PR #18 已 squash 合并为 `3cf7774`；PR #19 已 squash 合并为 `c680be0`；PR #20（本轮验收文档）已 squash 合并为 `0fc58ca`（当时的 main 代码基线）。
 
 ---
 
@@ -320,7 +320,7 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 
 **本轮已关闭（不再计入遗留问题）**：Q25 Windows 选中节点地区比对（§3.4）、Windows 失败自动回滚 + 六步重部署（§3.5）、OpenClash 受控失败自动回滚 16 项（§4.5）、8 条 CIDR DNS 护栏 `--remove` 演练（§7.4 / DNS-GUARD.md）、NAS 显式代理端到端（§7.4）、dsh-pocket cloudflared 隧道与 WorkBuddy status/UI 复验结论（§7.4）、`docs/VERGE-GLOBAL.md` 组类型表过期（本轮按实现修正：`OpenAI` → `fallback`、七个地区组 → `url-test`，纯文档，无代码/配置改动）。
 
-**历史已关闭**：PR #17 → `de4d5be`、PR #18 → `3cf7774`、PR #19 → `c680be0`、PR #20 → `0fc58ca`、PR #21 → `5091485`、PR #22 → `953bcde`、PR #23 → `08cba52`（当前 main 代码基线）均已合并；OpenClash 新配置按 m14382 部署并验收通过（§4.4）；DNS fallback `#PROXY` 修复已应用到双平台；Windows 策略组改型与 PNG 图标按 m17048 重部署并复验通过（§3.6）。
+**历史已关闭**：PR #17 → `de4d5be`、PR #18 → `3cf7774`、PR #19 → `c680be0`、PR #20 → `0fc58ca`、PR #21 → `5091485`、PR #22 → `953bcde`、PR #23 → `08cba52`、PR #24 → `b25ecc8`、PR #25 → `1204062`、PR #26 → `b6dca29`（当前 main 代码基线）均已合并；OpenClash 新配置按 m14382 部署并验收通过（§4.4）；DNS fallback `#PROXY` 修复已应用到双平台；Windows 策略组改型与 PNG 图标按 m17048 重部署并复验通过（§3.6）。
 
 ---
 
