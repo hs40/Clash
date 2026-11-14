@@ -164,7 +164,7 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | 网络 | 百度 200、gstatic 204、Google 204、YouTube 200；出口 178.83.206.223（ipinfo: HK） |
 | 全局文件 | Merge.yaml SHA-256 fc731147...；Script.js SHA-256 3a9e5332... |
 | FIB 原文件 | 未修改；SHA-256 f35dd65a... |
-| 备份 | .tmp_verge_apply_backup_20261111-2247b，6/6 文件哈希与大小匹配 |
+| 备份 | .tmp_verge_apply_backup_20261111-2247b（临时目录，2026-11-14 已清理），当时 6/6 文件哈希与大小匹配 |
 
 上表是 2026-11-11 的运行记录（当时源规则 26 条，`OpenAI` 与七个地区组均为 `select`）。
 2026-11-12 增加 Tailscale `100.64.0.0/10` 直连规则并重新部署后，运行时为 27 条（§6.1）；
@@ -185,7 +185,7 @@ schtasks /Run /TN "Clash Verge (Admin)"。这会短暂断网，属于预期行�
 | TUN | Mihomo 适配器 Up；默认路由 198.18.0.2；最后一条 MATCH,PROXY |
 | 规则 | 特殊 2 / 业务 20 / 基础 4 / 兜底 1，共 27；含 Tailscale `100.64.0.0/10` 直连 |
 | 网络 | 百度 200、gstatic 204、Google 200、YouTube 200、dns.google Status 0；ipinfo 出口 HK |
-| 备份 | .tmp_verge_apply_backup_20261112-132035，6 个备份文件 + manifest |
+| 备份 | .tmp_verge_apply_backup_20261112-132035（临时目录，2026-11-14 已清理），当时 6 个备份文件 + manifest |
 | DNS 默认路径 | 198.18.0.2 与 127.0.0.1:1053 返回 fake-IP；223.5.5.5:53 被劫持 |
 | DNS 泄漏路径（应用前） | 192.168.2.1:53 返回真实地址 69.171.235.22，绕过 TUN；负责人选择方案 C |
 | DNS 护栏（应用后） | 两条出站阻断规则已生效；192.168.2.1:53 超时，198.18.0.2 与 223.5.5.5 返回 fake-IP，站点回归、管理员 check 与移除/恢复演练通过 |

@@ -57,10 +57,15 @@ DSH Desktop 0.2.2-rc.1 在窄视口（<768 CSS px）下会在
   需要重新打补丁。
 - 目标目录当前没有 `client.js.pre-dsh-pocket-patch.bak`：本次修复是直接写入
   已损坏的补丁文件，工具只在 `--apply` 一个未打补丁的文件时创建该备份。
-- 仓库内的原始参考备份：`.tmp_dsh_pocket_client.js.bak`，140,981 字节，
-  SHA-256 `DBB2B609F2611A96C7BE30F18D52683992B652AB1601D10E2292341A8DB25FBC`。
-  该文件在 `.gitignore` 的 `.tmp_*` 范围内，不提交。
-- pnpm store 中对应文件仍为原始 140,981 字节，未被补丁污染。
+- 原始未打补丁 bundle 的基准值：140,981 字节，SHA-256
+  `DBB2B609F2611A96C7BE30F18D52683992B652AB1601D10E2292341A8DB25FBC`（仅作基准记录）。
+  当时留在仓库根目录的 `.tmp_dsh_pocket_client.js.bak` 副本属 `.tmp_*` 临时产物，
+  已于 2026-11-14 清理，**当前不存在**，不能再作为 `--backup` 参数使用。
+- pnpm store 中没有该原始 140,981 字节文件（2026-11-14 复查：store 内唯一的
+  dsh-pocket bundle 为 141,330 字节、SHA-256 `DF51BF5633BDAD19…`，是早期错误选择器
+  `[data-sidebar-opener"]` 的损坏补丁版本，**不可**用作恢复源）。
+- 恢复原始文件的可行路径：重装/升级 dsh-pocket 2.12.0 覆盖 `node_modules`，
+  校验大小 140,981 字节与上述 SHA-256 后再重新 `--apply`。
 
 当前检查：
 
@@ -114,9 +119,11 @@ JS 语法检查（本机 PATH 中没有 node，使用 DSH 自带 Node）：
 2. 若输出 `not patched` 或退出码 1，运行 `--apply`。
 3. 关闭 dsh-pocket 页面后重新打开；若仍是旧界面，重启 DSH Desktop，
    让客户端 bundle 重新加载。
-4. 若页面异常，若目标目录存在工具备份则运行 `--restore`；否则用
-   `--backup F:/WorkBuddy AI/Clash/.tmp_dsh_pocket_client.js.bak --restore`
-   恢复原始文件，再重启 DSH。
+4. 若页面异常，且目标目录存在 `client.js.pre-dsh-pocket-patch.bak`，运行 `--restore`
+   从工具备份恢复。若没有工具备份（原始 `.tmp_dsh_pocket_client.js.bak` 已于
+   2026-11-14 清理），改用重装 dsh-pocket 2.12.0 覆盖 `node_modules` 的方式恢复
+   原始 bundle（基准 140,981 字节 / `DBB2B609…`），再重启 DSH。
+   不要用 pnpm store 中 141,330 字节的副本做恢复源。
 5. 上游发布包含修复的版本后，优先升级上游并删除本地补丁；不要长期
    维护分叉。
 
