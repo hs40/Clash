@@ -105,6 +105,56 @@ class ExitCountryTest(unittest.TestCase):
         self.assertFalse(result["verified"])
 
 
+class SelectedNodeRegionTest(unittest.TestCase):
+    """Q25：选中叶子节点名 -> 地区关键词 -> 国家码 -> 出口比对。
+
+    期望值来自 docs/REQUIREMENTS.md §4.1 的关键词表，不复用实现里的常量。
+    """
+
+    def test_hong_kong_leaf_node_matches_hk_exit(self):
+        result = platform_verify.exit_country_for_node(
+            {"country": "HK"}, "香港 IX2 2倍|原生家宽"
+        )
+        self.assertTrue(result["passed"])
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["group"], "香港节点")
+        self.assertEqual(result["expected"], ["HK"])
+
+    def test_hong_kong_leaf_node_with_jp_exit_fails(self):
+        result = platform_verify.exit_country_for_node(
+            {"country": "JP"}, "香港 IX2 2倍|原生家宽"
+        )
+        self.assertFalse(result["passed"])
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["group"], "香港节点")
+
+    def test_singapore_leaf_node_matches_sg_exit(self):
+        result = platform_verify.exit_country_for_node(
+            {"country": "sg"}, "狮城 HX 2倍|家宽|原生家宽"
+        )
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["group"], "狮城节点")
+
+    def test_unknown_leaf_node_degrades_to_non_cn(self):
+        result = platform_verify.exit_country_for_node(
+            {"country": "US"}, "RandomProxy-01"
+        )
+        self.assertTrue(result["passed"])
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["group"], "其他节点")
+
+    def test_missing_selected_node_degrades_to_non_cn(self):
+        result = platform_verify.exit_country_for_node({"country": "HK"}, None)
+        self.assertTrue(result["passed"])
+        self.assertFalse(result["verified"])
+
+    def test_unknown_leaf_node_with_cn_exit_fails(self):
+        result = platform_verify.exit_country_for_node(
+            {"country": "CN"}, "RandomProxy-01"
+        )
+        self.assertFalse(result["passed"])
+
+
 class SimpleCheckTest(unittest.TestCase):
     def test_http_ok(self):
         self.assertTrue(platform_verify.http_ok(204)["passed"])

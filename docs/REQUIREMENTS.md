@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.28
+**版本：** v1.29
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13 的确认记录
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
@@ -331,7 +331,7 @@ main 分支保护规则：
 4. 边界：只增删上述两条规则；不改系统 DNS、hosts、路由、代理设置或任何入站规则；不进入 `dist/` 或 GitHub Release；需要管理员权限。仅在 Mihomo TUN 已接管、默认 DNS 为 `198.18.0.2` 时使用；TUN 关闭或 Mihomo 停止时应先移除规则，避免本机失去 DNS。
 5. 实现：`scripts/dns_guard.py`、`dns-guard.cmd`；`--check` 只读，`--apply` 幂等，`--remove` 回滚；应用失败时清理本次已创建的规则。`dns-guard.cmd` 优先从 `.venv\pyvenv.cfg` 的 `home` 读取基础解释器，避免 `.venv\Scripts\python.exe` 启动器在管理员窗口中的完整性问题；`dns_guard.py` 只使用标准库。
 6. 验收：`--check` 的 UDP/TCP 均为 OK；默认解析仍为 fake-IP；`192.168.2.10:53` 返回 fake-IP；`192.168.2.1:53` 超时；`223.5.5.5:53` 仍被 TUN 劫持；百度、gstatic、Google、YouTube 回归；`--remove` 后可恢复路由器 DNS。
-7. 当前状态（2026-11-13）：A 决策的 8 条 CIDR 新规则已在管理员上下文应用；`dns_guard.py --check` 返回 `UDP: OK`、`TCP: OK`、`overall: OK`（exit 0），`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时，依赖 `.10:53` 的 OpenClash 验收已完成。`--remove` 回滚演练为 2026-11-12 旧 `/24` 规则记录，新规则的移除演练尚未重做。
+7. 当前状态（2026-11-13）：A 决策的 8 条 CIDR 新规则已在管理员上下文应用；`dns_guard.py --check` 返回 `UDP: OK`、`TCP: OK`、`overall: OK`（exit 0），`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时，依赖 `.10:53` 的 OpenClash 验收已完成。8 条 CIDR 新规则的 `--remove` 回滚演练已于 2026-11-13 完成（remove→check→apply→check，归一化比对 UDP+TCP 各 8 条与预期集合一致），护栏恢复原状；旧 `/24` 演练记录见 docs/DNS-GUARD.md §4.4。
 8. 该高风险安全变更由负责人 2026-11-12 选择 C，随后选择 A；新地址集合已于 2026-11-13 应用并复核。后续修改仍按高风险变更审查；移除新规则前须确认不依赖 `.10:53` 的验收路径。
 
 ---
@@ -398,7 +398,7 @@ Python 最小构建程序、YAML 基础校验、两份配置生成结果、基�
 以上是 MVP 当阶段的边界。ENG-01 已实现节点地区识别与策略组生成（§4.2），
 ENG-02 已实现四层规则编译（§5）与业务策略组（§4.3），ENG-03 已实现 DNS/Fake-IP
 构建期校验（§7.1）。ENG-04 已实现双平台完整配置；Windows 本机按 v1.19.33 验证通过，
-OpenClash 设备端按 alpha-gbc76c13 执行 `-t` 通过；NAS/HAOS/Proxmox 路径尚未完成验证。
+OpenClash 设备端按 alpha-gbc76c13 执行 `-t` 通过；2026-11-13 补充 NAS 显式代理端到端验证通过，HAOS/Proxmox 路径仍尚未完成验证。
 ENG-05 已实现 CI 配置、依赖哈希锁定、敏感信息扫描、Mihomo 固定版本校验、中文测试报告
 与 CODEOWNERS 静态策略检查；远端 main push CI 已于 2026-11-10 运行并通过，Actions 已升级到
 checkout v7.0.1 / setup-python v7.1.0（node24）。2026-11-11 已启用 main 分支保护策略 A，
@@ -423,13 +423,13 @@ Release 并上传两个 zip 与 `SHA256SUMS`；资产下载校验与 Mihomo `-t`
 
 2026-11-12 起另按负责人 Q13–Q32 实现个人网络部署平台（Windows Clash Verge +
 iStoreOS OpenClash 的计划/部署/验证/回滚）；需求与边界见
-`docs/PLATFORM-REQUIREMENTS.md`。平台代码与 357 项本地测试已完成；Windows 与 OpenClash 均已
-真实部署并通过当前自动验收；节点地区比对、失败回滚实机演练与人工项仍未关闭；PR #17 已于
+`docs/PLATFORM-REQUIREMENTS.md`。平台代码与 371 项本地测试已完成（含 Q25 新增 14 项）；Windows 与 OpenClash 均已
+真实部署并通过自动验收；**Q25 选中节点地区比对、Windows/OpenClash 失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端** 均已于 2026-11-13 完成并关闭；浏览器 DoH/DoT/WebRTC 只做只读策略/netlog 评估，真实 LAN 客户端、重启后长期观察、可见浏览器开关与第三方泄漏站点仍为人工开放项。PR #17 已于
 2026-11-13 squash 合并（`de4d5be`）；PR #18（`dns.fallback` 加 `#PROXY`）已合并为
 `3cf7774` 并已重部署到 OpenClash 设备（run `20261113-195320-018656`，当前配置 SHA-256
-`2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`）。
+`2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`）；PR #19 已合并为 `c680be0`。
 代理认证按 Q32 只使用一次性环境变量；2026-11-13 验收读取设备 UCI 的一次性例外见
-`docs/PLATFORM-ACCEPTANCE.md`。
+`docs/PLATFORM-ACCEPTANCE.md`。dsh-pocket UI 重试已完成、WorkBuddy UI 重启复验已成功（负责人 m14574 确认关闭）。
 
 ---
 
@@ -568,13 +568,13 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 7. ~~Google 回退的「指定地区白名单」具体地区。~~【已确认 2026-11-10：狮城、日本、香港】
 8. OpenClash 的 DNS 监听与 Fake-IP 已于 2026-11-13 在设备上验证（`127.0.0.1:7874`，fake-IP `198.18.0.4`）；ENG-03 仍只做构建期静态校验，防火墙适配的长期行为未验证。
 9. GitHub 远端 main push CI 已于 2026-11-10 通过；2026-11-11 已启用 main 分支保护策略 A（PR + 必需检查 `test` + 0 审批），并通过临时 PR #1 实际验证 PR CI；CODEOWNERS 强制未启用（§9.2）。
-10. ENG-06 内嵌 Provider 后，配置增大约 2.28 MB；Windows 本机 Mihomo v1.19.33 与平台部署到 iStoreOS 的构建产物均通过 `-t`；Release zip 本身未单独在设备上重测，NAS 端到端仍未验证。
+10. ENG-06 内嵌 Provider 后，配置增大约 2.28 MB；Windows 本机 Mihomo v1.19.33 与平台部署到 iStoreOS 的构建产物均通过 `-t`；Release zip 本身未单独在设备上重测；NAS 显式代理端到端已于 2026-11-13 在设备上验证通过（见 ENG-04-ACCEPTANCE.md §3.4）。
 11. ENG-06 的 PR #3 已合并（`c3436d3`），PR CI 与 main CI（run 42964259372）均通过；Provider Check 已于 2026-11-11 远端触发并通过（修复 run 42972389013；首次 run 42969347805 因 Windows 编码失败，修复见 §9.1 第 13 条）。`v0.1.0` Release run 42997351203 成功，两个 zip 与 `SHA256SUMS` 已上传并下载校验，Release 内配置在本机 Mihomo 上 `-t` 通过；issue 创建由临时分支 run 42996296022 实际验证（issue #6，随后 #6–#8 关闭）。`v0.1.0` 的 `SHA256SUMS` 覆盖完整发布目录 8 行，Release 只上传 2 个 zip 与校验文件，全量校验会缺少 6 个非资产条目；该限制已在 PR #10（`6d0555b`）修正，squash merge `4cb9148` 并发布 `v0.1.1`（Release run 43003842864）：清单只列两个 Release zip，发布目录的其余文件由结构校验与 zip 内副本核对。远端 `v0.1.1` 资产为 `openclash-0.1.1.zip` 511,688 B / `3016674d...` 与 `windows-0.1.1.zip` 511,738 B / `e55796c9...`；下载后独立校验、zip 结构、解出配置与 `-t` 均通过，干净本地目录构建复现相同 zip 哈希。`v0.1.0` 保持原样，不重写。远端 `CONFIG-DIFF.md` 仍无上一版本基线，见 §10.1 第 8 条；设备重测见第 10 项。
 12. 发布版本保留最近五个由负责人手动维护；本期没有自动清理逻辑，也没有自动回滚。
 13. GPL-3.0 再分发已由负责人 2026-11-11 批准，发布包必须始终携带 `THIRD_PARTY_NOTICES.md` 与 `LICENSE-metacubex.txt`。
 14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、断网重连、TUN 重启恢复与 Verge 应用回滚演练未验证；DNS 泄漏已复现（`192.168.2.1:53` 绕过 TUN），护栏见 §9.3；2026-11-13 已重新部署 46/13/33 并通过当前 verify，A 决策的 8 条 CIDR 已应用；旧 `mvpClash0001` 保留作回退。
 15. Tailscale CGNAT 直连规则已进入构建源，但本机现有 Tailscale peer 使用 /32 直连路由，尚未在 TUN 全接管或新增 peer 场景复测；MagicDNS 未启用/未验证。
-16. DNS 泄漏护栏（§9.3）：2026-11-13 已应用 A 决策的 8 条 CIDR 新规则，`dns_guard.py --check` 返回 UDP/TCP/overall OK（exit 0），`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时；`--remove` 回滚演练为 2026-11-12 旧 `/24` 规则记录，新规则的移除演练尚未重做。
+16. DNS 泄漏护栏（§9.3）：2026-11-13 已应用 A 决策的 8 条 CIDR 新规则，`dns_guard.py --check` 返回 UDP/TCP/overall OK（exit 0），`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时；8 条 CIDR 新规则的 `--remove` 回滚演练已于 2026-11-13 完成并恢复（见 docs/DNS-GUARD.md §5），旧 `/24` 演练记录见 §4.4。
 
 ---
 
@@ -612,3 +612,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-13 | v1.26 | 记录 Windows/OpenClash 双平台真实部署与当前自动验收通过、356 项本地测试通过、A 决策 DNS 护栏已应用；Q32 一次性 UCI 读取例外；节点地区比对、回滚实机与人工项仍未关闭 | 项目负责人（事实记录） |
 | 2026-11-13 | v1.27 | §13.3 `dns.fallback` 增加 `#PROXY`，修复中国大陆直连境外 DoH 超时导致 `DIRECT` 域名解析失败；已应用到真实 Windows Verge 并实测 | 项目负责人（缺陷修复） |
 | 2026-11-13 | v1.28 | PR #18 合并为 `3cf7774`；OpenClash 设备重部署 `#PROXY` 新配置（run `20261113-195320-018656`，设备 `mihomo -t` 与部署内 verify 均通过，357 项测试复跑通过）；双平台遗留人工项未关闭 | 项目负责人（事实记录） |
+| 2026-11-13 | v1.29 | Q25 选中节点地区比对（命名管道控制接口 + regions 关键词，Windows 真实验证 HK 一致）；Windows 与 OpenClash 失败→自动回滚→重部署/恢复实机演练；8 条 CIDR DNS 护栏 `--remove` 回滚演练；NAS 显式代理端到端（网关 192.168.2.1 未改、经 192.168.2.10:7893 带认证 204、出口非 CN）；dsh-pocket UI 重试与 WorkBuddy UI 重启复验由负责人确认关闭；浏览器 DoH/DoT/WebRTC 只读评估完成；371 项测试通过 | 项目负责人（事实记录） |

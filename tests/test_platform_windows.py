@@ -12,6 +12,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import platform_probe  # noqa: E402
 import platform_windows  # noqa: E402
 import verge_apply  # noqa: E402
 
@@ -416,6 +417,148 @@ class ControllerTest(unittest.TestCase):
         self.assertEqual(selected["name"], "香港 01")
         self.assertEqual(selected["path"], ["PROXY", "自动选择", "香港 01"])
         self.assertEqual(len(requested), 3)
+
+
+class NamedPipeControllerTest(unittest.TestCase):
+    """Q25：Windows 无 TCP 控制器时，走 verge-mihomo 的命名管道。"""
+
+    def test_parses_pipe_name_from_process_command_line(self):
+        command = (
+            '"\\\\?\\C:\\ProgramData\\clash-verge-service\\cores\\verge-mihomo.exe" '
+            '-d C:\\runtime -f C:\\runtime\\config.yaml '
+            '-ext-ctl-pipe \\\\.\\pipe\\verge-mihomo-production-abc'
+        )
+        self.assertEqual(
+            platform_windows.pipe_name_from_command(command),
+            r"\\.\pipe\verge-mihomo-production-abc",
+        )
+
+    def test_pipe_name_is_none_without_flag(self):
+        self.assertIsNone(platform_windows.pipe_name_from_command("-f config.yaml"))
+
+    def test_discovers_pipe_from_process_list_before_config_fallback(self):
+        command = (
+            'verge-mihomo.exe -ext-ctl-pipe '
+            r"\\.\pipe\verge-mihomo-production-live"
+        )
+        config = {"external-controller-pipe": r"\\.\pipe\stale-sidecar"}
+        with mock.patch.object(platform_windows, "_mihomo_commands",
+                               return_value=[command]):
+            self.assertEqual(
+                platform_windows.controller_pipe(config),
+                r"\\.\pipe\verge-mihomo-production-live",
+            )
+
+    def test_falls_back_to_config_pipe_when_no_process_found(self):
+        config = {"external-controller-pipe": r"\\.\pipe\stale-sidecar"}
+        with mock.patch.object(platform_windows, "_mihomo_commands", return_value=[]):
+            self.assertEqual(
+                platform_windows.controller_pipe(config),
+                r"\\.\pipe\stale-sidecar",
+            )
+
+    def test_selected_node_reads_chain_over_pipe_transport(self):
+        payloads = {
+            "/proxies/PROXY": {"type": "Selector", "now": "自动选择"},
+            "/proxies/%E8%87%AA%E5%8A%A8%E9%80%89%E6%8B%A9": {
+                "type": "URLTest", "now": "香港 IX2 2倍|原生家宽"},
+            "/proxies/%E9%A6%99%E6%B8%AF%20IX2%202%E5%80%8D%7C%E5%8E%9F%E7%94%9F%E5%AE%B6%E5%AE%BD": {
+                "type": "Shadowsocks", "now": None},
+        }
+
+        def transport(pipe, path, timeout):
+            self.assertEqual(pipe, r"\\.\pipe\verge-mihomo-production-live")
+            return payloads[path]
+
+        with mock.patch.object(platform_windows, "_mihomo_commands", return_value=[]):
+            result = platform_windows.selected_proxy_name(
+                {"external-controller-pipe": r"\\.\pipe\verge-mihomo-production-live"},
+                pipe_get=transport,
+            )
+        self.assertEqual(result["name"], "香港 IX2 2倍|原生家宽")
+        self.assertEqual(result["path"], ["PROXY", "自动选择", "香港 IX2 2倍|原生家宽"])
+
+
+class Q25VerifyIntegrationTest(unittest.TestCase):
+    """Q25 S2+S3 集成：verify_windows 用叶子节点名做真实地区比对。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.appdir = Path(self.tmp.name)
+        # 与 scripts/verge_apply.py::verify_config 固定契约一致的最小配置。
+        regions = ["香港节点", "台湾节点", "日本节点", "韩国节点", "狮城节点", "美国节点", "其他节点"]
+        names = ["node-%d" % i for i in range(46)]
+        groups = [
+            {"name": "PROXY", "type": "select", "proxies": ["自动选择"] + regions + ["DIRECT"]},
+            {"name": "Google", "type": "fallback", "proxies": ["美国节点", "狮城节点", "日本节点", "香港节点"]},
+            {"name": "OpenAI", "type": "select", "proxies": ["自动选择"] + regions},
+            {"name": "Claude", "type": "select", "proxies": ["自动选择"] + regions},
+            {"name": "Cursor", "type": "select", "proxies": ["自动选择"] + regions},
+            {"name": "自动选择", "type": "url-test",
+             "url": "https://www.gstatic.com/generate_204", "interval": 300,
+             "tolerance": 50, "proxies": names},
+        ] + [{"name": r, "type": "select", "proxies": ["node-0"]} for r in regions]
+        config = {
+            "mixed-port": 7897, "mode": "rule", "ipv6": False, "allow-lan": False,
+            "tun": {"enable": True, "stack": "gvisor", "auto-route": True},
+            "dns": {"listen": "0.0.0.0:1053", "enable": True},
+            "proxies": [{"name": n, "type": "ss"} for n in names],
+            "proxy-groups": groups,
+            "rule-providers": {"geosite-cn": {"type": "inline"},
+                              "geosite-private": {"type": "inline"}},
+            "rules": ["DOMAIN-SUFFIX,local,DIRECT"] * 26 + ["MATCH,PROXY"],
+        }
+        (self.appdir / "clash-verge.yaml").write_text(
+            yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+    def runner(self, _script):
+        # 物理网卡 IPv6 全关；同步供 _mihomo_commands() 返回空列表。
+        return ""
+
+    def dns(self, _name, server):
+        if server == "198.18.0.2":
+            return {"answers": ["198.18.0.85"]}
+        raise platform_probe.ProbeError("blocked")
+
+    def verify(self, country, selected):
+        return platform_windows.verify_windows(
+            self.appdir, 46, 27,
+            runner=self.runner,
+            dns_query=self.dns,
+            http_check={"status": 204, "expected": 204, "passed": True},
+            ip_info=lambda: {"ip": "203.0.113.9", "country": country, "org": "test"},
+            selected=lambda: selected,
+        )
+
+    def test_hong_kong_leaf_matches_hk_exit_is_verified(self):
+        leaf = "香港 IX2 2倍|超高速|原生家宽"
+        selected = {"name": leaf, "type": "Shadowsocks",
+                    "path": ["PROXY", "自动选择", leaf]}
+        result = self.verify("HK", selected)
+        self.assertTrue(result["passed"])
+        self.assertTrue(result["exit"]["verified"])
+        self.assertEqual(result["exit"]["country"], "HK")
+        self.assertEqual(result["exit"]["node"], leaf)
+        self.assertEqual(result["selected"], leaf)
+        self.assertEqual(result["selected_path"], selected["path"])
+
+    def test_hong_kong_leaf_with_us_exit_is_detected_mismatch(self):
+        leaf = "香港 IX2 2倍|超高速|原生家宽"
+        selected = {"name": leaf, "type": "Shadowsocks",
+                    "path": ["PROXY", "自动选择", leaf]}
+        result = self.verify("US", selected)
+        self.assertFalse(result["passed"])
+        self.assertTrue(result["exit"]["verified"])
+        self.assertFalse(result["exit"]["passed"])
+        self.assertIn("不一致", result["exit"]["detail"])
+
+    def test_missing_selected_node_degrades_unverified(self):
+        result = self.verify("HK", None)
+        self.assertTrue(result["passed"])
+        self.assertFalse(result["exit"]["verified"])
+        self.assertIsNone(result["selected"])
+        self.assertEqual(result["selected_path"], [])
 
 
 class IntegrityTest(unittest.TestCase):

@@ -6,7 +6,9 @@ runner 完成，便于 unittest 断言实际发出的命令。
 """
 
 import json
+import re
 import subprocess
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -389,13 +391,107 @@ def _controller_get(config, path, opener=None, timeout=3.0):
         return json.loads(response.read().decode("utf-8"))
 
 
-def selected_proxy_name(config, opener=None, timeout=3.0):
-    """沿 PROXY -> 自动选择 -> 节点 读取当前选中项；不输出控制接口密钥。"""
+def _mihomo_commands():
+    """Q25：从正在运行的 verge-mihomo.exe 命令行取权威控制管道名。
+
+    Clash Verge 的 clash-verge.yaml 里 external-controller-pipe 可能是过期的
+    sidecar 管道，真正生效的是服务进程启动参数 -ext-ctl-pipe。只读进程列表，
+    不修改任何配置或进程；查询失败时返回空列表让调用方回退/降级。
+    """
+    script = (
+        "Get-CimInstance Win32_Process -Filter \"Name = 'verge-mihomo.exe'\" "
+        "| Select-Object -ExpandProperty CommandLine"
+    )
+    try:
+        output = run_powershell(script)
+    except Exception:
+        return []
+    return [line.strip() for line in (output or "").splitlines() if line.strip()]
+
+
+def pipe_name_from_command(command):
+    r"""从 -ext-ctl-pipe 参数提取 Windows 命名管道路径（\\.\pipe\... 形式）。"""
+    if not isinstance(command, str):
+        return None
+    match = re.search(r"-ext-ctl-pipe\s+([^\s]+)", command)
+    if not match:
+        return None
+    value = match.group(1).strip('"')
+    return value if value.startswith("\\\\.\\pipe\\") else None
+
+
+def controller_pipe(config):
+    """优先用运行进程的权威管道名，回退到配置里的 external-controller-pipe。"""
+    for command in _mihomo_commands():
+        pipe = pipe_name_from_command(command)
+        if pipe:
+            return pipe
+    value = (config or {}).get("external-controller-pipe")
+    if value and str(value).startswith("\\\\.\\pipe\\"):
+        return str(value)
+    return None
+
+
+def _pipe_get(pipe, path, timeout=3.0):
+    """通过命名管道发 HTTP/1.1 GET，解析 Content-Length 或 chunked 响应。"""
+    request = (
+        "GET " + path + " HTTP/1.1\r\n"
+        "Host: localhost\r\nConnection: close\r\n\r\n"
+    ).encode("ascii")
+    handle = open(pipe, "r+b", buffering=0)
+    try:
+        handle.write(request)
+        data = b""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            chunk = handle.read(65536)
+            if chunk:
+                data += chunk
+            head, _, rest = data.partition(b"\r\n\r\n")
+            if head and b"Transfer-Encoding: chunked" in head:
+                buf = rest
+                parts = []
+                while True:
+                    match = re.match(rb"^([0-9a-fA-F]+)\r\n", buf)
+                    if not match:
+                        break
+                    size = int(match.group(1), 16)
+                    buf = buf[match.end():]
+                    if size == 0:
+                        return json.loads(b"".join(parts).decode("utf-8"))
+                    if len(buf) < size + 2:
+                        break
+                    parts.append(buf[:size])
+                    buf = buf[size + 2:]
+            match = re.search(br"Content-Length:\s*(\d+)", head, re.I)
+            if match and len(rest) >= int(match.group(1)):
+                length = int(match.group(1))
+                return json.loads(rest[:length].decode("utf-8"))
+            time.sleep(0.02)
+        raise WindowsError("命名管道响应超时")
+    finally:
+        handle.close()
+
+
+def selected_proxy_name(config, opener=None, timeout=3.0, pipe_get=None):
+    """沿 PROXY -> 自动选择 -> 节点 读取当前选中项；不输出控制接口密钥。
+
+    有 external-controller 时走 TCP；否则用运行进程的 -ext-ctl-pipe 命名管道。
+    pipe_get 可注入，供 unittest 用 fake 管道验证整条选中链。
+    """
+    if controller_base(config):
+        getter = lambda path: _controller_get(config, path, opener, timeout)
+    else:
+        pipe = controller_pipe(config)
+        if not pipe:
+            raise WindowsError("无法取得 Mihomo 控制接口（TCP/命名管道均不可用）")
+        transport = pipe_get or _pipe_get
+        getter = lambda path: transport(pipe, path, timeout)
     name = "PROXY"
     path = []
     for _ in range(4):
         encoded = urllib.parse.quote(name, safe="")
-        data = _controller_get(config, "/proxies/" + encoded, opener, timeout)
+        data = getter("/proxies/" + encoded)
         path.append(name)
         now = data.get("now")
         if not now or now == name:
@@ -476,10 +572,13 @@ def verify_windows(appdir, expected_proxies, expected_rules, runner=None,
         info = {"error": str(exc)}
     try:
         current = selected() if selected is not None else selected_proxy_name(runtime)
-        group = current.get("name") if isinstance(current, dict) else None
+        node = current.get("name") if isinstance(current, dict) else None
+        chain = list(current.get("path") or []) if isinstance(current, dict) else []
     except Exception:
-        group = None
-    country = platform_verify.exit_country(info, group)
+        node = None
+        chain = []
+    # Q25：控制接口给的是叶子节点名，先按 regions.classify_node 映射地区再比对。
+    country = platform_verify.exit_country_for_node(info, node)
     passed = bool(ipv6["passed"] and dns["passed"] and http["passed"]
                   and country["passed"] is True)
     return {
@@ -489,6 +588,7 @@ def verify_windows(appdir, expected_proxies, expected_rules, runner=None,
         "dns": dns,
         "http": http,
         "exit": country,
-        "selected": group,
+        "selected": node,
+        "selected_path": chain,
         "ip": {key: info.get(key) for key in ("ip", "country", "org", "error") if key in info},
     }

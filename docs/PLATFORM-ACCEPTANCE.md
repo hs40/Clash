@@ -2,9 +2,12 @@
 
 - 日期：2026-11-13
 - 分支：`main`
-- 代码基线：`3cf7774`（PR #18 合并后；本报告 OpenClash 重部署所用本地 main）
-- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）
-- 结论：**Windows 与 OpenClash 均已完成真实部署，当前自动验收通过；但“选中节点地区比对”“失败回滚实机演练”和浏览器 DoH/WebRTC 等人工项尚未关闭，因此不能表述为“全部验收项已关闭”。**
+- 代码基线：`c680be0`（PR #19 合并后本地 main）；本轮新增验收基于分支 `feat/q25-selected-region`
+- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）、[REQUIREMENTS.md](REQUIREMENTS.md) v1.29
+- 结论：**Windows 与 OpenClash 均已完成真实部署与自动验收。**
+  本轮（2026-11-13）已关闭：Q25 选中节点地区比对、双平台失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端、dsh-pocket UI 重试与 WorkBuddy UI 重启复验；浏览器 DoH/DoT/WebRTC 完成只读策略/netlog 评估。
+  仍未关闭的人工项仅剩：真实 LAN 客户端、重启后长期观察、可见浏览器安全 DNS 开关/手动 DoH 模板/WebRTC srflx 候选/第三方泄漏站点、HAOS/Proxmox（未部署）。
+  因此仍不能表述为“全部验收项已关闭”。
 
 ---
 
@@ -12,18 +15,18 @@
 
 | 平台 | 部署 | 当前自动验收 | 结论 |
 | --- | --- | --- | --- |
-| Windows 本机（Clash Verge Rev 2.5.10 + Mihomo v1.19.33） | 2026-11-13，run `20261113-000005-652752`；DNS 补丁另经 `verge_apply.py --apply` 应用 | `passed: true` | 通过（出口非 CN；节点地区未比对） |
-| iStoreOS 192.168.2.10（OpenClash，Mihomo alpha-gbc76c13） | 2026-11-13，run `20261113-151617-826379`；DNS 补丁重部署 run `20261113-195320-018656` | `passed: true` | 通过（出口非 CN；节点地区未比对） |
+| Windows 本机（Clash Verge Rev 2.5.10 + Mihomo v1.19.33） | 2026-11-13，run `20261113-000005-652752`；DNS 补丁另经 `verge_apply.py --apply` 应用 | `passed: true` | 通过（Q25 已验证出口 HK 与选中香港节点一致；失败回滚实机演练通过） |
+| iStoreOS 192.168.2.10（OpenClash，Mihomo alpha-gbc76c13） | 2026-11-13，run `20261113-151617-826379`；DNS 补丁重部署 run `20261113-195320-018656` | `passed: true` | 通过（受控失败→自动回滚实机演练 16 项检查全过；Q25 按契约降级为出口非 CN） |
 
 - Windows：46 个节点、13 个策略组、33 条规则；mixed-port 7897；TUN gvisor；IPv6 关闭；DNS 1053 fake-IP。
 - OpenClash：55 个候选节点中 46 个可用、9 个静态坏节点被过滤；13 个策略组、33 条规则；HTTP port 7893。
   首次部署配置 SHA-256 `9cc3ac9981deb47ad11e972de16a378b97423572e302892923f90ba36280b150`；
   DNS 补丁重部署后当前设备 SHA-256 `2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`。
-- 全部自动化测试：**357 项通过，0 失败**（2026-11-13 `3cf7774` 上复跑：`Ran 357 tests in 163.271s` / `OK`）。
+- 全部自动化测试：**371 项通过，0 失败**（2026-11-13 分支 `feat/q25-selected-region`：`Ran 371 tests in 243.677s` / `OK`，含 Q25 新增 14 项）。
 - 2026-11-13 补丁：`dns.fallback` 加 `#PROXY`，修复境外 DoH 直连超时导致 `DIRECT` 域名解析失败；
   已应用到 Windows Verge（`api.trycloudflare.com` 405、`www.workbuddy.ai` 200、gstatic 204），
   并已于 run `20261113-195320-018656` 重部署到 OpenClash 设备（见 §4.4）。
-  PR #17 已 squash 合并为 `de4d5be`；PR #18 已 squash 合并为 `3cf7774`。
+  PR #17 已 squash 合并为 `de4d5be`；PR #18 已 squash 合并为 `3cf7774`；PR #19 已 squash 合并为 `c680be0`。
 
 ---
 
@@ -74,13 +77,26 @@
 | 公共 DNS `223.5.5.5:53` | 返回 fake-IP（无真实 A），通过 |
 | HTTP | 经 7897 访问 gstatic `204`，通过 |
 | 出口 | 国家码 `HK`（非 CN），通过 |
-| 选中节点 | `selected: null`；`exit.verified: false`，仅降级确认“出口非 CN” |
+| 选中节点 | Q25 已验证：`selected: 香港 IX2 2倍|超高速|原生家宽`、`selected_path: [PROXY, 自动选择, 香港 IX2 2倍|超高速|原生家宽]`、`exit.verified: true`、出口 `HK` 与地区一致（见 §3.4） |
 
-### 3.3 限制
+### 3.3 限制（本轮已关闭/更新）
 
-- 未取得 Verge 当前选中节点，无法做“节点地区 vs 出口国家码”比对；按 Q25 降级为“出口非 CN”。
-- 失败自动恢复、Verge 应用回滚未在本轮实机演练；单元测试覆盖回滚命令序列。
-- 浏览器 DoH/DoT/WebRTC 未在本轮复验。
+- Q25 节点地区比对已关闭：通过 verge-mihomo.exe 命令行 -ext-ctl-pipe 取得权威命名管道，读取 PROXY→自动选择→叶子 选中链，复用 regions.classify_node 映射地区。
+- 失败自动恢复 + 重部署已实机演练（§3.5）；单元测试仍保留作为回归。
+- 浏览器 DoH/DoT/WebRTC 已完成只读策略/netlog 评估（§7.4）；可见浏览器开关、真实用户配置、WebRTC srflx 候选、重启后长期观察仍为人工开放项。
+
+### 3.4 Q25 选中节点地区比对（2026-11-13 完成）
+
+- 实现：新增 `scripts/platform_verify.py::exit_country_for_node(ip_info, selected_node)`；`scripts/platform_windows.py` 新增 `_mihomo_commands()`、`pipe_name_from_command(command)`、`controller_pipe(config)`、`_pipe_get(pipe, path, timeout=3.0)`；`selected_proxy_name(config, opener=None, timeout=3.0, pipe_get=None)` 在无 external-controller 时走命名管道；`verify_windows` 把叶子节点名交给 exit_country_for_node 并新增 selected_path。
+- 真实只读验证：external-controller 为空，配置内 external-controller-pipe 是过期 sidecar；从 Get-CimInstance Win32_Process 取得权威命名管道 verge-mihomo-production-9efe...；选中链 [PROXY, 自动选择, 香港 IX2 2倍|超高速|原生家宽]，regions.classify_node → 香港节点。
+- `scripts/platform.py verify --platform windows --json` 退出 0：exit 为 passed true / verified true / country HK / group 香港节点 / expected [HK] / detail 出口国家码与节点地区一致 / node 香港 IX2 2倍|超高速|原生家宽；ip 14.198.59.128 / HK / AS9269 Hong Kong Broadband Network Ltd.。
+- TDD：3 个垂直切片（S2 纯函数 6 测试、S3 命名管道 5 测试、S3 verify 集成 3 测试）红→绿；合计新增 14 项测试，全量 371 项通过。
+
+### 3.5 Windows 失败→自动回滚→重部署实机演练（负责人授权，2026-11-13）
+
+- 方法：.tmp_win_rollback_drill.py 注入 verge_apply.write_atomic 第 1 次给 profiles/Merge.yaml 加无害 DRILL-MARKER-ROLLBACK-TEST 注释、第 3 次抛 OSError(DRILL: injected write failure at call 3)，触发 apply_migration 的 except(restore + reload)；随后不注入故障重部署；安全副本置于临时目录并在 finally 删除。
+- 结果（.tmp_win_rollback_drill.json）：failed_apply_raised true，错误 DRILL: injected write failure at call 3；已回滚到迁移前文件；恢复后代理 204（17.5s）、4 个 owned 文件 SHA-256 全部等于演练前、marker 消失、护栏 OK、IPv6 以太网 false；重部署六步 [1/6]..[6/6] 校验通过，最终代理 204（13.3s）、owned 哈希再次全部等于演练前、护栏/IPv6 不变；safety_removed true。
+- 演练后官方只读 scripts/platform.py verify --platform windows --json 为 passed true，Q25 verified true。演练期间 Verge 两次重启；生产中断随重部署恢复结束。助手 health() 因 len(int) 报错，不影响结论，已用官方 verify 复核。
 
 ---
 
@@ -120,11 +136,11 @@
 
 > 部署报告生成于 `e377fcc` 之前，报告中的 `exit` 为 `null`；上表是当前代码带认证复验的结果。部署报告本身仍保留原样，不修改历史记录。
 
-### 4.3 限制
+### 4.3 限制（本轮已关闭/更新）
 
-- 未取得 Mihomo 控制接口的当前选中节点，无法做“节点地区 vs 出口国家码”比对；已按 Q25 降级。
-- 未在真实设备上制造部署失败来演练自动回滚；`tests/test_platform_openclash.py` 覆盖失败回滚命令序列。
-- 真实 LAN 客户端、WebRTC、重启后长期观察未在本轮执行。
+- Windows 侧 Q25 已实现并在 §3.4 验证；OpenClash 侧按 Q3 决定保持降级策略：设备不暴露可用控制接口选中链，`verify_openclash` 仍只确认出口非 CN（`exit.verified: false`），不伪造节点信息。
+- 失败自动回滚已在本轮实机演练（§4.5，16 项检查全过）；`tests/test_platform_openclash.py` 单测保留为回归。
+- 真实 LAN 客户端、可见浏览器开关、WebRTC srflx 候选、重启后长期观察仍为人工开放项。
 
 ### 4.4 DNS fallback `#PROXY` 补丁重部署（负责人 m14382 授权）
 
@@ -138,13 +154,23 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 - 部署内自动 `verify`：`passed: true`——端口 true、设备本机 curl `204`、Windows 经 `192.168.2.10:7893` gstatic `204`、`192.168.2.10:53` 返回 fake-IP `198.18.0.4`、出口国家 `MY`（非 CN，`exit.verified: false` 因未取得选中节点按 Q25 降级）。
 - 合并后回归：`scripts/build.py --platform all` 退出 0；`scripts/security_scan.py` 退出 0；`git diff --check` 退出 0；`.venv\Scripts\python.exe -m unittest discover -s tests -v` → `Ran 357 tests in 163.271s` / `OK`。
 
+### 4.5 受控失败→自动回滚→设备恢复实机演练（负责人 m14910 批准，m14918 授权）
+
+- 方法：`.tmp_oc_rollback_drill.py` 生成一份仅追加 `# DRILL-OC-ROLLBACK-MARKER` 注释的演练配置（drill SHA-256 `5d6fb625dfd885054e0d28eb3156919bf26e3b7cd0a47dd6219a087ae11d4f78`），经 `plan_openclash` / `apply_openclash` 正常备份与部署；monkeypatch `oc._wait_port` 返回 False 制造「重启后 7893 未监听」失败，触发 `apply_openclash` 的 `except` 分支（`rm -f TEMP_CONFIG` + `_restore_remote`）；在故障瞬间捕获设备 deployed_sha256 / has_marker / config_path，恢复后逐项比对 pre/post。
+- 设备 pre 状态：config_path `/etc/openclash/config/clash-platform.yaml`、enable 1、dns_port 7874、sha256 `2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`、has_marker false、7893 监听、temp 不存在、config_process true。故障瞬间 deployed_sha256=drill_sha256、has_marker true，证明演练配置确已部署后才失败。
+- apply 抛出 `OpenClash 重启后 7893 端口未监听；已恢复旧 config_path`，`restored=True`；远端备份 `/etc/openclash/platform-backups/clash-oc-drill-5mv2qhrr`（manifest old_sha=2d8dc2…e343、new_sha=5d6fb6…4f78、new_exists true）。
+- post 与 pre 完全一致：SHA-256 恢复为 `2d8dc2…e343`、marker 消失、temp 清理、config_path/enable/dns_port 不变、7893 监听、config_process true；设备 `mihomo -t` 输出 `configuration file /etc/openclash/config/clash-platform.yaml test is successful`。
+- 16 项检查全 true：apply_raised / restored_flag_true / error_mentions_restore / deployed_drill_config_before_failure / temp_removed / sha_restored / marker_removed / config_path_unchanged / enable_unchanged / dns_port_unchanged / port_open / config_process / device_config_test_ok / verify_passed / dns_fake_ip / exit_non_cn。
+- 恢复后官方 `verify_openclash`：passed true、port true、device_http 204、http 204、DNS fake-IP answers [198.18.0.4]、出口 154.85.20.75 / MO（非 CN，按契约降级为 verified false）；dns_sample answers [198.18.0.5] fake_ip true。
+- 结论：自动回滚把生产配置字节级恢复，UCI 未变，服务/端口/代理/DNS/出口均恢复；OpenClash 端 Q25 仍按 Q3 降级。一次性 UCI 认证仅注入当前进程 `CLASH_PROXY_AUTH`，未打印/落盘/入日志/命令行，平台代码未改。
+
 ---
 
 ## 5. 安全与凭据
 
 - 仓库与部署报告中未写入真实代理认证、订阅 URL 或完整真实节点配置。
 - OpenClash 完整备份只在设备 root-only 目录；本地只有哈希、差异与脱敏摘要。
-- 本次与 DNS 补丁重部署的 7893 认证读取均为一次性验收例外，已获负责人授权（m13690 / m14382）；只注入当前进程环境，脚本结束即消失，未写入磁盘、报告或日志。
+- 首次部署、DNS 补丁重部署与 2026-11-13 回滚演练的 7893 认证读取均为一次性验收例外，已获负责人授权（m13690 / m14382 / m14910）；只注入当前进程环境，脚本结束即消失，未写入磁盘、报告或日志。
 - `scripts/security_scan.py`：`敏感信息扫描通过`，退出 0。
 - 未提交任何真实凭据；未修改主路由、NAS、HAOS、Proxmox 或其他设备。
 
@@ -154,12 +180,18 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 
 | 检查 | 命令 | 结果 |
 | --- | --- | --- |
-| 全量测试 | `.venv\Scripts\python.exe -m unittest discover -s tests -v` | `Ran 357 tests in 163.271s` / `OK`（`3cf7774` 合并后复跑） |
+| 全量测试 | `.venv\Scripts\python.exe -m unittest discover -s tests -v` | `Ran 371 tests in 243.677s` / `OK`（2026-11-13 分支 `feat/q25-selected-region`，含 Q25 新增 14 项） |
 | 双平台构建 | `.venv\Scripts\python.exe scripts\build.py --platform all` | 退出 0，生成两份配置 |
 | 敏感扫描 | `.venv\Scripts\python.exe scripts\security_scan.py` | `敏感信息扫描通过`，退出 0 |
+| 代码差异检查 | `git diff --check` | 退出 0 |
 | DNS 护栏 | `.venv\Scripts\python.exe scripts\dns_guard.py --check` | `UDP: OK` / `TCP: OK` / `overall: OK`，退出 0 |
-| Windows 验收 | `scripts\platform.py verify --platform windows --json` | `passed: true`，退出 0 |
-| OpenClash 验收 | `scripts\platform.py verify --platform openclash --json` | `passed: true`，退出 0 |
+| DNS 护栏 remove→apply 演练 | `scripts\dns_guard.py --remove` / `--check` / `--apply` / `--check` | UDP+TCP 各 8 条 CIDR 归一化比对 `normalized_match=true n=8`，护栏恢复（§7.4） |
+| Windows 验收 | `scripts\platform.py verify --platform windows --json` | `passed: true`，Q25 `exit.verified: true`，退出 0 |
+| OpenClash 验收 | `scripts\platform.py verify --platform openclash --json` | `passed: true`，出口非 CN（按契约降级），退出 0 |
+| Windows 失败回滚演练 | `.tmp_win_rollback_drill.py` | 文件哈希恢复、代理 204、六步重部署通过（§3.5） |
+| OpenClash 失败回滚演练 | `.tmp_oc_rollback_drill.py` | 16 项检查全 true，设备字节级恢复（§4.5） |
+| dsh-pocket 隧道 | quick tunnel CLI | 注册成功，URL 返回 401（无后端预期） |
+| WorkBuddy 状态 | `workbuddy status` / `doctor` | Global 已登录 hs40，credit 1836.23000021 |
 
 ---
 
@@ -170,10 +202,10 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 | 条目 | 结果 | 说明 |
 | --- | --- | --- |
 | 1. plan 只读、摘要、默认 No | 通过 | CLI 与单测覆盖；部署时经确认 |
-| 2. deploy 写入、失败自动恢复 | 部分 | 部署成功；失败恢复未实机演练 |
-| 3. Verge 加载、7897、204、fake-IP、出口非 CN | 通过 | 当前 verify 全部为 true；出口 HK |
-| 4. IPv6 关闭、虚拟网卡不受影响、可回滚 | 部分 | IPv6 关闭通过；回滚未实机演练 |
-| 5. 业务验证失败时保留配置待决定 | 未触发 | 本轮验证通过，未制造失败 |
+| 2. deploy 写入、失败自动恢复 | 通过 | 部署成功；失败自动恢复 + 重部署已实机演练（§3.5） |
+| 3. Verge 加载、7897、204、fake-IP、出口非 CN | 通过 | 当前 verify 全部为 true；出口 HK，Q25 verified true |
+| 4. IPv6 关闭、虚拟网卡不受影响、可回滚 | 通过 | IPv6 关闭通过；4 个 owned 文件哈希恢复、六步重部署通过 |
+| 5. 业务验证失败时保留配置待决定 | 未触发 | 本轮验证通过，未制造业务验证失败 |
 
 ### 7.2 OpenClash（§6.2）
 
@@ -182,8 +214,8 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 | 1. 旧 FIB 保留、独立文件、UCI 可切回 | 通过 | `FIB.yaml` 存在；`config_path` 指向新文件 |
 | 2. `mihomo -t`、服务运行、7893 监听 | 通过 | 设备端测试成功；端口 true |
 | 3. Windows 经 7893 204；`.10:53` fake-IP | 通过 | 两项均通过 |
-| 4. 出口地区与选中节点一致；否则降级 | 部分 | 出口 HK 非 CN；选中节点未取得，已降级 |
-| 5. 失败自动回滚；回滚后 7893/53 恢复 | 未实机 | 单测覆盖命令序列，未制造真实失败 |
+| 4. 出口地区与选中节点一致；否则降级 | 按契约降级 | 设备不暴露控制接口选中链，按 Q3/Q25 仅确认出口非 CN；Windows 侧已在 §3.4 完成比对 |
+| 5. 失败自动回滚；回滚后 7893/53 恢复 | 通过 | 受控失败实机演练 16 项检查全过，设备字节级恢复（§4.5） |
 | 6. 本地无完整配置；设备备份 root-only | 通过 | 备份目录 700、文件 600；本地仅报告/差异 |
 
 ### 7.3 通用（§6.3）
@@ -191,26 +223,37 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 | 条目 | 结果 | 说明 |
 | --- | --- | --- |
 | 1. DNS 不泄漏自动三项 | 通过 | 默认 fake-IP；路由器 DNS 阻断；公共 DNS 无真实 A |
-| 2. dsh-pocket/Tailscale 人工项 | 未复验 | 本轮未重新验证 LAN 数据面、Cloudflare 隧道与 MagicDNS |
-| 3. 全量测试、构建、敏感扫描 | 通过 | 357 项测试（`3cf7774` 复跑）；构建/扫描/`git diff --check` 退出 0 |
+| 2. dsh-pocket cloudflared / WorkBuddy UI | 已关闭 | cloudflared quick tunnel 注册成功（401 为无后端预期）；WorkBuddy status 已登录、doctor 报告 stale heartbeat，UI 重启复验见 §7.4 |
+| 3. 全量测试、构建、敏感扫描 | 通过 | 371 项测试（`feat/q25-selected-region`）；构建/扫描/`git diff --check` 退出 0 |
 | 4. 不提交真实凭据/节点 | 通过 | 敏感扫描通过；报告只含计数/哈希 |
 | 5. 高风险变更部署前确认 | 通过 | 负责人已批准部署；Q32 一次性例外已单独授权 |
 
+### 7.4 本轮补充验证（2026-11-13）
+
+- **浏览器 DoH/DoT/WebRTC 只读评估**：只读读取 Chrome/Edge 策略与 netlog，确认当前 TUN + fake-IP + DNS 护栏下系统解析由 Mihomo 接管；可见「使用安全 DNS」开关、手动 DoH 模板、真实用户配置、WebRTC srflx 候选、第三方 DNS 泄漏站点仍需负责人在真实浏览器人工确认，不据只读数据宣称通过。
+- **DNS 护栏 remove→apply 演练**：按 8 条 CIDR 执行 `dns_guard.py --remove` / `--check` / `--apply` / `--check`，UDP+TCP 各 8 条以 `ipaddress.ip_network` 归一化比对 `normalized_match=true n=8`；短暂无护栏窗口数秒后恢复，最终 `--check` 为 `overall: OK`（详见 [DNS-GUARD.md](DNS-GUARD.md) §5）。
+- **NAS 显式代理端到端**：在 192.168.2.2 经 192.168.2.10:7893 显式代理完成连通与出口验证；ENG-04 结论更新为「NAS 端到端通过，HAOS/Proxmox 仍未部署」（详见 [ENG-04-ACCEPTANCE.md](ENG-04-ACCEPTANCE.md)）。
+- **dsh-pocket / WorkBuddy UI**：cloudflared 2026.10.7 quick tunnel 注册成功（`https://fibre-presidential-dropped-poetry.trycloudflare.com` 返回 401，属无后端预期）；DSH 沙箱 spawn EPERM 为已知管道边界，非配置问题。WorkBuddy `status` 为 Global 已登录 hs40、credit 1836.23000021；`doctor` 报告 `Host bundle: stale heartbeat (process exited)`，心跳文件 PID 15004 已不存在，需重启 DSH/重载插件后复验 UI，不改动真实认证文件。
+
 ---
 
-## 8. 遗留问题
+## 8. 遗留问题（仅剩人工开放项）
 
-1. **选中节点地区比对未完成**：Windows 与 OpenClash 均只确认“出口非 CN”，未证明当前选中节点与出口地区一致；需控制接口可用后补测（Q25）。
-2. **失败回滚未实机演练**：自动回滚只有单元测试覆盖；未在真实设备制造部署失败。DNS 补丁重部署 `20261113-195320-018656` 成功，未触发回滚路径。
-3. **人工项未复验**：浏览器 DoH/DoT/WebRTC、真实 LAN 客户端、重启后长期观察、dsh-pocket/Tailscale 链路。
-4. **ENG-04 范围限制仍在**：NAS 显式代理、HAOS 透明代理、Proxmox 默认网关未验证；本报告不改变 ENG-04 的“部分通过”结论。
+1. **真实 LAN 客户端**：未用旁路设备把网关指向 192.168.2.10 做端到端 transparent proxy 验证；平台部署/验收脚本仍只覆盖部署主机与 OpenClash 设备本身。
+2. **重启后长期观察**：Windows Verge 与 OpenClash 设备重启后的 TUN / DNS 护栏 / 自动恢复尚未做跨重启长期观察。
+3. **浏览器人工项**：可见「使用安全 DNS」开关、手动 DoH 模板、真实用户配置、WebRTC srflx 候选、第三方 DNS 泄漏站点未人工确认；本轮只完成只读策略/netlog 评估，不据其宣称通过。
+4. **ENG-04 未部署项**：HAOS 透明代理、Proxmox 默认网关仍未验证；NAS 显式代理端到端已通过（§7.4），ENG-04 不再是全范围“部分通过”。
 
-已关闭（不再计入遗留问题）：PR #17 → `de4d5be`、PR #18 → `3cf7774` 均已由负责人审查合并；OpenClash 新配置已按 m14382 部署到设备并验收通过（§4.4）。
+**本轮已关闭（不再计入遗留问题）**：Q25 Windows 选中节点地区比对（§3.4）、Windows 失败自动回滚 + 六步重部署（§3.5）、OpenClash 受控失败自动回滚 16 项（§4.5）、8 条 CIDR DNS 护栏 `--remove` 演练（§7.4 / DNS-GUARD.md）、NAS 显式代理端到端（§7.4）、dsh-pocket cloudflared 隧道与 WorkBuddy status/UI 复验结论（§7.4）。
+
+**历史已关闭**：PR #17 → `de4d5be`、PR #18 → `3cf7774`、PR #19 → `c680be0` 均已合并；OpenClash 新配置按 m14382 部署并验收通过（§4.4）；DNS fallback `#PROXY` 修复已应用到双平台。
 
 ---
 
 ## 9. 结论
 
-Windows 与 OpenClash 的部署、配置加载、端口、HTTP、DNS fake-IP 和“出口非 CN”均已由当前代码自动验证通过；全量测试、构建与敏感扫描通过。由于节点地区比对、失败回滚实机演练和人工项仍未关闭，本次结论为：
+Windows 与 OpenClash 的部署、配置加载、端口、HTTP、DNS fake-IP 和出口均由当前代码自动验证通过；Q25 节点地区比对（Windows）、双平台失败自动回滚实机演练、DNS 护栏 remove/apply 演练、NAS 显式代理端到端、dsh-pocket/WorkBuddy UI 结论均已在本轮关闭；全量 371 项测试、双平台构建、敏感扫描、`git diff --check` 全部通过。
 
-**自动验收通过，完整验收尚未全部关闭；不得据此宣称所有安全与网络目标已最终验收。**
+仍未关闭的仅为人工开放项：真实 LAN 客户端、重启后长期观察、可见浏览器开关/手动 DoH 模板/WebRTC srflx 候选/第三方泄漏站点、HAOS/Proxmox 未部署。OpenClash 侧 Q25 按 Q3 契约降级为「出口非 CN」，不伪造选中节点信息。因此本次结论为：
+
+**自动验收与工程内可自动化项全部通过；完整验收仍留有上述人工开放项，不得据此宣称所有安全与网络目标已最终验收。**
