@@ -1,6 +1,6 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.32
+**版本：** v1.33
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13、2026-11-14 的确认记录
 **代码基线：** `5091485`（PR #21 合并后的 main）；v1.31 的策略组测速与图标条款在后续 PR 中实现
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
@@ -175,15 +175,16 @@ GitHub 以外的灾难恢复备份系统。
 | Claude | `claude` | `Magic.png` | Qure |
 | Cursor | `cursor` | `Lab.png` | Qure |
 | 自动选择 | `auto` | `Auto.png` | Qure |
-| 香港节点 | `hk` | `HK.png` | Qure |
-| 台湾节点 | `tw` | `TW.png` | Qure |
-| 日本节点 | `jp` | `JP.png` | Qure |
-| 韩国节点 | `kr` | `KR.png` | Qure |
-| 狮城节点 | `sg` | `SG.png` | Qure |
-| 美国节点 | `us` | `US.png` | Qure |
+| 香港节点 | `hk` | `Hong_Kong.png` | Qure |
+| 台湾节点 | `tw` | `Taiwan.png` | Qure |
+| 日本节点 | `jp` | `Japan.png` | Qure |
+| 韩国节点 | `kr` | `Korea.png` | Qure |
+| 狮城节点 | `sg` | `Singapore.png` | Qure |
+| 美国节点 | `us` | `United_States.png` | Qure |
 | 其他节点 | `other` | `Area.png` | Qure |
 
-- 风格约定：地区组用地区字母徽标，功能组用中性图形；Google 用其彩色字标。
+- 风格约定：**六个地区组用国家/地区旗帜**（2026-11-14 负责人确认，替换原字母徽标
+  `HK`/`TW`/`JP`/`KR`/`SG`/`US`），功能组用中性图形，Google 用其彩色字标。
 - **AI 三组映射（负责人确认）**：Qure 无 OpenAI/Claude/Cursor 品牌图标，三组改用
   可区分的中性图形——OpenAI → `Bot`、Claude → `Magic`、Cursor → `Lab`，不冒充品牌标志。
 - **许可声明**：Qure 无开源许可证，README 声明图标/LOGO 版权归原作者及商标方所有，
@@ -669,3 +670,4 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-14 | v1.30 | 同步代码基线为 `0fc58ca`（PR #20 合并后的 main）；PR #20 已合并并删除源分支，main push CI 通过；仅更新基线指针与合并记录，**需求条款未变** | 项目负责人（基线指针同步） |
 | 2026-11-14 | v1.31 | §4.2 第 3 条：七个地区入口与 `自动选择` 改 `url-test`（gstatic/300/50）；§4.3 `OpenAI` 改 `fallback`（美国→狮城→日本→韩国），`Claude`/`Cursor` 保持 `select`；新增 §4.4 策略组图标与 §4.2 第 7/8 条构建期校验；代码基线前移 `5091485` | 项目负责人（2026-11-14 确认） |
 | 2026-11-14 | v1.32 | §4.4 改写：图标**改用 PNG**（Qure 图标集 `icon/qure/color`），源文件 `assets/icons/*.png`，构建期内联为 `data:image/png;base64,…`；校验改为 PNG 签名 + ≤16 KiB；新增 Qure 来源与许可声明、AI 三组映射（Bot/Magic/Lab）；§4.2 第 7 条「不是 SVG」改「不是 PNG」 | 项目负责人（2026-11-14 确认） |
+| 2026-11-14 | v1.33 | §4.4 六个地区组图标**由字母徽标改为国家/地区旗帜**：`hk/tw/jp/kr/sg/us` 改取 Qure 的 `Hong_Kong/Taiwan/Japan/Korea/Singapore/United_States.png`；风格约定同步改写；组名、成员、类型、分流行为均不变 | 项目负责人（2026-11-14 指示「六地区→使用国家旗帜」） |

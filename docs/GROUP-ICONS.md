@@ -19,7 +19,7 @@
    - 构建产物 `dist/<platform>/config.yaml` 的 `icon` 字段；
    - Verge 全局脚本 `profiles/Script.js` 的 `MVP_GROUP_ICONS` 常量。
 4. 产物不引用外网 URL，离线可用、可复现；升级图标只需替换 PNG 后重新构建。
-5. 体积影响：13 枚彩色 PNG 合计 134 318 字节，base64 后约 179 KB；两份产物从
+5. 体积影响：13 枚彩色 PNG 合计 134 457 字节，base64 后约 179 KB；两份产物从
    约 2.30 MB 增至约 2.46 MB。
 
 ## 3. 校验（构建期，违反即失败）
@@ -49,12 +49,12 @@
 | Claude | `claude.png` | `Magic.png` | 魔术棒 | Qure |
 | Cursor | `cursor.png` | `Lab.png` | 烧瓶 | Qure |
 | 自动选择 | `auto.png` | `Auto.png` | 闪电 | Qure |
-| 香港节点 | `hk.png` | `HK.png` | HK 字样 | Qure |
-| 台湾节点 | `tw.png` | `TW.png` | TW 字样 | Qure |
-| 日本节点 | `jp.png` | `JP.png` | JP 字样 | Qure |
-| 韩国节点 | `kr.png` | `KR.png` | KR 字样 | Qure |
-| 狮城节点 | `sg.png` | `SG.png` | SG 字样 | Qure |
-| 美国节点 | `us.png` | `US.png` | US 字样 | Qure |
+| 香港节点 | `hk.png` | `Hong_Kong.png` | 香港特别行政区区旗 | Qure |
+| 台湾节点 | `tw.png` | `Taiwan.png` | 青天白日满地红旗 | Qure |
+| 日本节点 | `jp.png` | `Japan.png` | 日本国旗 | Qure |
+| 韩国节点 | `kr.png` | `Korea.png` | 韩国国旗 | Qure |
+| 狮城节点 | `sg.png` | `Singapore.png` | 新加坡国旗 | Qure |
+| 美国节点 | `us.png` | `United_States.png` | 美国国旗 | Qure |
 | 其他节点 | `other.png` | `Area.png` | 地球+指针 | Qure |
 
 **许可与来源声明**：Qure 项目**没有开源许可证**，其 README 声明图标/LOGO 版权归原作者
@@ -65,8 +65,9 @@ blackmatrix7 的 `icon/qure` 是上游的**单向备份**。本项目为个人�
 
 **映射确认（2026-11-14 负责人确认）**：Qure 中没有 OpenAI / Claude / Cursor 品牌图标，
 三组改用三个**可区分的中性图形**——OpenAI → `Bot`、Claude → `Magic`、Cursor → `Lab`，
-不冒充任何品牌标志。地区组用字母缩写徽标（`HK`/`TW`/`JP`/`KR`/`SG`/`US`），
-功能组（PROXY/自动选择/其他节点）用中性图形。
+不冒充任何品牌标志。**六个地区组用国家/地区旗帜**（`Hong_Kong`/`Taiwan`/`Japan`/`Korea`/
+`Singapore`/`United_States`，2026-11-14 负责人指示「六地区→使用国家旗帜」，替换原字母徽标
+`HK`/`TW`/`JP`/`KR`/`SG`/`US`），功能组（PROXY/自动选择/其他节点）用中性图形。
 
 ## 5. 来源可核验性
 

@@ -5,6 +5,7 @@ Mihomo / Clash Verge 支持在 `proxy-groups` 上用 `icon` 字段显示图标�
 `data:image/png;base64,…`，因此产物不依赖网络、可复现、可离线部署。
 
 **2026-11-14 负责人确认：改用 PNG（Qure 图标集），不再使用 SVG。**
+**2026-11-14 负责人确认：六个地区组使用国家/地区旗帜图标（替换原字母徽标）。**
 
 ## 图标集来源
 
@@ -36,13 +37,17 @@ Mihomo / Clash Verge 支持在 `proxy-groups` 上用 `icon` 字段显示图标�
 | `claude.png` | Claude | `Magic.png` | 11147 | `583391e7473f9137…` |
 | `cursor.png` | Cursor | `Lab.png` | 8851 | `a1b60d44cd429530…` |
 | `auto.png` | 自动选择 | `Auto.png` | 7081 | `ca2161622dcc61e6…` |
-| `hk.png` | 香港节点 | `HK.png` | 10246 | `e823cfdf07a78b83…` |
-| `tw.png` | 台湾节点 | `TW.png` | 10485 | `2c462eea6576f445…` |
-| `jp.png` | 日本节点 | `JP.png` | 10255 | `1705c73948c38703…` |
-| `kr.png` | 韩国节点 | `KR.png` | 10773 | `a0c5761192064860…` |
-| `sg.png` | 狮城节点 | `SG.png` | 10887 | `4ae0cafb686ce659…` |
-| `us.png` | 美国节点 | `US.png` | 11759 | `0f9c063af90c447c…` |
+| `hk.png` | 香港节点 | `Hong_Kong.png` | 11854 | `eacee82c61b21e7a…` |
+| `tw.png` | 台湾节点 | `Taiwan.png` | 11037 | `80da8b480bc7e85f…` |
+| `jp.png` | 日本节点 | `Japan.png` | 8754 | `59e351aab014850c…` |
+| `kr.png` | 韩国节点 | `Korea.png` | 10961 | `2612736989c0932b…` |
+| `sg.png` | 狮城节点 | `Singapore.png` | 9416 | `192249f402998130…` |
+| `us.png` | 美国节点 | `United_States.png` | 12522 | `63d7c028ea386260…` |
 | `other.png` | 其他节点 | `Area.png` | 14450 | `b22c0411bc69bcfd…` |
+
+**关于地区组**：六个地区组使用 Qure 的**国家/地区旗帜**图标（`Hong_Kong`/`Taiwan`/`Japan`/
+`Korea`/`Singapore`/`United_States`），2026-11-14 负责人指示「六地区→使用国家旗帜」；
+原字母徽标 `HK`/`TW`/`JP`/`KR`/`SG`/`US` 已弃用。旗帜图形不涉及额外授权，版权同属 Qure 声明。
 
 **关于 AI 三组**：Qure 图标集中没有 OpenAI / Claude / Cursor 的品牌图标，因此改用三个
 **可区分的中性图形**（2026-11-14 负责人确认）：OpenAI → `Bot`、Claude → `Magic`、
