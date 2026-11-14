@@ -3,7 +3,7 @@
 - 日期：2026-11-13（首轮）；2026-11-14（策略组改型与 PNG 图标重部署）；2026-11-14（OpenClash 按 v1.33 重部署）
 - 分支：`main`
 - 代码基线：`08cba52`（PR #23 合并后的 main）；上一基线 `953bcde`（PR #22）、`0fc58ca`（PR #20）
-- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）、[REQUIREMENTS.md](REQUIREMENTS.md) v1.34（v1.31–v1.33 的 §4.2 地区组 url-test、§4.3 OpenAI fallback、§4.4 策略组图标条款；v1.34 仅同步代码基线）
+- 需求基线：[PLATFORM-REQUIREMENTS.md](PLATFORM-REQUIREMENTS.md) v1.1（Q13–Q32）、[REQUIREMENTS.md](REQUIREMENTS.md) v1.35（v1.31–v1.33 的 §4.2 地区组 url-test、§4.3 OpenAI fallback、§4.4 策略组图标条款；v1.34 仅同步代码基线；v1.35 仅清理临时路径引用，条款未变）
 - 结论：**Windows 与 OpenClash 均已完成真实部署与自动验收。**
   本轮（2026-11-13）已关闭：Q25 选中节点地区比对、双平台失败回滚实机演练、8 条 CIDR DNS 护栏 `--remove` 演练、NAS 显式代理端到端、dsh-pocket UI 重试与 WorkBuddy UI 重启复验；浏览器 DoH/DoT/WebRTC 完成只读策略/netlog 评估。
   仍未关闭的人工项仅剩：真实 LAN 客户端、重启后长期观察、可见浏览器安全 DNS 开关/手动 DoH 模板/WebRTC srflx 候选/第三方泄漏站点、HAOS/Proxmox（未部署）。
@@ -96,8 +96,8 @@
 
 ### 3.5 Windows 失败→自动回滚→重部署实机演练（负责人授权，2026-11-13）
 
-- 方法：.tmp_win_rollback_drill.py 注入 verge_apply.write_atomic 第 1 次给 profiles/Merge.yaml 加无害 DRILL-MARKER-ROLLBACK-TEST 注释、第 3 次抛 OSError(DRILL: injected write failure at call 3)，触发 apply_migration 的 except(restore + reload)；随后不注入故障重部署；安全副本置于临时目录并在 finally 删除。
-- 结果（.tmp_win_rollback_drill.json）：failed_apply_raised true，错误 DRILL: injected write failure at call 3；已回滚到迁移前文件；恢复后代理 204（17.5s）、4 个 owned 文件 SHA-256 全部等于演练前、marker 消失、护栏 OK、IPv6 以太网 false；重部署六步 [1/6]..[6/6] 校验通过，最终代理 204（13.3s）、owned 哈希再次全部等于演练前、护栏/IPv6 不变；safety_removed true。
+- 方法：一次性演练脚本 `.tmp_win_rollback_drill.py`（临时产物，2026-11-14 已清理）注入 verge_apply.write_atomic 第 1 次给 profiles/Merge.yaml 加无害 DRILL-MARKER-ROLLBACK-TEST 注释、第 3 次抛 OSError(DRILL: injected write failure at call 3)，触发 apply_migration 的 except(restore + reload)；随后不注入故障重部署；安全副本置于临时目录并在 finally 删除。
+- 结果（当时的 `.tmp_win_rollback_drill.json`，临时产物已清理）：failed_apply_raised true，错误 DRILL: injected write failure at call 3；已回滚到迁移前文件；恢复后代理 204（17.5s）、4 个 owned 文件 SHA-256 全部等于演练前、marker 消失、护栏 OK、IPv6 以太网 false；重部署六步 [1/6]..[6/6] 校验通过，最终代理 204（13.3s）、owned 哈希再次全部等于演练前、护栏/IPv6 不变；safety_removed true。
 - 演练后官方只读 scripts/platform.py verify --platform windows --json 为 passed true，Q25 verified true。演练期间 Verge 两次重启；生产中断随重部署恢复结束。助手 health() 因 len(int) 报错，不影响结论，已用官方 verify 复核。
 
 ### 3.6 策略组改型与 PNG 图标重部署（负责人 m17048 授权，2026-11-14）
@@ -190,7 +190,7 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 
 ### 4.5 受控失败→自动回滚→设备恢复实机演练（负责人 m14910 批准，m14918 授权）
 
-- 方法：`.tmp_oc_rollback_drill.py` 生成一份仅追加 `# DRILL-OC-ROLLBACK-MARKER` 注释的演练配置（drill SHA-256 `5d6fb625dfd885054e0d28eb3156919bf26e3b7cd0a47dd6219a087ae11d4f78`），经 `plan_openclash` / `apply_openclash` 正常备份与部署；monkeypatch `oc._wait_port` 返回 False 制造「重启后 7893 未监听」失败，触发 `apply_openclash` 的 `except` 分支（`rm -f TEMP_CONFIG` + `_restore_remote`）；在故障瞬间捕获设备 deployed_sha256 / has_marker / config_path，恢复后逐项比对 pre/post。
+- 方法：一次性演练脚本 `.tmp_oc_rollback_drill.py`（临时产物，2026-11-14 已清理）生成一份仅追加 `# DRILL-OC-ROLLBACK-MARKER` 注释的演练配置（drill SHA-256 `5d6fb625dfd885054e0d28eb3156919bf26e3b7cd0a47dd6219a087ae11d4f78`），经 `plan_openclash` / `apply_openclash` 正常备份与部署；monkeypatch `oc._wait_port` 返回 False 制造「重启后 7893 未监听」失败，触发 `apply_openclash` 的 `except` 分支（`rm -f TEMP_CONFIG` + `_restore_remote`）；在故障瞬间捕获设备 deployed_sha256 / has_marker / config_path，恢复后逐项比对 pre/post。
 - 设备 pre 状态：config_path `/etc/openclash/config/clash-platform.yaml`、enable 1、dns_port 7874、sha256 `2d8dc2fee4c59bb46656288bfc174e25ea99d941c78b70c91407d5f609e37343`、has_marker false、7893 监听、temp 不存在、config_process true。故障瞬间 deployed_sha256=drill_sha256、has_marker true，证明演练配置确已部署后才失败。
 - apply 抛出 `OpenClash 重启后 7893 端口未监听；已恢复旧 config_path`，`restored=True`；远端备份 `/etc/openclash/platform-backups/clash-oc-drill-5mv2qhrr`（manifest old_sha=2d8dc2…e343、new_sha=5d6fb6…4f78、new_exists true）。
 - post 与 pre 完全一致：SHA-256 恢复为 `2d8dc2…e343`、marker 消失、temp 清理、config_path/enable/dns_port 不变、7893 监听、config_process true；设备 `mihomo -t` 输出 `configuration file /etc/openclash/config/clash-platform.yaml test is successful`。
@@ -254,8 +254,8 @@ PR #18 合并为 `3cf7774` 后，本地 `main` 已更新；设备仍运行旧配
 | Windows 验收 | `scripts\platform.py verify --platform windows --json` | `passed: true`，Q25 `exit.verified: true`，退出 0；2026-11-14 重部署后复验同样 passed |
 | OpenClash 验收 | `scripts\platform.py verify --platform openclash --json` | `passed: true`，出口非 CN（按契约降级），退出 0；v1.33 重部署后复验同样 passed（§4.6） |
 | 变更判定回归 | `tests\test_platform_diff.py`、`tests\test_platform_openclash.py` | 4 项新增用例通过：组属性变化被检出、成员顺序不变不算变更、成员变化被检出、节点名/组名不变时仍判为有变更 |
-| Windows 失败回滚演练 | `.tmp_win_rollback_drill.py` | 文件哈希恢复、代理 204、六步重部署通过（§3.5） |
-| OpenClash 失败回滚演练 | `.tmp_oc_rollback_drill.py` | 16 项检查全 true，设备字节级恢复（§4.5） |
+| Windows 失败回滚演练 | 一次性脚本 `.tmp_win_rollback_drill.py`（已清理） | 文件哈希恢复、代理 204、六步重部署通过（§3.5） |
+| OpenClash 失败回滚演练 | 一次性脚本 `.tmp_oc_rollback_drill.py`（已清理） | 16 项检查全 true，设备字节级恢复（§4.5） |
 | dsh-pocket 隧道 | quick tunnel CLI | 注册成功，URL 返回 401（无后端预期） |
 | WorkBuddy 状态 | `workbuddy status` / `doctor` | Global 已登录 hs40，credit 1836.23000021 |
 
