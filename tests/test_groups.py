@@ -4,6 +4,7 @@ S2：proxy-groups.yaml 的 include 指令由 build_platform 解析成真实成�
 S3：未知指令、无效引用、循环引用必须让构建失败。
 """
 
+import base64
 import shutil
 import sys
 import tempfile
@@ -27,6 +28,7 @@ def make_fixture_tree(root_dir):
     for src in (ROOT / "configs" / "common").glob("*.yaml"):
         shutil.copy(src, root_dir / "configs" / "common" / src.name)
     shutil.copytree(ROOT / "providers", root_dir / "providers")
+    shutil.copytree(ROOT / "assets", root_dir / "assets")
 
 
 def load_yaml(path):
@@ -52,12 +54,21 @@ class GeneratedGroupsTest(unittest.TestCase):
             ],
         )
 
-    def test_ai_groups_are_select_with_auto_and_regions(self):
+    def test_openai_is_fallback_in_confirmed_order(self):
+        openai = self.groups["OpenAI"]
+        self.assertEqual(openai["type"], "fallback")
+        self.assertEqual(
+            openai["proxies"], ["美国节点", "狮城节点", "日本节点", "韩国节点"]
+        )
+        self.assertEqual(openai["url"], "https://www.gstatic.com/generate_204")
+        self.assertEqual(openai["interval"], 300)
+
+    def test_claude_and_cursor_are_select_with_auto_and_regions(self):
         expected = [
             "自动选择", "香港节点", "台湾节点", "日本节点",
             "韩国节点", "狮城节点", "美国节点", "其他节点",
         ]
-        for name in ("OpenAI", "Claude", "Cursor"):
+        for name in ("Claude", "Cursor"):
             with self.subTest(group=name):
                 self.assertEqual(self.groups[name]["type"], "select")
                 self.assertEqual(self.groups[name]["proxies"], expected)
@@ -79,8 +90,13 @@ class GeneratedGroupsTest(unittest.TestCase):
             "其他节点": ["占位-其他-01"],
         }
         for name, members in expected.items():
+            group = self.groups[name]
             with self.subTest(group=name):
-                self.assertEqual(self.groups[name]["proxies"], members)
+                self.assertEqual(group["type"], "url-test")
+                self.assertEqual(group["url"], "https://www.gstatic.com/generate_204")
+                self.assertEqual(group["interval"], 300)
+                self.assertEqual(group["tolerance"], 50)
+                self.assertEqual(group["proxies"], members)
 
     def test_google_is_us_first_fallback_with_confirmed_order(self):
         google = self.groups["Google"]
@@ -93,6 +109,28 @@ class GeneratedGroupsTest(unittest.TestCase):
         for group in self.cfg["proxy-groups"]:
             with self.subTest(group=group["name"]):
                 self.assertNotIn("include", group)
+
+    def test_every_group_carries_inline_png_icon(self):
+        self.assertEqual(len(self.cfg["proxy-groups"]), 13)
+        for group in self.cfg["proxy-groups"]:
+            with self.subTest(group=group["name"]):
+                icon = group["icon"]
+                self.assertTrue(icon.startswith("data:image/png;base64,"))
+                raw = base64.b64decode(icon.split(",", 1)[1])
+                self.assertTrue(raw.startswith(b"\x89PNG\r\n\x1a\n"))
+                self.assertLessEqual(len(raw), 16 * 1024)
+
+    def test_icons_are_png_sources_on_disk(self):
+        files = sorted((ROOT / "assets" / "icons").glob("*.png"))
+        self.assertEqual(len(files), 13)
+        for path in files:
+            with self.subTest(file=path.name):
+                self.assertTrue(path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"))
+        self.assertEqual(
+            list((ROOT / "assets" / "icons").glob("*.svg")),
+            [],
+            "负责人已确认改用 PNG，仓库内不应再有 SVG 图标源文件",
+        )
 
 
 class GroupFixtureTest(unittest.TestCase):
@@ -235,6 +273,54 @@ class GroupFixtureTest(unittest.TestCase):
         message = str(ctx.exception)
         self.assertIn("测试组A", message)
         self.assertIn("测试组B", message)
+
+    def test_missing_icon_file_is_rejected(self):
+        self.edit_groups(lambda gs: gs[0].update({"icon": "no-such-icon"}))
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("no-such-icon", str(ctx.exception))
+
+    def test_invalid_icon_name_is_rejected(self):
+        self.edit_groups(lambda gs: gs[0].update({"icon": "../escape"}))
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("图标", str(ctx.exception))
+
+    def test_non_png_icon_is_rejected(self):
+        (self.root / "assets" / "icons" / "proxy.png").write_bytes(
+            b"<svg xmlns='http://www.w3.org/2000/svg'/>"
+        )
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("不是 PNG", str(ctx.exception))
+
+    def test_oversized_icon_is_rejected(self):
+        (self.root / "assets" / "icons" / "proxy.png").write_bytes(
+            b"\x89PNG\r\n\x1a\n" + b"\x00" * (16 * 1024)
+        )
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("超过", str(ctx.exception))
+
+    def test_url_test_group_without_url_is_rejected(self):
+        self.edit_groups(lambda gs: gs[0].update({"type": "url-test"}))
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("url", str(ctx.exception))
+
+    def test_select_group_with_url_is_rejected(self):
+        self.edit_groups(
+            lambda gs: gs[0].update({"url": "https://example.invalid"})
+        )
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("url", str(ctx.exception))
+
+    def test_unsupported_group_type_is_rejected(self):
+        self.edit_groups(lambda gs: gs[0].update({"type": "round-robin"}))
+        with self.assertRaises(build.ConfigError) as ctx:
+            self.build()
+        self.assertIn("类型不受支持", str(ctx.exception))
 
     def test_unknown_group_key_is_rejected(self):
         self.edit_groups(

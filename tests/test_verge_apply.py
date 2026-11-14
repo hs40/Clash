@@ -27,8 +27,20 @@ def make_config(proxies=46):
     names = ["node-%d" % i for i in range(proxies)]
     groups = [
         {"name": "PROXY", "type": "select", "proxies": ["自动选择"] + REGIONS + ["DIRECT"]},
-        {"name": "Google", "type": "fallback", "proxies": ["美国节点", "狮城节点", "日本节点", "香港节点"]},
-        {"name": "OpenAI", "type": "select", "proxies": ["自动选择"] + REGIONS},
+        {
+            "name": "Google",
+            "type": "fallback",
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300,
+            "proxies": ["美国节点", "狮城节点", "日本节点", "香港节点"],
+        },
+        {
+            "name": "OpenAI",
+            "type": "fallback",
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300,
+            "proxies": ["美国节点", "狮城节点", "日本节点", "韩国节点"],
+        },
         {"name": "Claude", "type": "select", "proxies": ["自动选择"] + REGIONS},
         {"name": "Cursor", "type": "select", "proxies": ["自动选择"] + REGIONS},
         {
@@ -41,7 +53,14 @@ def make_config(proxies=46):
         },
     ]
     for name in REGIONS:
-        groups.append({"name": name, "type": "select", "proxies": ["node-0"]})
+        groups.append({
+            "name": name,
+            "type": "url-test",
+            "url": "https://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50,
+            "proxies": ["node-0"],
+        })
     return {
         "mixed-port": 7897,
         "mode": "rule",

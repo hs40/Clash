@@ -42,6 +42,7 @@ REGION_GROUPS = ("香港节点", "台湾节点", "日本节点", "韩国节点",
 AI_GROUPS = ("OpenAI", "Claude", "Cursor")
 PROVIDERS = ("geosite-cn", "geosite-private")
 URL_TEST = "https://www.gstatic.com/generate_204"
+OPENAI_FALLBACK = ("美国节点", "狮城节点", "日本节点", "韩国节点")
 
 
 class ApplyError(Exception):
@@ -273,7 +274,15 @@ def verify_config(config, expected_proxies, expected_rules):
         or len(auto.get("proxies") or []) != expected_proxies
     ):
         raise ApplyError("自动选择组不符合契约")
-    for name in AI_GROUPS:
+    openai = _group(groups, "OpenAI")
+    if (
+        openai.get("type") != "fallback"
+        or openai.get("proxies") != list(OPENAI_FALLBACK)
+        or openai.get("url") != URL_TEST
+        or openai.get("interval") != 300
+    ):
+        raise ApplyError("OpenAI 回退顺序或类型不符合契约")
+    for name in ("Claude", "Cursor"):
         group = _group(groups, name)
         if group.get("type") != "select" or group.get("proxies") != [
             "自动选择"
@@ -281,8 +290,14 @@ def verify_config(config, expected_proxies, expected_rules):
             raise ApplyError("%s 组成员或类型不符合契约" % name)
     for name in REGION_GROUPS:
         group = _group(groups, name)
-        if group.get("type") != "select" or not group.get("proxies"):
-            raise ApplyError("%s 组为空或类型错误" % name)
+        if (
+            group.get("type") != "url-test"
+            or group.get("url") != URL_TEST
+            or group.get("interval") != 300
+            or group.get("tolerance") != 50
+            or not group.get("proxies")
+        ):
+            raise ApplyError("%s 组为空或测速契约不符" % name)
     providers = config.get("rule-providers")
     if not isinstance(providers, dict) or set(providers) != set(PROVIDERS):
         raise ApplyError("rule-providers 不是且仅是两个内嵌 Provider")

@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -101,14 +102,22 @@ def sample_config():
 
 
 def run_script(script, config, profile_name="FIB"):
+    """把脚本写入临时 .js 再执行。
+
+    PNG 图标内联后脚本约 180 KB，超过 Windows 命令行长度上限（约 32 KB），
+    因此不能再用 node -e 传参。
+    """
     if NODE is None:
         raise unittest.SkipTest("node 不可用")
     code = script + "\nconst __cfg = " + json.dumps(config, ensure_ascii=False)
     code += "; const __out = main(__cfg, " + json.dumps(profile_name, ensure_ascii=False)
     code += "); process.stdout.write(JSON.stringify(__out));"
-    proc = subprocess.run(
-        [NODE, "-e", code], capture_output=True, text=True, encoding="utf-8"
-    )
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "run_script.js"
+        path.write_text(code, encoding="utf-8")
+        proc = subprocess.run(
+            [NODE, str(path)], capture_output=True, text=True, encoding="utf-8"
+        )
     if proc.returncode != 0:
         raise AssertionError("node 执行失败：%s\n%s" % (proc.stdout, proc.stderr))
     return json.loads(proc.stdout)
@@ -168,6 +177,23 @@ class ScriptStructureTest(unittest.TestCase):
         self.assertIn("geosite-private", self.script)
         self.assertIn("geosite-cn", self.script)
 
+    def test_script_embeds_group_icons(self):
+        self.assertIn("const MVP_GROUP_ICONS = ", self.script)
+        self.assertEqual(
+            self.script.count("data:image/png;base64,"),
+            len(verge_global.GROUP_ICONS),
+        )
+        self.assertEqual(
+            sorted(verge_global.GROUP_ICONS),
+            sorted(
+                [
+                    "PROXY", "Google", "OpenAI", "Claude", "Cursor", "自动选择",
+                    "香港节点", "台湾节点", "日本节点", "韩国节点",
+                    "狮城节点", "美国节点", "其他节点",
+                ]
+            ),
+        )
+
     def test_script_writes_no_tun_controller_or_secret(self):
         for word in ("external-controller", "secret", "tun"):
             with self.subTest(word=word):
@@ -195,10 +221,15 @@ class ScriptBehaviorTest(unittest.TestCase):
             verge_global.GROUP_ORDER,
         )
         self.assertEqual(self.groups["PROXY"]["type"], "select")
-        self.assertEqual(self.groups["Google"]["type"], "fallback")
-        self.assertEqual(self.groups["自动选择"]["type"], "url-test")
-        for name in ("OpenAI", "Claude", "Cursor") + tuple(verge_global.REGION_GROUPS):
-            self.assertEqual(self.groups[name]["type"], "select")
+        for name in ("Google", "OpenAI"):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["type"], "fallback")
+        for name in ("自动选择",) + tuple(verge_global.REGION_GROUPS):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["type"], "url-test")
+        for name in ("Claude", "Cursor"):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["type"], "select")
 
     def test_proxy_and_google_members(self):
         self.assertEqual(
@@ -210,10 +241,38 @@ class ScriptBehaviorTest(unittest.TestCase):
             ["美国节点", "狮城节点", "日本节点", "香港节点"],
         )
 
-    def test_ai_groups_include_auto_and_all_regions(self):
+    def test_openai_falls_back_across_regions_in_fixed_order(self):
+        self.assertEqual(
+            self.groups["OpenAI"]["proxies"],
+            list(verge_global.OPENAI_FALLBACK),
+        )
+        self.assertEqual(
+            list(verge_global.OPENAI_FALLBACK),
+            ["美国节点", "狮城节点", "日本节点", "韩国节点"],
+        )
+
+    def test_claude_and_cursor_stay_selectable(self):
         expected = ["自动选择"] + list(verge_global.REGION_GROUPS)
-        for name in ("OpenAI", "Claude", "Cursor"):
-            self.assertEqual(self.groups[name]["proxies"], expected)
+        for name in ("Claude", "Cursor"):
+            with self.subTest(group=name):
+                self.assertEqual(self.groups[name]["proxies"], expected)
+
+    def test_region_groups_health_check_is_gstatic_300_50(self):
+        for name in verge_global.REGION_GROUPS:
+            group = self.groups[name]
+            with self.subTest(group=name):
+                self.assertEqual(group["url"], verge_global.URL_TEST)
+                self.assertEqual(group["interval"], 300)
+                self.assertEqual(group["tolerance"], 50)
+
+    def test_every_group_carries_inline_png_icon(self):
+        self.assertEqual(
+            [group["name"] for group in self.result["proxy-groups"]],
+            list(verge_global.GROUP_ORDER),
+        )
+        for group in self.result["proxy-groups"]:
+            with self.subTest(group=group["name"]):
+                self.assertTrue(group["icon"].startswith("data:image/png;base64,"))
 
     def test_auto_select_contains_only_good_nodes(self):
         self.assertEqual(

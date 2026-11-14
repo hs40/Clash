@@ -13,6 +13,7 @@ from pathlib import Path
 import yaml
 
 from build import ConfigError, compile_rules
+from icons import IconError, load_icons
 from providers import ProviderError, load_provider_lock, render_rule_providers
 from regions import OTHER_GROUP, REGION_GROUPS, REGION_KEYWORDS
 
@@ -24,6 +25,26 @@ GROUP_ORDER = [
 ] + list(REGION_GROUPS)
 PROVIDER_NAMES = ("geosite-cn", "geosite-private")
 URL_TEST = "https://www.gstatic.com/generate_204"
+
+# 策略组 → assets/icons 下的图标名（2026-11-14 负责人确认）。
+GROUP_ICONS = {
+    "PROXY": "proxy",
+    "Google": "google",
+    "OpenAI": "openai",
+    "Claude": "claude",
+    "Cursor": "cursor",
+    "自动选择": "auto",
+    "香港节点": "hk",
+    "台湾节点": "tw",
+    "日本节点": "jp",
+    "韩国节点": "kr",
+    "狮城节点": "sg",
+    "美国节点": "us",
+    "其他节点": "other",
+}
+
+# OpenAI 的 fallback 顺序（2026-11-14 负责人确认）。
+OPENAI_FALLBACK = ("美国节点", "狮城节点", "日本节点", "韩国节点")
 
 
 def _read_yaml(path):
@@ -125,6 +146,8 @@ const MVP_GROUP_ORDER = __GROUP_ORDER__;
 const MVP_REGION_GROUPS = __REGION_GROUPS__;
 const MVP_REGION_KEYWORDS = __REGION_KEYWORDS__;
 const MVP_AI_GROUPS = __AI_GROUPS__;
+const MVP_OPENAI_FALLBACK = __OPENAI_FALLBACK__;
+const MVP_GROUP_ICONS = __GROUP_ICONS__;
 const MVP_RULES = __RULES__;
 const MVP_DNS = __DNS__;
 const MVP_PROVIDERS = __PROVIDERS__;
@@ -199,6 +222,7 @@ function buildGroups(proxies) {
   groups.push({
     name: "PROXY",
     type: "select",
+    icon: MVP_GROUP_ICONS["PROXY"],
     proxies: ["自动选择"].concat(MVP_REGION_GROUPS, ["DIRECT"]),
   });
   groups.push({
@@ -206,12 +230,26 @@ function buildGroups(proxies) {
     type: "fallback",
     url: MVP_URL_TEST,
     interval: 300,
+    icon: MVP_GROUP_ICONS["Google"],
     proxies: ["美国节点", "狮城节点", "日本节点", "香港节点"],
   });
   for (let i = 0; i < MVP_AI_GROUPS.length; i += 1) {
+    const aiGroup = MVP_AI_GROUPS[i];
+    if (aiGroup === "OpenAI") {
+      groups.push({
+        name: "OpenAI",
+        type: "fallback",
+        url: MVP_URL_TEST,
+        interval: 300,
+        icon: MVP_GROUP_ICONS["OpenAI"],
+        proxies: MVP_OPENAI_FALLBACK.slice(),
+      });
+      continue;
+    }
     groups.push({
-      name: MVP_AI_GROUPS[i],
+      name: aiGroup,
       type: "select",
+      icon: MVP_GROUP_ICONS[aiGroup],
       proxies: ["自动选择"].concat(MVP_REGION_GROUPS),
     });
   }
@@ -221,13 +259,18 @@ function buildGroups(proxies) {
     url: MVP_URL_TEST,
     interval: 300,
     tolerance: 50,
+    icon: MVP_GROUP_ICONS["自动选择"],
     proxies: names.slice(),
   });
   for (let i = 0; i < MVP_REGION_GROUPS.length; i += 1) {
     const group = MVP_REGION_GROUPS[i];
     groups.push({
       name: group,
-      type: "select",
+      type: "url-test",
+      url: MVP_URL_TEST,
+      interval: 300,
+      tolerance: 50,
+      icon: MVP_GROUP_ICONS[group],
       proxies: regions[group].length > 0 ? regions[group] : ["自动选择"],
     });
   }
@@ -286,12 +329,19 @@ def build_script(root=REPO_ROOT, exclusions=None):
     keyword_map = {
         name: list(REGION_KEYWORDS.get(name, ())) for name in REGION_GROUPS
     }
+    try:
+        icon_map = load_icons(GROUP_ICONS.values(), root)
+    except IconError as exc:
+        raise ConfigError("策略组图标不可用：%s" % exc) from exc
+    group_icons = {name: icon_map[icon] for name, icon in GROUP_ICONS.items()}
     replacements = {
         "__EXCLUSIONS__": _exclusion_block(exclusions).rstrip("\n"),
         "__GROUP_ORDER__": _javascript_const("_", list(GROUP_ORDER)).split(" = ", 1)[1].rstrip(";\n"),
         "__REGION_GROUPS__": _javascript_const("_", list(REGION_GROUPS)).split(" = ", 1)[1].rstrip(";\n"),
         "__REGION_KEYWORDS__": _javascript_const("_", keyword_map).split(" = ", 1)[1].rstrip(";\n"),
         "__AI_GROUPS__": _javascript_const("_", list(AI_GROUPS)).split(" = ", 1)[1].rstrip(";\n"),
+        "__OPENAI_FALLBACK__": _javascript_const("_", list(OPENAI_FALLBACK)).split(" = ", 1)[1].rstrip(";\n"),
+        "__GROUP_ICONS__": _javascript_const("_", group_icons).split(" = ", 1)[1].rstrip(";\n"),
         "__RULES__": _javascript_const("_", rules).split(" = ", 1)[1].rstrip(";\n"),
         "__DNS__": _javascript_const("_", dns).split(" = ", 1)[1].rstrip(";\n"),
         "__PROVIDERS__": _javascript_const("_", list(PROVIDER_NAMES)).split(" = ", 1)[1].rstrip(";\n"),
