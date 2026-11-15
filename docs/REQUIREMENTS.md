@@ -1,8 +1,8 @@
 # 需求基线（REQUIREMENTS）
 
-**版本：** v1.37
+**版本：** v1.39
 **来源：** 《Clash 配置工程开发 Plan》v1.0 第二章、第三章，以及项目负责人 2026-11-10、2026-11-11、2026-11-12、2026-11-13、2026-11-14、2026-11-15 的确认记录
-**代码基线：** `fd65f5f`（PR #33 合并后的 main，2026-11-15 同步；本次仅同步代码基线指针并记录 `v0.2.0` 发布事实，需求条款未变）；v1.31 的策略组测速与图标条款已由 PR #22 实现并部署，`v0.2.0` 起进入 Release
+**代码基线：** `fd65f5f`（PR #33 合并后的 main）；v1.38 由负责人 2026-11-15 以 /grill-me 共识（Q1–Q24）新增第三平台 iPhone / QuantumultX，改动 §1/§2/§13.6/§14/§15，其余需求条款不变。v1.31 的策略组测速与图标条款已由 PR #22 实现并部署，`v0.2.0` 起进入 Release；v1.39 由负责人 2026-11-15「按原代码添加图标」(m18888) 追加 §13.6 图标契约（12 组 `img-url=`），其余需求条款不变。
 **地位：** 本文件是配置、脚本与测试的唯一需求基线。修改必须经项目负责人确认，
 并在文末「变更记录」中留痕。开发 Agent 不得自行扩大、缩减或改变本文件的范围。
 
@@ -17,7 +17,7 @@
 ## 1. 目标与非目标
 
 **目标：** 用一套公共配置生成 Windows 与 OpenClash 两份完整 Mihomo 配置，
-做到可校验、可重复构建、可持续维护。
+以及 iPhone 的 QuantumultX 配置，做到可校验、可重复构建、可持续维护。
 
 **非目标：** 独立 GUI、后台服务、通用代理管理平台、自动修改用户设备、
 GitHub 以外的灾难恢复备份系统。
@@ -26,15 +26,15 @@ GitHub 以外的灾难恢复备份系统。
 
 ## 2. 平台基线【确定】
 
-| 项目 | Windows | OpenClash |
-| --- | --- | --- |
-| 客户端 | Clash Verge Rev v2.5.10 | iStoreOS + OpenClash |
-| 内核 | Mihomo Meta | Mihomo Meta |
-| 配置模式 | Rule | Rule |
-| 代理方式 | TUN | 旁路由透明代理 |
-| DNS | Fake-IP | Fake-IP |
-| 网络协议 | IPv4-only | IPv4-only |
-| 兼容基准 | Mihomo v1.19.33（本机实际） | Mihomo Meta alpha-gbc76c13（设备实际，仅本平台） |
+| 项目 | Windows | OpenClash | iPhone / QuantumultX |
+| --- | --- | --- | --- |
+| 客户端 | Clash Verge Rev v2.5.10 | iStoreOS + OpenClash | QuantumultX（iOS App） |
+| 内核 | Mihomo Meta | Mihomo Meta | 非 Mihomo（闭源付费 App） |
+| 配置模式 | Rule | Rule | 分节 INI + 策略组 |
+| 代理方式 | TUN | 旁路由透明代理 | iOS VPN（Network Extension） |
+| DNS | Fake-IP | Fake-IP | `no-system` + UDP DNS（`no-ipv6`） |
+| 网络协议 | IPv4-only | IPv4-only | IPv4-only（`no-ipv6`） |
+| 兼容基准 | Mihomo v1.19.33（本机实际） | Mihomo Meta alpha-gbc76c13（设备实际，仅本平台） | 无 `mihomo -t` 离线校验【待核验】 |
 
 **注意：** 兼容基准按平台分别记录：Windows 为 Mihomo v1.19.33；OpenClash 由负责人
 2026-11-10 确认改为设备实际 Mihomo Meta alpha-gbc76c13（仅 OpenClash）。2026-11-10
@@ -607,6 +607,67 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 已应用，DNS 路径/站点回归、管理员 `check` 与 `--remove` 回滚演练均通过；`verge-sync.cmd` 需要管理员权限；DSH 低完整性 `.venv` 写 AppData 会被拒绝，
 需改用系统 Python；订阅重命名后需重跑 `verge-sync.cmd` 更新排除键。详见 `docs/VERGE-GLOBAL.md`。
 
+
+### 13.6 iPhone / QuantumultX 配置【确定，2026-11-15 负责人 /grill-me 共识 Q1–Q24】
+
+该平台**非 Mihomo 内核**，配置是分节 INI 格式，闭源 App 无 CLI、**无 `-t` 离线校验**；
+`build.py` 的浅合并、`mihomo -t` 与 `platform_*.py` 部署链均不适用，质量模型退化为
+自建结构校验。使用方法见 `docs/IOS-QUANTUMULTX.md`。
+
+1. **交付形态**：生成完整 `QuanX.conf`，产物入库固定路径 `quantumultx/QuanX.conf`；
+   手机导入 `https://raw.githubusercontent.com/hs40/Clash/main/quantumultx/QuanX.conf`。
+   该产物是「源文件入库、产物不入库」原则的**唯一破例**（`dist/` 仍 gitignored）；不走 Release。
+2. **构建入口**：`scripts/build_quanx.py`，源码模板 `configs/quantumultx/platform.conf`。
+   `--out DIR` 写 `QuanX.conf`、`--root DIR`、`--check` 校验入库产物与重新构建逐字节一致；
+   **不参与** `build.py --platform all`。CI 增加 `python scripts/build_quanx.py --check` 守卫。
+3. **12 策略组（Q20）**：`节点选择`(static) / `自动选择`(url-latency-benchmark,
+   `server-tag-regex=.*`) / 7 地区组（香港、台湾、日本、韩国、狮城、美国、其他节点，
+   全 `url-latency-benchmark`）/ `全球加速` / `苹果服务` / `兜底分流`(static)；
+   `final, 兜底分流`。**不建** Google/OpenAI/Claude/Cursor（`fallback` 在 QuanX 不可嵌套策略组）。
+   `PROXY` 改名 `节点选择` 避开 QuanX 内置保留字 `proxy`/`direct`/`reject`。
+   **图标（2026-11-15 负责人补充）**：12 组每行带 `img-url=`，9 个原有组逐行照抄现用
+   `QuanX.conf`；`韩国节点` 归位 Orz-3 `KR.png`（原错挂于「其他节点」）、`其他节点` 改 Qure
+   `World_Map.png`、新增 `节点选择` 用 Qure `Proxy.png`。单一数据源 `build_quanx.POLICY_ICONS`，
+   `validate_quantx()` 校验「有且仅有一个约定图标」，缺/错即失败；图标只展示不参与分流，
+   远程 URL 不锁 SHA-256（Q15），不引入 `assets/`。测试 `PolicyIconTest` 5 项覆盖。
+4. **地区正则单一数据源（Q7）**：7 地区 `server-tag-regex` 由 `scripts/regions.py` 的
+   `REGION_KEYWORDS` / `REGION_GROUPS` **机械生成**（先命中优先），与 `classify_node()` 交叉验证；
+   测试覆盖「关键词→正则→匹配结果」。`自动选择` 用 `.*`，`其他节点` 用负向先行兜底。
+5. **规则（Q13/Q14/Q21/Q22）**：`[filter_local]` 内联 **21 条**（special 8 + Apple 3 +
+   金融 4 + base 4 近似 + BT 1 + fallback 1），删去指向 Google/OpenAI/Claude/Cursor 的 12 条；
+   AI 交远程 `Ai-All-In-One`(`force-policy=美国节点`)、Google 交 `全球加速` 列表。
+   `[filter_remote]` 保留 9 条（删 3 条 `enabled=false` 悬空：Spotify音乐/国际媒体/哔哩哔哩），
+   `[rewrite_remote]` 30 条公开 URL、`[task_local]`、`[http_backend]` 原样照搬。
+   国内直连只用 `geoip, cn, direct` + 现有 `国内网站` 订阅，不引入 China.list。
+6. **[general] / [dns]（Q9/Q17/Q24）**：`server_check_url`(http)、`server_check_timeout=3000`、
+   `geo_location_checker=disabled`、`excluded_routes`、`dns_exclusion_list`、
+   `udp_drop_list = 443, STUN, QUIC` 全部原样保留；DNS 保持 `no-ipv6` + `no-system` + UDP DNS，
+   不改 DoH。`[policy]` 自动组统一 `check-interval=1200`、`tolerance=50`。
+7. **凭据边界（Q3/Q5）**：证书与口令两行、`?clash=` 订阅 URL **永不入库**（含测试夹具、
+   示例、文档）；`[server_remote]` / `[server_local]` 输出空段 + 注释；`[mitm]` 只输出
+   `hostname` 跳过列表。手机导入后由负责人从旧配置复制证书与口令两行手工补入再重启代理。
+   `security_scan.py` 的 `TEXT_SUFFIXES` 增加 `.conf`，`validate_quantx` 亦全域拒凭据。
+8. **测试接缝（Q19 /tdd）**：S1 CLI `py scripts/build_quanx.py [--out DIR]`（退出码、落盘、
+   字节可重复）；S2 `build_quantx(root) -> str`（段落齐全、组名一致、`final` 末位、无凭据）；
+   S3 `validate_quantx(text) -> None`（策略引用存在性、`force-policy` 目标存在、正则语法）。
+   不测 PyYAML 解析、私有函数、第三方 URL 可达性、真机可用性。
+
+**[general] 原样保留参数（Q24，逐条注明来源与副作用）**：
+
+- `server_check_url=http://www.gstatic.com/generate_204`：节点延迟测试 URL（http，Q24 覆盖 Q17 的 https 改议）。
+- `server_check_timeout=3000`：测速超时 3000 ms。`geo_location_checker=disabled`：关闭出口 IP 地理位置查询。
+- `excluded_routes`：1 个多播地址 + 4 个游戏 IP 不走 QuanX，原样保留。
+- `dns_exclusion_list`：6 个域名不走 QuanX DNS，原样保留。
+- `udp_drop_list = 443, STUN, QUIC`：静默丢弃 UDP 443/STUN/QUIC（优点：去广告稳定、避免 QUIC 绕过重写；副作用：淘宝/QQ/WebRTC 等可能受影响、HTTP/3 回退 TCP 略慢；需 QX ≥1.5.2）。
+- `[policy]` 自动组统一 `check-interval=1200`、`tolerance=50`（Q17(C)）。
+
+**已知降级与限制（须在报告中写明，不得含糊）**：
+
+- iPhone 上 Google 无「美国优先自动回退」，AI 无独立策略组（Q13）。
+- `RULE-SET,geosite-*` / `GEOIP,LAN` 在 QuanX 侧以 `ip-cidr` 私网段 + 现有远程列表近似（Q22）。
+- 远程 `[filter_remote]` / `[rewrite_remote]` 上游不锁 SHA-256（Q15），限制见 `docs/IOS-QUANTUMULTX.md`。
+- 30 条 `[rewrite_remote]` 重写必须先补证书两行才生效（Q6=B）。
+
 ---
 
 ## 14. 待核验清单【待核验】
@@ -632,6 +693,15 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 14. 本机 Verge 全局扩展（§13.5）只用 FIB 一个订阅验证；其他订阅、断网重连、TUN 重启恢复与 Verge 应用回滚演练未验证；DNS 泄漏已复现（`192.168.2.1:53` 绕过 TUN），护栏见 §9.3；2026-11-13 已重新部署 46/13/33 并通过当前 verify，A 决策的 8 条 CIDR 已应用；旧 `mvpClash0001` 保留作回退。
 15. Tailscale CGNAT 直连规则已进入构建源，但本机现有 Tailscale peer 使用 /32 直连路由，尚未在 TUN 全接管或新增 peer 场景复测；MagicDNS 未启用/未验证。
 16. DNS 泄漏护栏（§9.3）：2026-11-13 已应用 A 决策的 8 条 CIDR 新规则，`dns_guard.py --check` 返回 UDP/TCP/overall OK（exit 0），`192.168.2.10:53` 返回 fake-IP，`192.168.2.1:53` 超时；8 条 CIDR 新规则的 `--remove` 回滚演练已于 2026-11-13 完成并恢复（见 docs/DNS-GUARD.md §5），旧 `/24` 演练记录见 §4.4。
+17. iPhone / QuantumultX（§13.6）另有以下【待核验】：
+    - 导入不含证书与口令两行的 `QuanX.conf` 是否会清除手机上已安装的 MITM 证书；
+      QuanX 对 `force-policy` 指向不存在策略组时的行为（我们已删除 3 条悬空规则，但未离线验证）。
+    - ICU/NSRegularExpression 对 `(?i)`、先行/后行断言、`server-tag-regex` 生成的正则是否真机生效；
+      `节点选择` 改名后在真机是否会静默直连；`final, 兜底分流` 的实际分流是否符合预期。
+    - 30 条 `[rewrite_remote]` 在补证书两行并重启代理后是否全部生效；`udp_drop_list = 443, STUN, QUIC`
+      对 QUIC/游戏 UDP 的副作用；`geoip, cn` + `国内网站` 订阅在国内直连上的真实覆盖率。
+    - 手机端 QuantumultX 自行导入订阅后，12 策略组与 7 地区组能否正确枚举出节点。
+    - 12 组 `img-url=` 远程图标在手机端 QuantumultX 能否加载显示（已实测服务端返回 200 / `image/png`，未做真机显示验证）。
 
 ---
 
@@ -678,3 +748,5 @@ Google 204、YouTube 200，出口 178.83.206.223（ipinfo 显示 HK）。全局�
 | 2026-11-14 | v1.35 | 清理历史分支（本地 8 个、远端 2 个）并修正失效临时路径引用：§13.5 的 `.tmp_verge_apply_backup_20261112-132035` 标注为已清理的一次性目录；同步修正 `docs/VERGE-GLOBAL.md`、`docs/PLATFORM-ACCEPTANCE.md`、`docs/DSH-POCKET.md` 中指向已删除 `.tmp_*` 产物的引用；**需求条款零变更** | 项目负责人（m17817 授权） |
 | 2026-11-14 | v1.36 | 仅同步代码基线为 `b6dca29`（PR #26 合并后的 main），并补记 PR #24（`b25ecc8`）、PR #25（`1204062`）、PR #26（`b6dca29`）合并记录；**本文件需求条款零变更** | 项目负责人（m17960 指令） |
 | 2026-11-15 | v1.37 | 仅同步代码基线为 `fd65f5f`（PR #32 `71b840f` + PR #33 `fd65f5f` 合并后的 main）并记录 `v0.2.0` 发布事实：v1.31 策略组改型与 2026-11-13 的 `dns.fallback#PROXY` 修复此前从未通过 Release 交付，`v0.2.0` 起进入发布包；**本文件需求条款零变更**（§8.1 第 6/7 条与 §9.1 第 12 条的自动 PR 契约已由 PR #33 同批修改） | 项目负责人（m18099 指令） |
+| 2026-11-15 | v1.38 | 按负责人 /grill-me /tdd 共识（Q1–Q24，m18518 起）新增第三平台 **iPhone / QuantumultX**：§1 目标加入 QuantumultX 配置、§2 平台基线新增第三行（标注「非 Mihomo 内核，无 `-t` 离线校验」）、新增 §13.6 实现契约（12 策略组、7 地区正则由 `regions.py` 机械生成、21 条内联规则、9 条远程、证书与订阅凭据永不入库、产物入库固定路径 + CI 逐字节守卫、S1/S2/S3 测试接缝）、§14 补 4 组【待核验】；非目标不变，不进 Release | 项目负责人（m18603「按推荐」） |
+| 2026-11-15 | v1.39 | 负责人「[policy] 策略组中按原代码添加图标」(m18888)：§13.6 第 3 条追加图标契约——12 组每行带 `img-url=`，9 个原有组逐行照抄现用 `QuanX.conf`（Qure `Apple/Auto` + Orz-3 `Global/Final/HK/TW/JP/SG/US`），`韩国节点` 归位 Orz-3 `KR.png`（原错挂于「其他节点」）、`其他节点` 改 Qure `World_Map.png`、新增 `节点选择` 用 Qure `Proxy.png`（负责人 m18923 选「归位+补齐」）；单一数据源 `build_quanx.POLICY_ICONS`，`validate_quantx()` 校验有且仅有一个约定图标，`PolicyIconTest` 5 项；远程 URL 不锁 SHA-256（Q15），不引入 `assets/`，图标只展示不参与分流；非目标不变，其余需求条款零变更 | 项目负责人（m18888 + m18923） |

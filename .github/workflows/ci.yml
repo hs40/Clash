@@ -45,6 +45,9 @@ jobs:
       - name: CI 策略检查
         run: python scripts/ci_policy.py
 
+      - name: 校验 iPhone 配置产物
+        run: python scripts/build_quanx.py --check
+
       - name: 运行测试并生成中文报告
         run: python scripts/ci_report.py --output ci-report.md
 
