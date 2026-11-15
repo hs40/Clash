@@ -325,8 +325,8 @@ DNS 监听与防火墙适配不在构建期模拟，设备兼容性列入 §14 �
 3. **锁定**：`providers/lock.yaml` 记录来源、固定 commit、上游路径、SHA-256、字节数和快照路径；`providers/snapshots/*.list` 是唯一构建输入。构建时逐项校验存在性、字节数和 SHA-256，不一致立即失败。
 4. **内嵌**：构建期把已验证快照渲染为 `rule-providers.<name>.type: inline`，配置自包含，不在运行时下载。两份平台配置因此增大约 2.28 MB，这是已接受的取舍。
 5. **规则引用**：`RULE-SET,<provider>,<target>` 必须恰好三段，Provider 必须存在于锁文件；未知 Provider 使构建失败。
-6. **每周检查**：`.github/workflows/provider-check.yml` 每周一 03:00 UTC 运行 `update_providers.py --check --json`；发现变化时创建或更新 issue，不自动改 `main`。
-7. **应用更新**：负责人本地运行 `python scripts/update_providers.py --apply --commit <40位上游 commit>`；脚本原子写入快照与锁文件，校验 payload，打印建分支/提交/PR 命令，不自动执行 git 或 PR。高风险更新必须经 PR 审查。
+6. **每周检查**：`.github/workflows/provider-check.yml` 每周一 03:00 UTC 运行 `update_providers.py --check --json`；发现变化时自动创建专用分支 `provider/update-<commit 前 12 位>` 与 PR，不直接修改 `main`、不自动合并。已存在待审的 `provider/update-*` PR 时跳过，避免重复堆积。
+7. **应用更新**：工作流与本地都运行 `python scripts/update_providers.py --apply`；脚本原子写入快照与锁文件，校验 payload，省略 `--commit` 时通过 GitHub API 把跟踪 ref 解析为 40 位 commit，并在 `--json` 报告中输出 `commit` 与 `branch`。脚本本身仍不执行 git 或 PR：工作流负责建分支与 PR，本地使用时打印命令由人执行。多来源同时变化时脚本拒绝自动解析，必须人工提供 `--commit`。高风险更新必须经 PR 审查。
 8. **第三方声明**：发布包和仓库包含 `THIRD_PARTY_NOTICES.md` 与 `providers/LICENSE-metacubex.txt`；负责人 2026-11-11 批准在发布包内嵌 GPL-3.0 数据并保留声明。
 9. **版本保留**：GitHub Release 历史不自动删除；负责人至少保留最近五个已验证版本，当前生产版本不得删除。本期不实现自动清理。
 
@@ -361,7 +361,7 @@ CI 工作流 `.github/workflows/ci.yml`：
 9. 敏感信息：`security_scan.py` 扫描仓库文本文件，只报告路径、行号与类型，不回显命中内容；占位标记（如 `PLACEHOLDER`、`NOT-REAL`）不作为真实凭据。
 10. CODEOWNERS：`@hs40` 审查 `.github/`、`scripts/`、`configs/common/`、`security/`、`docs/REQUIREMENTS.md`；高风险失败阻断发布，仅负责人可解除。`ci_policy.py` 只做静态检查；当前分支保护（§9.2）未启用 Require review from Code Owners，因此 CODEOWNERS 目前是归属声明与静态检查，不是合并门禁。负责人 2026-11-11 明确批准策略 A 下的这一 bypass；这是负责人授权，不是 Agent 自行豁免。
 11. 限制：CI 不能替代 §14 的真实网络连通性与 DNS 泄漏测试。
-12. ENG-06 工作流权限：`provider-check.yml` 顶层 `contents: read`、job 级 `issues: write`，只用于创建 Provider 更新 issue；`release.yml` 顶层 `contents: write`，只在 `v*` tag 触发，用于创建 GitHub Release。两者都不引用 Secrets，不使用 `pull_request_target`。
+12. ENG-06 工作流权限：`provider-check.yml` 顶层 `contents: write`、`pull-requests: write`，只用于推送 `provider/update-*` 分支并创建待审 PR，不得推送 `main`、不得自动合并；`release.yml` 顶层 `contents: write`，只在 `v*` tag 触发，用于创建 GitHub Release。两者都不引用 Secrets，不使用 `pull_request_target`。
 13. Provider Check 在 Windows runner 的 job 级设置 `PYTHONUTF8: "1"`，避免中文输出在 cp1252 控制台触发 `UnicodeEncodeError`；`tests/test_ci_policy.py` 对此做静态回归检查。
 
 ### 9.2 远端 main 分支保护（策略 A）【确定，2026-11-11 负责人确认】

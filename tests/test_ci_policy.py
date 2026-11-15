@@ -43,8 +43,8 @@ on:
     - cron: \"0 3 * * 1\"
   workflow_dispatch:
 permissions:
-  contents: read
-  issues: write
+  contents: write
+  pull-requests: write
 jobs:
   check:
     runs-on: windows-latest
@@ -53,6 +53,8 @@ jobs:
         with:
           persist-credentials: false
       - run: python scripts/update_providers.py --check
+      - run: git switch -c provider/update-abc && git push origin provider/update-abc
+      - run: gh pr create --base main --head provider/update-abc
 """
 
 
@@ -63,9 +65,32 @@ class ProviderWorkflowPolicyTest(unittest.TestCase):
     def test_valid_provider_workflow_passes(self):
         self.assertEqual(self.check(), [])
 
-    def test_issue_write_is_required(self):
-        text = VALID_PROVIDER_WORKFLOW.replace("issues: write\n", "")
+    def test_pull_request_write_is_required(self):
+        text = VALID_PROVIDER_WORKFLOW.replace("pull-requests: write\n", "")
         self.assertTrue(any("permissions" in e for e in self.check(text)))
+
+    def test_issue_only_workflow_is_rejected(self):
+        text = VALID_PROVIDER_WORKFLOW.replace(
+            "  contents: write\n  pull-requests: write\n",
+            "  contents: read\n  issues: write\n",
+        )
+        self.assertTrue(any("permissions" in e for e in self.check(text)))
+
+    def test_issue_creation_is_rejected(self):
+        text = VALID_PROVIDER_WORKFLOW + "      - run: gh issue create --title x\n"
+        self.assertTrue(any("issue" in e for e in self.check(text)))
+
+    def test_pull_request_creation_is_required(self):
+        text = VALID_PROVIDER_WORKFLOW.replace("gh pr create", "echo skip")
+        self.assertTrue(any("PR" in e for e in self.check(text)))
+
+    def test_auto_merge_is_rejected(self):
+        text = VALID_PROVIDER_WORKFLOW + "      - run: gh pr merge --squash\n"
+        self.assertTrue(any("合并" in e for e in self.check(text)))
+
+    def test_push_to_main_is_rejected(self):
+        text = VALID_PROVIDER_WORKFLOW + "      - run: git push origin HEAD:main\n"
+        self.assertTrue(any("main" in e for e in self.check(text)))
 
     def test_schedule_is_required(self):
         text = VALID_PROVIDER_WORKFLOW.replace("  schedule:\n    - cron: \"0 3 * * 1\"\n", "")
