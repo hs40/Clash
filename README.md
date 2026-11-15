@@ -163,8 +163,8 @@ v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mih
 .venv\Scripts\python.exe scripts\update_providers.py --apply --commit <40位commit>
 
 # 构建并校验发布包
-.venv\Scripts\python.exe scripts\release.py --version 0.1.1
-.venv\Scripts\python.exe scripts\release.py --verify dist\release\0.1.1
+.venv\Scripts\python.exe scripts\release.py --version 0.2.0
+.venv\Scripts\python.exe scripts\release.py --verify dist\release\0.2.0
 ```
 
 发布目录包含两个平台配置、两个 zip、`SHA256SUMS`、`RELEASE-NOTES.md` 与
