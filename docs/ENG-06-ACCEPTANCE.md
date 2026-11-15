@@ -1,11 +1,12 @@
 # ENG-06 验收报告：Provider、发布与回滚
 
-- 日期：2026-11-11
-- 分支：`docs/eng-06-v0.1.1-release-record`（基于 main `4cb9148`）；代码分支 `fix/release-checksum-assets` 已由 PR #10 合并为 `4cb9148`；发布修正代码提交 `6d0555b`
+- 日期：2026-11-11（首轮）；2026-11-15（`v0.2.0` 发布与 Provider 自动 PR，见 §3.15、§3.16）
+- 分支：`docs/eng-06-v0.1.1-release-record`（基于 main `4cb9148`）；代码分支 `fix/release-checksum-assets` 已由 PR #10 合并为 `4cb9148`；发布修正代码提交 `6d0555b`；`v0.2.0` 记录分支 `docs/release-0.2.0-record`（基于 main `fd65f5f`）
 - 后续 CI 修复：PR #5（squash merge `d4a7a4a`）；Provider Check UTF-8 修复，见 §3.12
-- 发布记录：annotated tag `v0.1.0` 指向 `3c8773f`（Release run 42997351203）；`v0.1.1` 指向 `4cb9148`（Release run 43003842864）
+- 发布记录：annotated tag `v0.1.0` 指向 `3c8773f`（Release run 42997351203）；`v0.1.1` 指向 `4cb9148`（Release run 43003842864）；`v0.2.0` 指向 `fd65f5f`（Release run 43682766770，2026-11-15，见 §3.15）
+- 后续变更（2026-11-15）：每周检查改为自动建 `provider/update-*` 分支并创建待审 PR，见 §3.16
 - 环境：Windows，Python 3.12.3，PyYAML 6.0.3，git 2.55.0，Mihomo v1.19.33（Windows）
-- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.16
+- 需求基线：[REQUIREMENTS.md](REQUIREMENTS.md) v1.37（首轮为 v1.16）
 - 发布修正：`v0.1.1`（负责人 2026-11-11 要求修正 `SHA256SUMS` 资产覆盖并生成新版本）；远端发布、资产校验与配置 `-t` 已完成
 - 回滚手册：[ROLLBACK.md](ROLLBACK.md)
 - 安全策略：[SECURITY.md](SECURITY.md)
@@ -16,7 +17,10 @@
   解出配置 `-t` 均通过，干净本地构建可复现远端 zip 哈希。Release 的 `CONFIG-DIFF.md`
   在干净检出中仍显示“未找到上一版本”，作为已知遗留记录。平台部署已将内嵌 Provider 的
   构建产物写入 iStoreOS 并通过 `mihomo -t`；Release zip 本身未单独在设备上重测，因此
-  ENG-06 保留“本地完成、远端 Provider Check/Release 通过；Release 包设备重测待完成”。**
+  ENG-06 保留“本地完成、远端 Provider Check/Release 通过；Release 包设备重测待完成”。
+  2026-11-15 追加：`v0.2.0`（run 43682766770）已发布并通过资产下载校验与配置 `-t`，
+  首次把 v1.31 策略组改型与 `dns.fallback#PROXY` 修复交付到 Release；每周检查改为自动
+  建 `provider/update-*` 分支并创建待审 PR，但该路径尚未在真实运行中触发（见 §3.16、§5 第 9 项）。**
 
 ---
 
@@ -24,9 +28,9 @@
 
 | 任务 | 状态 | 提交 |
 | --- | --- | --- |
-| ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI、Provider Check、v0.1.0/v0.1.1 Release 与 issue 创建远端通过；iStoreOS 设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` + `6d0555b` + `4cb9148` + 本记录 |
+| ENG-06 Provider、发布与回滚 | 已合并 main；PR CI、main CI、Provider Check、v0.1.0/v0.1.1/v0.2.0 Release 与 issue 创建远端通过；Provider 自动 PR 已实现但未在真实运行触发；iStoreOS 设备重测待验证 | `d05611e` + `c3436d3` + `d4a7a4a` + `6d0555b` + `4cb9148` + `71b840f` + `fd65f5f` + 本记录 |
 
-本地自动化测试：**188 项通过，0 失败，0 错误**（195.607 秒）。
+本地自动化测试：**402 项通过，0 失败，0 错误**（2026-11-15 复跑；2026-11-11 基线为 188 项）。
 
 关键证据：
 
@@ -261,6 +265,16 @@ OK
 独立校验、篡改压缩包失败路径、Provider 与 Release 工作流策略，以及 Provider Check
 的 UTF-8 控制台回归测试。**通过。**
 
+2026-11-15 复跑（`scripts/ci_report.py --output ci-report.md`，含 PR #32 与 PR #33 的全部
+改动）：
+
+```text
+测试报告：ci-report.md（402 项，失败/错误 0 项）
+```
+
+`ci-report.md` 汇总为测试总数 402、通过 402、失败 0、错误 0、跳过 0。新增 13 项来自
+Provider 自动 PR 的 commit 解析、分支命名与 CI 策略契约测试。**通过。**
+
 ### 3.11 PR CI
 
 PR #3（https://github.com/hs40/Clash/pull/3）的必需检查 `test` 已通过：
@@ -373,6 +387,82 @@ main 未改动，当前无开放 issue。**清理通过。**
   没有从 GitHub 上一 Release 取比较基线。该限制不影响 `SHA256SUMS`、zip 与配置正确性，
   本版不扩展修复范围，记入第 5 节。
 
+### 3.15 v0.2.0 发布与自动 PR 上线（2026-11-15）
+
+**背景。** 2026-11-11 之后 main 上累积了 17 个提交，其中两项能力从未通过 Release 交付：
+v1.31 策略组改型（七个地区入口与 `自动选择` 改 `url-test`、`OpenAI` 改 `fallback`、
+13 组 PNG 图标）与 2026-11-13 的 `dns.fallback` `#PROXY` 修复。`dist/release/0.1.1` 内的
+配置 2,282,018 字节，既不含 `dns-query#PROXY` 也不含 `data:image/png`；当前构建产物
+2,462,617 字节两者都有。负责人 2026-11-15 要求升版本并发布。
+
+**变更。** `VERSION` 0.1.1 → 0.2.0；`tests/test_release.py` 改为从仓库根 `VERSION` 读取
+版本，避免版本升级时测试写死失败；README 发布命令示例同步。同一批次把每周 Provider
+检查从「只开 issue」改为「推送 `provider/update-<commit 前 12 位>` 分支并创建待审 PR」，
+见 §3.16。
+
+**本地证据。**
+- 全量测试 `Ran 402 tests` / `OK` / 175.520 秒（Provider 自动 PR 分支），基线 389 项；
+  VERSION 分支单独运行 389 项通过，耗时 198.083 秒。
+- 门禁均退出码 0：`build.py --platform all`、`security_scan.py`、`ci_policy.py`、
+  `check_dependencies.py`。
+- `release.py --version 0.2.0` 与 `release.py --verify dist\release\0.2.0` 均退出码 0。
+- 本地 `dist/release/0.2.0`：`openclash-0.2.0.zip` 645,970 B / `aa5e56a7...`、
+  `windows-0.2.0.zip` 646,018 B / `234f5bc5...`；`CONFIG-DIFF.md` 正确识别上一版本
+  0.1.1：策略组 13→13、规则 26→33（新增 7 条 Tailscale/Cloudflare 特殊层）、Provider 2→2。
+
+**远端证据（`v0.2.0`，2026-11-15）。**
+- PR #32（`chore/release-0.2.0`）必需检查 `test` run 43681967802 success，squash merge 为
+  `71b840f`（mergedAt 2026-11-15T05:41:55Z）；PR #33（`feat/provider-auto-pr`）必需检查
+  `test` run 43682264557 success，squash merge 为 `fd65f5f`（05:46:16Z）。PR #33 合并前
+  因 main 前进执行过一次 `gh pr update-branch`。
+- main CI：run 43682189704（head `71b840f`）与 run 43682497633（head `fd65f5f`）均 success。
+- annotated tag `v0.2.0` 指向 `fd65f5f`；Release run 43682766770 / job 132716750460
+  success，耗时 3 分 35 秒，创建
+  https://github.com/hs40/Clash/releases/tag/v0.2.0 。
+- Release 资产恰好 3 个：`openclash-0.2.0.zip` 645,804 B / SHA-256
+  `6b76e34012771e83d9baaa9e5b2669518efea06fb83b6fd3512e699c3ff34dc8`；
+  `windows-0.2.0.zip` 645,852 B / SHA-256
+  `55bea9a3905aec777b558021b225b23f5755bb94421de2b9516b9d995e216259`；
+  `SHA256SUMS` 170 B（恰好两行，与两个 zip 一致）。
+- 用 `gh release download v0.2.0` 下载到 `.tmp_release_remote_020` 后独立计算哈希，
+  与清单逐行一致；两个 zip 的成员均恰好为 `CONFIG-DIFF.md`、`LICENSE-metacubex.txt`、
+  `THIRD_PARTY_NOTICES.md`、`config.yaml`。
+- 解出的配置 2,462,495 字节（OpenClash）/ 2,462,616 字节（Windows），SHA-256
+  `5361b337349d80778a28c4ad590f6c2aad327beefcf7b80f5d75d5bc720ca490`（OpenClash）与
+  `0352c9cfea60193c8cfca6deda100d50970f7398307d2a3feb1cc0037fab88d3`（Windows），
+  与本地 `dist/release/0.2.0` 解出配置哈希完全相同。
+- 两份解出配置均包含 `dns-query#PROXY` 与 `data:image/png`；`v0.1.1` 包内配置两者皆无。
+- 本机 Mihomo Meta v1.19.33 对解出配置执行 `-t` 均退出 0（OpenClash 2,205 ms，
+  Windows 1,455 ms）。
+- 已知限制不变：远端 `CONFIG-DIFF.md` 在干净检出中构建，仍显示「未找到上一版本」；
+  Release zip 本身仍未在 iStoreOS 设备上解包重测。**发布链路通过，设备重测仍为遗留。**
+
+### 3.16 Provider 自动分支与待审 PR（2026-11-15 变更）
+
+**变更。** 此前每周检查只 `gh issue create`，建分支与 PR 由人手工执行
+（`scripts/update_providers.py:155-161` 仅打印命令）。负责人 2026-11-15 要求自动创建分支与 PR。
+
+**实现。**
+- `.github/workflows/provider-check.yml` 权限由 `contents: read` + `issues: write` 改为
+  `contents: write` + `pull-requests: write`；新增步骤「Open review pull request when
+  upstream changed」：上游无变化则退出；`gh pr list --state open --json number,headRefName`
+  命中 `provider/update-*` 则跳过以避免重复堆积；否则执行 `update_providers.py --apply`，
+  用返回的 `branch` 建分支、提交 `providers/lock.yaml` 与 `providers/snapshots`、推送，
+  再 `gh pr create --base main`。不推送 `main`、不自动合并。
+- `scripts/update_providers.py` 新增 `COMMIT_API`、`BRANCH_PREFIX = "provider/update-"`、
+  `commit_url()`、`resolve_commit()`（省略 `--commit` 时经 GitHub API 把跟踪 ref 解析为
+  40 位 commit；多来源同时变化时抛错要求人工指定）；`--json` 报告新增 `commit` 与 `branch`。
+- `scripts/ci_policy.py` 新增 `PROVIDER_PERMISSIONS` 精确相等校验与 `PUSH_MAIN_RE`，
+  强制 `gh pr create`，拒绝 `gh issue create`、`gh pr merge` 与推送 `main`。
+
+**测试。** `tests/test_ci_policy.py` 换新契约并新增 5 条（拒绝 issue-only 工作流、拒绝
+`gh issue create`、要求 `gh pr create`、拒绝自动合并、拒绝推送 main）；
+`tests/test_update_providers.py` 新增 `ResolveCommitTest`（5 条）与 `ApplyCommandTest`
+（3 条）。分支 B 全量 402 项通过（175.520 秒），比基线 389 项多 13 项。
+
+**未验证项。** 该工作流的实际运行（`gh auth setup-git`、分支推送与 PR 创建）尚未在
+GitHub Actions 上触发过，因为需要上游 Provider 真实变化才会进入该路径；见第 5 节第 9 项。
+
 ---
 
 ## 4. 需求偏差与负责人决策
@@ -405,6 +495,8 @@ main 未改动，当前无开放 issue。**清理通过。**
 3. **iStoreOS 的 Release 包未重测。** 内嵌 Provider 后 OpenClash 配置为 2,282,408 字节；
    平台部署已将构建产物写入设备 `clash-platform.yaml` 并通过 `mihomo -t`，但 Release zip
    本身未单独解包重测。旧产物 4,006 字节的 `-t` 结果不能代表新产物。
+   `v0.2.0` 的 OpenClash 配置为 2,462,495 字节，同样只在本机 Mihomo v1.19.33 上通过
+   `-t`，仍未在 iStoreOS 设备上解包重测。
 4. **NAS/HAOS/Proxmox 仍环境阻塞。** 与 ENG-04 相同，未做端到端透明代理/DNS 验证。
 5. **GPL 许可证文件来源。** 固定 commit `458e716...` 的 `meta` 分支根目录没有
    LICENSE；`providers/LICENSE-metacubex.txt` 取自仓库 master 根目录（35,149 字节，
