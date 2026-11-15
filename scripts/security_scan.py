@@ -29,14 +29,14 @@ PATTERNS = (
     (
         "疑似密钥赋值",
         re.compile(
-            r"(?i)\b(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)\b"
+            r"(?i)\b(?:password|passwd|pwd|passphrase|p12|secret|token|api[_-]?key|access[_-]?key)\b"
             r"\s*[:=]\s*['\"]?([^\s'\"]{8,})"
         ),
     ),
     (
         "订阅链接凭据",
         re.compile(
-            r"https?://[^\s]*[?&](?:token|key|secret|sub|subscription)=([^&\s]{8,})"
+            r"https?://[^\s]*[?&](?:token|key|secret|sub|subscription|clash)=([^&\s]{8,})"
         ),
     ),
     (
@@ -52,6 +52,7 @@ SKIP_DIRS = {
     ".mypy_cache",
     ".pytest_cache",
     "node_modules",
+    ".memsearch",
 }
 TEXT_SUFFIXES = {
     ".py",
@@ -65,6 +66,7 @@ TEXT_SUFFIXES = {
     ".cfg",
     ".sh",
     ".ps1",
+    ".conf",
 }
 TEXT_NAMES = {
     ".gitignore",

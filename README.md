@@ -1,13 +1,17 @@
 # Clash 配置工程（hs40/Clash）
 
 用一套公共配置，生成 **Windows（Clash Verge Rev）** 与 **OpenClash（iStoreOS 旁路由）**
-两份完整的 Mihomo 配置：
+两份完整的 Mihomo 配置，以及 **iPhone（QuantumultX）** 的分节 INI 配置：
 
 ```
 configs/common/*.yaml  ─┐
-configs/windows/*.yaml ─┼─> scripts/build.py ─> dist/windows/config.yaml
-configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
+configs/windows/*.yaml ─┼─> scripts/build.py       ─> dist/windows/config.yaml
+configs/openclash/*.yaml┘                        └─> dist/openclash/config.yaml
+
+configs/quantumultx/platform.conf ─> scripts/build_quanx.py ─> quantumultx/QuanX.conf
 ```
+
+iPhone 侧非 Mihomo 内核、无 `-t` 离线校验，详见 [docs/IOS-QUANTUMULTX.md](docs/IOS-QUANTUMULTX.md)。
 
 - 需求基线：[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
 - MVP 验收报告：[docs/MVP-ACCEPTANCE.md](docs/MVP-ACCEPTANCE.md)
@@ -18,6 +22,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 - ENG-05 验收报告：[docs/ENG-05-ACCEPTANCE.md](docs/ENG-05-ACCEPTANCE.md)
 - ENG-06 验收报告：[docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md)
 - 平台部署验收报告：[docs/PLATFORM-ACCEPTANCE.md](docs/PLATFORM-ACCEPTANCE.md)
+- iPhone / QuantumultX 使用说明：[docs/IOS-QUANTUMULTX.md](docs/IOS-QUANTUMULTX.md)
 - 回滚手册：[docs/ROLLBACK.md](docs/ROLLBACK.md)
 - 本机 Verge 全局复用：[docs/VERGE-GLOBAL.md](docs/VERGE-GLOBAL.md)
 - 安全策略：[docs/SECURITY.md](docs/SECURITY.md)
@@ -30,7 +35,7 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 | 类别 | 路径 | 是否入库 | 说明 |
 | --- | --- | --- | --- |
 | 公共配置源 | `configs/common/` | 是 | 节点、策略组、DNS、规则、全局标量 |
-| 平台配置源 | `configs/windows/`、`configs/openclash/` | 是 | 仅平台专属键 |
+| 平台配置源 | `configs/windows/`、`configs/openclash/`、`configs/quantumultx/` | 是 | Mihomo 侧仅平台专属键；QuantumultX 侧为 INI 模板 |
 | 构建与安全检查脚本 | `scripts/` | 是 | 构建、Provider 校验/更新、发布、依赖锁定、敏感扫描、Mihomo 校验、CI 报告/策略 |
 | Provider 锁与快照 | `providers/` | 是 | 固定 commit、SHA-256、字节数和内嵌数据 |
 | 第三方声明 | `THIRD_PARTY_NOTICES.md` | 是 | MetaCubeX 数据来源与 GPL-3.0 说明 |
@@ -45,6 +50,8 @@ configs/openclash/*.yaml┘                   └─> dist/openclash/config.yaml
 
 原则：**源文件入库，产物不入库**。产物必须能由源文件重复构建得到，
 因此产物中不允许出现无法重建的内容（时间戳、随机值、真实订阅）。
+**唯一破例**：`quantumultx/QuanX.conf` 入库（手机需从固定 URL 下载），由 CI 的
+`build_quanx.py --check` 守卫逐字节一致；它不进 Release，详见 `docs/IOS-QUANTUMULTX.md`。
 
 合并契约（详见 REQUIREMENTS §11）：`platform.yaml` 是 Mihomo 顶层片段，构建时做
 **顶层浅合并**，每个顶层键只有一个所有者；白名单之外的键、公共与平台重复定义的键、
@@ -78,6 +85,7 @@ py -m venv .venv
 
 ```powershell
 .venv\Scripts\python.exe scripts\build.py --platform all
+.venv\Scripts\python.exe scripts\build_quanx.py --out quantumultx
 ```
 
 - `--platform`：`all`（默认用法）、`windows` 或 `openclash`。
@@ -93,6 +101,11 @@ py -m venv .venv
 ```
 
 相同输入必须产生字节一致的输出：键顺序固定、无时间戳、UTF-8 无 BOM、LF 换行。
+
+iPhone 配置单独构建（不参与 `build.py --platform all`）：`scripts/build_quanx.py` 读
+`configs/quantumultx/platform.conf`，按 `scripts/regions.py` 机械生成 7 地区 `server-tag-regex`，
+经 `validate_quantx()` 结构校验后写 `quantumultx/QuanX.conf`。`--check` 校验入库产物与重新
+构建逐字节一致（CI 守卫），`--out DIR` / `--root DIR` 用法同上。详见 `docs/IOS-QUANTUMULTX.md`。
 
 ## 测试
 
@@ -118,7 +131,8 @@ py -m venv .venv
 - DNS：双平台共用同一份 DNS、Fake-IP 与 IPv4-only、Filter 4 条、国内外服务器分离、
   节点域名独立解析、无自指循环、Windows `dns-hijack`，以及多类静态校验失败路径；
 - 依赖锁定：未固定版本、缺哈希、格式错误、重复依赖被拒绝；
-- 敏感信息：私钥、Token、Access Key、通用密钥赋值与订阅链接凭据被识别，占位值不误报；
+- 敏感信息：私钥、Token、Access Key、证书/口令赋值（含 `.conf`）、`?clash=` 订阅链接凭据被识别，占位值不误报；
+- iPhone / QuantumultX：CLI 落盘与 `--check`、12 段/12 组、7 地区正则与 `classify_node()` 交叉验证、21 条内联规则、9/30 条远程计数、证书与订阅凭据拒绝、CI 守卫（S1/S2/S3）；
 - Mihomo：清单字段/版本/哈希校验、`-v` 版本匹配；
 - CI：中文报告计数与失败详情、工作流权限/SHA/触发条件、CODEOWNERS 核心路径；
   Provider 检查工作流与 tag Release 工作流的权限、触发和命令校验；
@@ -142,7 +156,7 @@ py -m venv .venv
 
 CI 定义在 `.github/workflows/ci.yml`：PR 与 `main` push 自动运行，固定 Action SHA、
 只读权限、依赖哈希安装、双平台构建、敏感扫描、中文测试报告，并下载/校验 Mihomo
-v1.19.33 后对两份产物执行 `-t`。Mihomo 版本与哈希见 `security/mihomo.yaml`。
+v1.19.33 后对两份产物执行 `-t`，并用 `build_quanx.py --check` 守卫 iPhone 入库产物逐字节一致。Mihomo 版本与哈希见 `security/mihomo.yaml`。
 
 远端 main push CI、PR CI 与 main 分支保护策略 A 已通过/启用；CODEOWNERS 强制未启用（负责人 @hs40 已明确批准该 bypass，属单人仓库限制）；`ci-report.md` 为生成物，不提交。
 
