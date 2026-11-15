@@ -251,7 +251,19 @@ main push CI、PR CI 与 main 分支保护策略 A 已验证；CODEOWNERS 强制
 `3016674d09f82493df4572d588ff37a5a4f803b3e748713eecc0ab4661f6efa5`）；下载后
 独立哈希校验通过，解出的配置在本机 Mihomo v1.19.33 上 `-t` 通过。干净目录本地构建
 可复现上述远端 zip 哈希。
-Provider Check 的 issue 创建路径也用临时分支实际验证（issue #6 创建，随后 #6–#8 全部关闭）。
+
+2026-11-15 发布 `v0.2.0`（annotated tag 指向 `fd65f5f`，Release run 43682766770），
+资产 `openclash-0.2.0.zip` 645,804 B（SHA-256
+`6b76e34012771e83d9baaa9e5b2669518efea06fb83b6fd3512e699c3ff34dc8`）、
+`windows-0.2.0.zip` 645,852 B（SHA-256
+`55bea9a3905aec777b558021b225b23f5755bb94421de2b9516b9d995e216259`）与
+`SHA256SUMS` 170 B。这是 v1.31 策略组改型（地区组 `url-test`、OpenAI `fallback`、13 组
+PNG 图标）与 2026-11-13 `dns.fallback` `#PROXY` 修复**首次进入 Release** 的版本：`v0.1.1`
+包内配置 2,282,018 字节，不含 `dns-query#PROXY` 与 `data:image/png`；`v0.2.0` 解出的配置
+2,462,495 / 2,462,616 字节，两者都有，下载后独立哈希与配置 `-t` 均通过。
+Provider Check 的 issue 创建路径也用临时分支实际验证（issue #6 创建，随后 #6–#8 全部关闭）；
+2026-11-15 起该工作流改为推送 `provider/update-*` 分支并创建待审 PR，此前的 issue 创建
+路径已废止，新路径尚未在真实上游变化时触发过（见 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.16）。
 已知限制：Release 工作流在干净检出中构建，`CONFIG-DIFF.md` 会显示“未找到上一版本”，
 尚未实现从上一 GitHub Release 读取比较基线；详见
 [docs/ENG-06-ACCEPTANCE.md](docs/ENG-06-ACCEPTANCE.md) §3.14 与 §5。

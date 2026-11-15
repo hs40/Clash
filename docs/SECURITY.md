@@ -3,7 +3,9 @@
 - 依据：[REQUIREMENTS.md](REQUIREMENTS.md) §9 与 §9.1。
 - 状态：本地 CI 配置、依赖锁定、敏感信息扫描、Mihomo 固定校验、CODEOWNERS 文件、
   Provider 锁定/内嵌、发布校验与回滚文档已完成；远端 main push CI、PR CI、main 分支保护
-  策略 A、Provider Check 与 `v0.1.0`/`v0.1.1` Release 已实际运行/启用并通过验证。
+  策略 A、Provider Check 与 `v0.1.0`/`v0.1.1`/`v0.2.0` Release 已实际运行/启用并通过验证。
+  2026-11-15 起每周检查改为自动建 `provider/update-*` 分支并创建待审 PR（不推 main、
+  不自动合并），该路径尚未在真实上游变化时触发过。
   CODEOWNERS 的实际合并门禁未启用，负责人 @hs40 已于 2026-11-11 明确批准该 bypass；
   这是单人仓库下的已知限制。
 - 适用范围：本仓库的构建脚本、公共配置、安全清单、GitHub Actions 与发布流程。
@@ -105,6 +107,14 @@
   `3016674d...` 与 `windows-0.1.1.zip` 511,738 B / `e55796c9...`，独立哈希、
   zip 结构、解出配置与 `-t` 均通过；干净本地目录构建复现相同哈希。详见
   [ENG-06-ACCEPTANCE.md](ENG-06-ACCEPTANCE.md) §3.14、§5。
+- 2026-11-15 推送 annotated tag `v0.2.0`（指向 `fd65f5f`），Release run 43682766770 成功，
+  资产为 `openclash-0.2.0.zip` 645,804 B / `6b76e340...`、`windows-0.2.0.zip` 645,852 B /
+  `55bea9a3...`、`SHA256SUMS` 170 B；下载后独立哈希、zip 结构、解出配置与 `-t` 均通过。
+  同一批次把 Provider Check 的权限由 `contents: read` + `issues: write` 提升为
+  `contents: write` + `pull-requests: write`，用于推送 `provider/update-*` 分支与创建
+  待审 PR；`ci_policy.py` 静态拒绝推送 `main`、`gh pr merge` 与 `gh issue create`。
+  该权限变更属高风险策略调整，由负责人 2026-11-15 指示实施，详见
+  [ENG-06-ACCEPTANCE.md](ENG-06-ACCEPTANCE.md) §3.15、§3.16。
 
 ## 9. 尚未完成与限制
 
