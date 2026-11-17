@@ -68,6 +68,20 @@ class ProductionRulesTest(unittest.TestCase):
             self.assertEqual(by_suffix.get(domain), target, domain)
         self.assertIn("DOMAIN-KEYWORD,tracker,DIRECT", self.rules)
 
+    def test_aqhouse_direct_rules_are_in_special_layer(self):
+        # 负责人 2026-11-17「按推荐执行」：aqhouse 域名整域 + IP /32 直连。
+        self.assertIn("DOMAIN-SUFFIX,aqhouse.net,DIRECT", self.rules)
+        self.assertIn("IP-CIDR,202.104.194.190/32,DIRECT,no-resolve", self.rules)
+        # 必须位于 special 层（在 business 的 Google 规则之前）。
+        self.assertLess(
+            self.rules.index("DOMAIN-SUFFIX,aqhouse.net,DIRECT"),
+            self.rules.index("DOMAIN-SUFFIX,google.com,Google"),
+        )
+        self.assertLess(
+            self.rules.index("IP-CIDR,202.104.194.190/32,DIRECT,no-resolve"),
+            self.rules.index("DOMAIN-SUFFIX,google.com,Google"),
+        )
+
 
 def make_rules():
     return {

@@ -304,7 +304,7 @@ class ScriptBehaviorTest(unittest.TestCase):
             {"geosite-cn", "geosite-private"},
         )
         self.assertEqual(self.result["rules"], expected)
-        self.assertEqual(len(expected), 33)
+        self.assertEqual(len(expected), 35)  # v1.41 新增 2 条 aqhouse 直连（33 → 35）
         self.assertEqual(self.result["rules"][-1], "MATCH,PROXY")
 
     def test_only_mvp_providers_remain(self):

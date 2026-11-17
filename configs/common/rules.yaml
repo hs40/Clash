@@ -28,6 +28,14 @@ rules:
     - priority: 170
       rule: DOMAIN-SUFFIX,ts.net,DIRECT
 
+    # aqhouse（负责人 2026-11-17「按推荐执行」）：域名整域 + 主机 IP /32 直连。
+    # 来源：http://www.aqhouse.net/ 、http://202.104.194.190:88/web/
+    # 说明：IP 规则无法限定 88 端口，按 /32 全端口直连；GEOIP,CN 兜底之外的显式声明。
+    - priority: 180
+      rule: DOMAIN-SUFFIX,aqhouse.net,DIRECT
+    - priority: 190
+      rule: IP-CIDR,202.104.194.190/32,DIRECT,no-resolve
+
   # 2. 业务规则（ENG-02 最小代表集；业务名单保持在仓库内联，不使用 Provider）
   business:
     # Google → Google 组（美国优先，组内自动回退）
