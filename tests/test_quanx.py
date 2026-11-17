@@ -228,7 +228,8 @@ class BuildQuantxTest(unittest.TestCase):
 
     def test_inline_rule_count_and_deleted_business_rules(self):
         body = _body(self.text, "[filter_local]")
-        self.assertEqual(len(body), 21)
+        # 负责人 2026-11-17 新增 2 条 aqhouse 直连（21 → 23）。
+        self.assertEqual(len(body), 23)
         joined = "\n".join(body)
         for domain in (
             "google.com", "googleapis.com", "gstatic.com", "googleusercontent.com",
@@ -236,6 +237,20 @@ class BuildQuantxTest(unittest.TestCase):
             "anthropic.com", "claude.ai", "cursor.com", "cursor.sh",
         ):
             self.assertNotIn(domain, joined)
+
+    def test_aqhouse_direct_rules_are_in_filter_local(self):
+        body = _body(self.text, "[filter_local]")
+        self.assertIn("host-suffix, aqhouse.net, direct", body)
+        self.assertIn("ip-cidr, 202.104.194.190/32, direct", body)
+        # 必须位于 final 兜底之前。
+        self.assertLess(
+            body.index("host-suffix, aqhouse.net, direct"),
+            body.index("final, 兜底分流"),
+        )
+        self.assertLess(
+            body.index("ip-cidr, 202.104.194.190/32, direct"),
+            body.index("final, 兜底分流"),
+        )
 
     def test_remote_entry_counts(self):
         remote = [

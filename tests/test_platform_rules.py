@@ -46,7 +46,7 @@ class PlatformRuleTest(unittest.TestCase):
 
     def test_compiled_rule_count_and_match_last(self):
         rules = compiled_rules()
-        self.assertEqual(len(rules), 33)
+        self.assertEqual(len(rules), 35)  # v1.41 新增 2 条 aqhouse 直连（33 → 35）
         self.assertEqual(rules[-1], "MATCH,PROXY")
         self.assertEqual(rules.count("MATCH,PROXY"), 1)
 
